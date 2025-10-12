@@ -1,0 +1,41 @@
+import { useMemo } from "react";
+import {
+  type ReceivedChatMessage,
+  type TextStreamData,
+  useChat,
+  useRoomContext,
+  useTranscriptions,
+} from "@livekit/components-react";
+import { Room } from "livekit-client";
+
+function transcriptionToChatMessage(textStream: TextStreamData, room: Room): ReceivedChatMessage {
+  return {
+    id: textStream.streamInfo.id,
+    timestamp: textStream.streamInfo.timestamp,
+    message: textStream.text,
+    from:
+      textStream.participantInfo.identity === room.localParticipant.identity
+        ? room.localParticipant
+        : Array.from(room.remoteParticipants.values()).find(
+            (p) => p.identity === textStream.participantInfo.identity
+          ),
+  };
+}
+
+export default function useChatAndTranscription() {
+  const transcriptions: TextStreamData[] = useTranscriptions();
+  const chat = useChat();
+  const room = useRoomContext();
+
+  const mergedTranscriptions = useMemo(() => {
+    const merged: Array<ReceivedChatMessage> = [
+      ...transcriptions.map((transcription) =>
+        transcriptionToChatMessage(transcription, room)
+      ),
+      ...chat.chatMessages,
+    ];
+    return merged.sort((a, b) => a.timestamp - b.timestamp);
+  }, [transcriptions, chat.chatMessages, room]);
+
+  return { messages: mergedTranscriptions, send: chat.send };
+}

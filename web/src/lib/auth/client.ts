@@ -1,0 +1,35 @@
+import env from "@/env";
+import { createAuthClient } from "better-auth/react";
+import {
+  magicLinkClient,
+  inferAdditionalFields,
+} from "better-auth/client/plugins";
+import { dodopaymentsClient } from "@dodopayments/better-auth";
+import type { auth } from "./server";
+
+export const authClient = createAuthClient({
+  plugins: [magicLinkClient(), inferAdditionalFields<typeof auth>(), dodopaymentsClient()],
+});
+
+export const {
+  signIn,
+  signOut,
+  signUp,
+  revokeSession,
+  updateUser,
+  getSession,
+  magicLink,
+  changePassword,
+  resetPassword,
+  sendVerificationEmail,
+  changeEmail,
+  deleteUser,
+  linkSocial,
+  forgetPassword,
+  useSession,
+  verifyEmail,
+  listAccounts,
+  listSessions,
+  revokeOtherSessions,
+  revokeSessions,
+} = authClient;

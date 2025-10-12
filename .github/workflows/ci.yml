@@ -1,0 +1,167 @@
+name: Multi-Service CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.changes.outputs.web }}
+      memory: ${{ steps.changes.outputs.memory }}
+      voice: ${{ steps.changes.outputs.voice }}
+      desktop: ${{ steps.changes.outputs.desktop }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Task Runner
+        uses: extractions/setup-just@v1
+        
+      - name: Detect package changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            web:
+              - 'web/**'
+            memory:
+              - 'memory-use/**'
+            voice:
+              - 'voice-agent/**'
+            desktop:
+              - 'virtual-desktop-agent/**'
+
+  deploy-web:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Task Runner
+        uses: extractions/setup-just@v1
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Deploy Web App
+        run: |
+          cd web
+          pnpm install
+          just deploy:web
+          
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  deploy-memory:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.memory == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Task Runner
+        uses: extractions/setup-just@v1
+        
+      - name: Deploy Memory Service
+        run: just deploy:memory
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-voice:  
+    needs: detect-changes
+    if: needs.detect-changes.outputs.voice == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Task Runner
+        uses: extractions/setup-just@v1
+        
+      - name: Deploy Voice Agent
+        run: just deploy:voice
+        env:
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+
+  build-desktop:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Task Runner
+        uses: extractions/setup-just@v1
+        
+      - name: Build Desktop Template
+        run: just deploy:template
+        env:
+          E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+
+  # Quality checks (run on all PRs)
+  quality-check:
+    needs: detect-changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Task Runner
+        uses: extractions/setup-just@v1
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Setup uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          
+      - name: Run Quality Checks
+        run: just lint
