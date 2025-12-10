@@ -1,8 +1,18 @@
+"use client";
+
+import { motion } from "framer-motion";
+
 export function PoweredBy() {
   return (
     <section className="bg-background border-b border-border/50">
       <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
-        <div className="flex flex-col items-center justify-center gap-3">
+        <motion.div 
+          className="flex flex-col items-center justify-center gap-3"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.6 }}
+        >
           <span className="text-xs text-muted-foreground/70 uppercase tracking-wider">
             Powered by
           </span>
@@ -19,7 +29,7 @@ export function PoweredBy() {
               className="h-7 w-auto dark:invert"
             />
           </a>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

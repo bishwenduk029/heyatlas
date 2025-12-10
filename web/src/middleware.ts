@@ -10,8 +10,6 @@ export default async function authMiddleware(request: NextRequest) {
     pathname.startsWith("/signup") ||
     pathname.startsWith("/auth/sent");
 
-  
-
   // 使用 better-auth 推荐的辅助函数检查会话 cookie
   const sessionCookie = getSessionCookie(request);
   const hasSession = !!sessionCookie;

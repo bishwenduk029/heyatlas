@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { ArrowRight, CheckCircle } from "lucide-react";
@@ -12,7 +15,13 @@ export function CallToAction() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)]" />
 
       <div className="relative mx-auto max-w-4xl px-6 lg:px-8">
-        <div className="space-y-8 text-center">
+        <motion.div 
+          className="space-y-8 text-center"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.7 }}
+        >
           {/* Icon */}
           <div className="bg-primary/10 mx-auto flex h-16 w-16 items-center justify-center rounded-2xl backdrop-blur-sm">
             <Logo className="text-primary h-10 w-10" variant="icon-only" />
@@ -24,7 +33,7 @@ export function CallToAction() {
               Ready for your AI assistant?
             </h2>
             <p className="text-muted-foreground mx-auto max-w-3xl text-xl leading-relaxed">
-              Start your 14-day free trial and experience the future of digital assistance
+              Get started with our free plan and experience the power of AI assistance
             </p>
           </div>
 
@@ -32,7 +41,7 @@ export function CallToAction() {
           <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-emerald-500" />
-              <span>14-Day Free Trial</span>
+              <span>Free Plan Available</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-blue-500" />
@@ -40,7 +49,7 @@ export function CallToAction() {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-purple-500" />
-              <span>Cancel Anytime</span>
+              <span>Upgrade Anytime</span>
             </div>
           </div>
 
@@ -52,7 +61,7 @@ export function CallToAction() {
               asChild
             >
               <Link href="/signup">
-                Start Free Trial
+                Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
@@ -71,7 +80,7 @@ export function CallToAction() {
           {/* <p className="text-sm text-muted-foreground pt-4">
             No setup fees • Cancel anytime • Trusted by 2,500+ developers
           </p> */}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional, Union
 
+import httpx
 from e2b_desktop import Sandbox
 
 from .interface import VirtualComputerProvider
@@ -40,6 +41,10 @@ class E2BProvider(VirtualComputerProvider):
             port=8003,
             startup_command="bash -lc 'cd {home}/agents && uv venv && uv pip install claude_agent-0.1.0-py2.py3-none-any.whl && uv run claude-agent >> {log_file} 2>&1'",
         ),
+        "opencode": AgentConfig(
+            port=8004,
+            startup_command="bash -lc 'cd {home}/agents && bun opencode-bridge.js >> {log_file} 2>&1'",
+        ),
     }
 
     def __init__(self):
@@ -56,111 +61,97 @@ class E2BProvider(VirtualComputerProvider):
         )
         self._vnc_stream: Optional[str] = None
 
-    def _process_config_template(
-        self, user_id: str, virtual_key: Optional[str] = None
-    ) -> str:
-        """
-        Process goose.config.yaml template to substitute user ID.
+    def _fetch_config_from_api(self, agent_type: str, user_id: str) -> Optional[str]:
+        """Fetch agent configuration from the Web API."""
+        web_url = os.getenv("WEB_URL", "http://localhost:3000")
+        api_key = os.getenv("NIRMANUS_API_KEY")
 
-        Args:
-            user_id: User ID to substitute in the template
-            virtual_key: Optional Bifrost virtual key to substitute
-
-        Returns:
-            Processed configuration content as string
-        """
-        # Read the template file from local directory
-        config_path = os.path.join(os.path.dirname(__file__), "goose.config.yaml")
+        if not api_key:
+            return None
 
         try:
+            url = f"{web_url}/api/agents/config"
+            headers = {"Authorization": f"Bearer {api_key}"}
+            params = {"userId": user_id, "agentType": agent_type}
+
+            # Use a timeout to prevent hanging if web is down
+            response = httpx.get(url, headers=headers, params=params, timeout=5.0)
+
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("config")
+            else:
+                print(f"API fetch failed: {response.status_code} {response.text}")
+                return None
+        except Exception as e:
+            print(f"Error fetching config from API: {e}")
+            return None
+
+    def _get_agent_config(
+        self, agent_type: str, user_id: str, virtual_key: Optional[str] = None
+    ) -> Optional[tuple[str, str]]:
+        """
+        Get configuration content and destination path for a specific agent.
+
+        Args:
+            agent_type: The type of agent (goose, opencode, etc)
+            user_id: User ID for substitutions
+            virtual_key: Optional Bifrost virtual key
+
+        Returns:
+            Tuple of (config_content, destination_path) or None if no config needed
+        """
+        # Determine paths
+        base_dir = os.path.dirname(os.path.dirname(__file__))  # voice-agent root
+        agent_dir = os.path.join(base_dir, "backend_agents", agent_type)
+
+        # 1. Try fetching from Web API first
+        api_config = self._fetch_config_from_api(agent_type, user_id)
+        if api_config:
+            # Logic matches file-based approach for destination
+            if agent_type == "goose":
+                dest_path = f"{self.home_directory}/.config/goose/config.yaml"
+            elif agent_type == "opencode":
+                dest_path = f"{self.home_directory}/.config/opencode/opencode.json"
+            else:
+                dest_path = None
+
+            if dest_path:
+                content = api_config
+                # Perform substitutions
+                if virtual_key:
+                    content = re.sub(r"\$\{NIRMANUS_API_KEY\}", virtual_key, content)
+                bifrost_url = os.getenv("BIFROST_URL", "http://localhost:8000/v1")
+                content = re.sub(r"\$\{BIFROST_URL\}", bifrost_url, content)
+                content = re.sub(r"\$\{USER_ID\}", user_id, content)
+                return (content, dest_path)
+
+        # 2. Fallback to file-based config
+        if agent_type == "goose":
+            config_path = os.path.join(agent_dir, "goose.config.yaml")
+            dest_path = f"{self.home_directory}/.config/goose/config.yaml"
+        elif agent_type == "opencode":
+            config_path = os.path.join(agent_dir, "opencode.json")
+            dest_path = f"{self.home_directory}/.config/opencode/opencode.json"
+        else:
+            return None
+
+        # Read config content
+        try:
             with open(config_path, "r") as f:
-                config_content = f.read()
-
-            # Also replace API key if available in template
-            if virtual_key:
-                processed_content = re.sub(
-                    r"\$\{NIRMANUS_API_KEY\}", virtual_key, config_content
-                )
-                processed_content = re.sub(
-                    r"\$\{BIFROST_URL\}",
-                    os.getenv("BIFROST_URL", "http://localhost:8000/v1"),
-                    processed_content,
-                )
-
-            return processed_content
+                content = f.read()
         except FileNotFoundError:
-            # Construct config with potentially new key
-            return """extensions:
-  coding-toolkit:
-    cmd: uvx
-    args:
-    - '--from'
-    - 'cased-kit'
-    - 'kit-dev-mcp'
-    available_tools: []
-    bundled: null
-    description: This toolkit allows for coding simple or complex software.
-    enabled: true
-    env_keys: []
-    name: coding-toolkit
-    timeout: 500
-    type: stdio
-  developer:
-    available_tools: []
-    bundled: true
-    description: null
-    display_name: Developer Tools
-    enabled: true
-    name: developer
-    timeout: 300
-    type: builtin
-  filesystem:
-    args:
-    - -y
-    - '@modelcontextprotocol/server-filesystem'
-    - /home/user
-    available_tools: []
-    bundled: null
-    cmd: npx
-    description: This toolkit allows for file system operations.
-    enabled: true
-    env_keys: []
-    envs: {}
-    name: filesystem
-    timeout: 500
-    type: stdio
-  task-manager:
-    args:
-    - /home/user/mcp-shrimp-task-manager/dist/index.js
-    available_tools: []
-    bundled: null
-    cmd: node
-    description: Shrimp task manager MCP entrypoint.
-    enabled: true
-    env_keys: []
-    envs:
-        DATA_DIR: /home/user/mcp-shrimp-task-manager/shrimp_data
-        ENABLE_GUI: 'false'
-        TEMPLATES_USE: en
-    name: task-manager
-    timeout: 500
-    type: stdio
-  web-browser-automation:
-    args:
-    - '@playwright/mcp@latest'
-    available_tools: []
-    bundled: null
-    cmd: npx
-    description: An MCP server to perform any complex web browser based workflows or task.
-    enabled: true
-    env_keys: []
-    envs: {}
-    name: web-browser-automation
-    timeout: 500
-    type: stdio
-GOOSE_PROVIDER: litellm
-GOOSE_MODEL: openrouter/z-ai/glm-4.6
-"""
+            return None
+
+        # Perform substitutions
+        if virtual_key:
+            content = re.sub(r"\$\{NIRMANUS_API_KEY\}", virtual_key, content)
+
+        bifrost_url = os.getenv("BIFROST_URL", "http://localhost:8000/v1")
+        content = re.sub(r"\$\{BIFROST_URL\}", bifrost_url, content)
+        content = re.sub(r"\$\{USER_ID\}", user_id, content)
+
+        return (content, dest_path)
 
     async def launch_virtual_computer(
         self,
@@ -199,18 +190,15 @@ GOOSE_MODEL: openrouter/z-ai/glm-4.6
 
         # Build env vars, filtering out None values (E2B doesn't accept nulls)
         shared_envs = {
-            k: v for k, v in {
+            k: v
+            for k, v in {
                 "LITELLM_API_KEY": bifrost_key,
                 "LITELLM_HOST": os.getenv("BIFROST_URL", "http://localhost:8080")
                 + "/litellm",
                 **(env_vars or {}),
-            }.items() if v is not None
+            }.items()
+            if v is not None and v != ""
         }
-
-        # Process the configuration template
-        processed_config = self._process_config_template(
-            user_id, virtual_key=bifrost_key
-        )
 
         # Create sandbox using E2B Desktop API
         self._sandbox = Sandbox.create(
@@ -220,9 +208,16 @@ GOOSE_MODEL: openrouter/z-ai/glm-4.6
             envs=shared_envs,
         )
 
-        # Write processed config to goose config location in sandbox
-        config_path = f"{self.home_directory}/.config/goose/config.yaml"
-        self._sandbox.files.write(config_path, processed_config)
+        # Process and write agent configuration if available
+        config_data = self._get_agent_config(
+            agent_type, user_id, virtual_key=bifrost_key
+        )
+        if config_data:
+            content, dest_path = config_data
+            # Ensure directory exists
+            config_dir = os.path.dirname(dest_path)
+            self._sandbox.commands.run(f"mkdir -p {config_dir}")
+            self._sandbox.files.write(dest_path, content)
 
         # Use E2B Desktop's built-in VNC streaming API
         self._sandbox.stream.start()
@@ -261,7 +256,9 @@ GOOSE_MODEL: openrouter/z-ai/glm-4.6
             background=True,
         )
 
+        # All agents use WebSocket
         computer_agent_url = f"wss://{self._sandbox.get_host(agent_port)}/ws"
+
         logs_url = f"https://{self._sandbox.get_host(log_stream_port)}"
         print(f"Computer agent URL: {computer_agent_url}")
         print(f"Agent logs available at {logs_url}")

@@ -56,6 +56,7 @@ export function MatrixLogs({ logsUrl }: MatrixLogsProps) {
           setTimeout(connect, 3000);
         };
       } catch (error) {
+        console.error('WebSocket connection error:', error);
         setIsConnected(false);
       }
     };

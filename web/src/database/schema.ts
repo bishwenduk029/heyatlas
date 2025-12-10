@@ -176,3 +176,25 @@ export const uploads = pgTable(
     };
   },
 );
+
+// MCP Configuration table to store agent configurations
+export const mcpConfigs = pgTable(
+  "mcp_configs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentType: text("agentType").notNull(), // 'goose' or 'opencode'
+    config: text("config").notNull(), // JSON string or YAML string
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  },
+  (table) => {
+    return {
+      userIdx: index("mcp_configs_userId_idx").on(table.userId),
+      // Ensure one config per agent type per user
+      uniqueConfig: index("mcp_configs_unique_idx").on(table.userId, table.agentType), 
+    };
+  },
+);

@@ -44,11 +44,7 @@ export const PRODUCT_TIERS: PricingTier[] = [
     description: "Perfect for getting started",
     isPopular: false,
     features: [
-      { name: "2M Tokens/month", included: true },
-      { name: "Basic Voice Interaction", included: true },
-      { name: "Standard Support", included: true },
-      { name: "Limited Web Automation", included: false },
-      { name: "Priority Processing", included: false },
+      { name: "2M Tokens per month", included: true },
     ],
     pricing: {
       creem: {
@@ -70,11 +66,7 @@ export const PRODUCT_TIERS: PricingTier[] = [
     description: "For power users and creators",
     isPopular: true,
     features: [
-      { name: "20M Tokens/month", included: true },
-      { name: "Advanced Voice Models", included: true },
-      { name: "Priority Support", included: true },
-      { name: "Full Web Automation", included: true },
-      { name: "Custom Personas", included: true },
+      { name: "20M Tokens per month", included: true },
     ],
     pricing: {
       creem: {
@@ -96,11 +88,7 @@ export const PRODUCT_TIERS: PricingTier[] = [
     description: "Ultimate power for businesses",
     isPopular: false,
     features: [
-      { name: "200M Tokens/month", included: true },
-      { name: "Dedicated Support", included: true },
-      { name: "Unlimited Web Automation", included: true },
-      { name: "Custom Integrations", included: true },
-      { name: "Early Access Features", included: true },
+      { name: "200M Tokens per month", included: true },
     ],
     pricing: {
       creem: {

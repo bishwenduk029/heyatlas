@@ -5,10 +5,13 @@ Implements the Factory pattern for Inversion of Control.
 import os
 import logging
 from typing import Type
-from agent_interface import BaseAgentClient
-from goose_client import GooseClient
-from agno_client import AgnoClient
-from claude_client import ClaudeClient
+from backend_agents import (
+    BaseAgentClient,
+    GooseClient,
+    AgnoClient,
+    ClaudeClient,
+    OpenCodeClient,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,7 @@ class AgentFactory:
         "goose": GooseClient,
         "agno": AgnoClient,
         "claude": ClaudeClient,
+        "opencode": OpenCodeClient,
     }
 
     @classmethod

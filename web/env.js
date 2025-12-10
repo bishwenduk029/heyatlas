@@ -4,6 +4,10 @@ import { z } from "zod";
 const env = createEnv({
   // Server-side environment variables
   server: {
+    // Bifrost Gateway
+    BIFROST_URL: z.string().optional(),
+    BIFROST_ADMIN_KEY: z.string().optional(),
+
     // Database URL
     DATABASE_URL: z.string().url({ message: "Invalid database URL" }),
 
@@ -57,6 +61,10 @@ const env = createEnv({
 
   // Linking runtime environment variables
   runtimeEnv: {
+    // Bifrost Gateway
+    BIFROST_URL: process.env.BIFROST_URL,
+    BIFROST_ADMIN_KEY: process.env.BIFROST_ADMIN_KEY,
+
     // Database URL
     DATABASE_URL: process.env.DATABASE_URL,
 

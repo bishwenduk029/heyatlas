@@ -21,5 +21,6 @@ export default defineConfig({
     "payments",
     "webhook_events",
     "uploads",
+    "mcp_configs",
   ],
 });

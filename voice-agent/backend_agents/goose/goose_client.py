@@ -7,7 +7,7 @@ import httpx
 from typing import Optional, Callable
 from livekit.agents import AgentSession
 from urllib.parse import urlparse
-from agent_interface import BaseAgentClient
+from ..agent_interface import BaseAgentClient
 
 logger = logging.getLogger(__name__)
 

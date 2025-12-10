@@ -5,7 +5,7 @@ from typing import Callable, Optional
 
 import websockets
 from websockets.exceptions import ConnectionClosed, WebSocketException
-from agent_interface import BaseAgentClient
+from ..agent_interface import BaseAgentClient
 
 logger = logging.getLogger(__name__)
 

@@ -5,13 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "livekit-agents[openai,cartesia,deepgram]~=1.2.18",
+    "livekit-agents[cartesia,deepgram,openai]~=1.2.18",
     "python-dotenv>=1.1.1",
     "websockets>=12.0",
     "e2b-desktop>=2.1.0",
     "httpx>=0.27.0",
-    "litellm>=1.80.7",
-    "sqlalchemy>=2.0.44",
-    "memorisdk==2.1.1",
+    "mem0ai>=1.0.1",
     "psycopg2-binary>=2.9.11",
 ]

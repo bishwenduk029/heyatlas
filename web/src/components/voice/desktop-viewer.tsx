@@ -1,6 +1,6 @@
 "use client";
 
-import { Monitor, ScrollText } from "lucide-react";
+import { Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   Tabs,

@@ -12,7 +12,7 @@ import {
   COMPANY_TAGLINE,
   CONTACT_EMAIL,
 } from "@/lib/config/constants";
-import { Mail, Heart } from "lucide-react";
+import { Mail } from "lucide-react";
 
 interface FooterLink {
   name: string;
@@ -183,8 +183,6 @@ export function Footer() {
             </div>
 
             <div className="text-muted-foreground flex items-center gap-2 text-sm">
-              <span>Made with</span>
-              <Heart className="h-4 w-4 text-red-500" />
               <span>{COMPANY_TAGLINE}</span>
             </div>
           </div>

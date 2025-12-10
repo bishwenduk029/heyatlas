@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react"; // 引入 useEffect
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,17 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Check,
-  Zap,
-  Calendar,
-  CreditCard,
   Loader2,
   LogIn,
   Star,
@@ -26,9 +19,8 @@ import {
 import { PRODUCT_TIERS, type PricingTier } from "@/lib/config/products";
 import { useSession } from "@/lib/auth/client";
 import { useRouter } from "nextjs-toploader/app";
-import type { PaymentMode, BillingCycle } from "@/types/billing";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "./ui/skeleton"; // 引入骨架屏
+import { Skeleton } from "./ui/skeleton";
 
 // 辅助函数：格式化价格
 const formatPrice = (price: number, currency: string = "USD") => {
@@ -39,12 +31,8 @@ const formatPrice = (price: number, currency: string = "USD") => {
 };
 
 export function PricingSection({ className }: { className?: string }) {
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("subscription");
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
   const [loadingState, setLoadingState] = useState<{
     tierId: string;
-    mode: PaymentMode;
-    cycle?: BillingCycle;
   } | null>(null);
 
   const { data: session, isPending: isSessionLoading } = useSession();
@@ -57,8 +45,6 @@ export function PricingSection({ className }: { className?: string }) {
 
   const handleCheckout = async (
     tier: PricingTier,
-    mode: PaymentMode,
-    cycle?: BillingCycle,
   ) => {
     if (!session?.user) {
       toast.error("Please log in to continue purchase.", {
@@ -71,7 +57,7 @@ export function PricingSection({ className }: { className?: string }) {
       return;
     }
 
-    setLoadingState({ tierId: tier.id, mode, cycle });
+    setLoadingState({ tierId: tier.id });
     toast.info("Preparing your secure checkout...");
 
     let isRedirecting = false;
@@ -82,8 +68,8 @@ export function PricingSection({ className }: { className?: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tierId: tier.id,
-          paymentMode: mode,
-          billingCycle: cycle,
+          paymentMode: "subscription",
+          billingCycle: "monthly",
         }),
       });
 
@@ -125,94 +111,20 @@ export function PricingSection({ className }: { className?: string }) {
 
   return (
     <div className={cn("mx-auto w-full max-w-7xl px-4", className)}>
-      {/* 支付模式选择 */}
-      <div className="mb-8 text-center">
-        <Tabs
-          value={paymentMode}
-          onValueChange={(v) => setPaymentMode(v as PaymentMode)}
-          className="mx-auto w-full max-w-sm"
-        >
-          <TabsList className="bg-muted/50 grid h-11 w-full grid-cols-2 p-1">
-            <TabsTrigger
-              value="subscription"
-              className="data-[state=active]:bg-background flex items-center gap-2 text-sm font-medium transition-all data-[state=active]:shadow-sm"
-            >
-              <Calendar className="h-4 w-4" /> Subscription
-            </TabsTrigger>
-            <TabsTrigger
-              value="one_time"
-              className="data-[state=active]:bg-background flex items-center gap-2 text-sm font-medium transition-all data-[state=active]:shadow-sm"
-            >
-              <CreditCard className="h-4 w-4" /> One-time
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+      {/* Header - Simple monthly subscription only */}
+      <div className="mb-10 text-center">
+        <p className="text-muted-foreground text-sm">
+          Simple monthly pricing. Upgrade or cancel anytime.
+        </p>
       </div>
-
-      {/* 订阅模式下的年/月切换 */}
-      {paymentMode === "subscription" && (
-        <div className="mb-10 flex flex-col items-center gap-3">
-          <div className="bg-muted/30 flex items-center justify-center gap-3 rounded-full p-1">
-            <Label
-              htmlFor="billing-toggle"
-              className={cn(
-                "cursor-pointer rounded-full px-3 py-2 text-sm font-medium transition-all select-none",
-                billingCycle === "monthly"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Monthly
-            </Label>
-            <Switch
-              id="billing-toggle"
-              checked={billingCycle === "yearly"}
-              onCheckedChange={(checked) =>
-                setBillingCycle(checked ? "yearly" : "monthly")
-              }
-              className="data-[state=checked]:bg-primary"
-            />
-            <Label
-              htmlFor="billing-toggle"
-              className={cn(
-                "cursor-pointer rounded-full px-3 py-2 text-sm font-medium transition-all select-none",
-                billingCycle === "yearly"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Yearly
-            </Label>
-          </div>
-          <div className="flex h-7 items-center justify-center">
-            {billingCycle === "yearly" && (
-              <Badge
-                variant="secondary"
-                className="animate-in fade-in-0 border-emerald-200/50 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 shadow-sm duration-300 dark:border-emerald-800/50 dark:from-emerald-950/50 dark:to-green-950/50 dark:text-emerald-300"
-              >
-                <Zap className="mr-1.5 h-3 w-3" /> Save 17% with yearly billing
-              </Badge>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* 定价卡片 */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:gap-8">
         {PRODUCT_TIERS.map((tier) => {
-          const price =
-            paymentMode === "one_time"
-              ? tier.prices.oneTime
-              : billingCycle === "yearly"
-                ? tier.prices.yearly
-                : tier.prices.monthly;
+          const price = tier.prices.monthly;
 
-          const isLoading =
-            loadingState?.tierId === tier.id &&
-            loadingState.mode === paymentMode &&
-            (paymentMode === "one_time" || loadingState.cycle === billingCycle);
+          const isLoading = loadingState?.tierId === tier.id;
 
-          // **修正点 2: 决定按钮是否禁用的逻辑**
           const isDisabled = !mounted || isLoading || isSessionLoading;
 
           return (
@@ -242,34 +154,19 @@ export function PricingSection({ className }: { className?: string }) {
                   {tier.description}
                 </CardDescription>
                 <div className="mt-6 space-y-2">
-                  <div className="flex items-baseline justify-center gap-1">
+                  <div className="flex items-baseline justify-centergap-1">
                     <span className="text-foreground text-5xl font-bold tracking-tight">
-                      {paymentMode === "one_time"
-                        ? formatPrice(price, tier.currency)
-                        : billingCycle === "monthly"
-                          ? formatPrice(price, tier.currency)
-                          : formatPrice(Math.round(price / 12), tier.currency)}
+                      {formatPrice(price, tier.currency)}
                     </span>
-                    {paymentMode === "subscription" && (
-                      <span className="text-muted-foreground text-base font-medium">
-                        /month
-                      </span>
-                    )}
+                    <span className="text-muted-foreground text-base font-medium">
+                      /month
+                    </span>
                   </div>
                   <div className="flex h-5 items-center justify-center">
                     <p className="text-muted-foreground text-sm font-medium">
-                      {paymentMode === "one_time"
-                        ? "One-time payment"
-                        : billingCycle === "yearly"
-                          ? "Billed annually"
-                          : "Billed monthly"}
+                      Billed monthly
                     </p>
                   </div>
-                  {billingCycle === "yearly" && paymentMode !== "one_time" && (
-                    <div className="text-muted-foreground/80 text-xs font-medium">
-                      {formatPrice(price, tier.currency)} total per year
-                    </div>
-                  )}
                 </div>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col px-6 pt-0 pb-6">
@@ -322,7 +219,7 @@ export function PricingSection({ className }: { className?: string }) {
                         "bg-primary hover:bg-primary/90 shadow-lg",
                     )}
                     onClick={() =>
-                      handleCheckout(tier, paymentMode, billingCycle)
+                      handleCheckout(tier)
                     }
                     variant={tier.isPopular ? "default" : "outline"}
                     disabled={isDisabled}

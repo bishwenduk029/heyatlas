@@ -13,12 +13,12 @@ class BifrostService {
   private adminKey: string;
 
   constructor() {
-    this.baseUrl = process.env.BIFROST_URL || "http://localhost:4000";
+    this.baseUrl = env.BIFROST_URL || "http://localhost:4000";
     // Remove trailing /v1 if present as the governance API is at the root
     if (this.baseUrl.endsWith("/v1")) {
       this.baseUrl = this.baseUrl.substring(0, this.baseUrl.length - 3);
     }
-    this.adminKey = process.env.BIFROST_ADMIN_KEY || "";
+    this.adminKey = env.BIFROST_ADMIN_KEY || "";
   }
 
   /**

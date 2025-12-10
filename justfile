@@ -94,6 +94,12 @@ clean-claude-agent:
     rm -f virtual-desktop-agent/e2b/files/claude_agent-*.whl
     @echo "✅ Clean complete"
 
+build-opencode-bridge:
+    @echo "Building opencode-bridge..."
+    cd opencode-agent && bun build index.ts --outfile=dist/index.js --target=node --minify
+    cp opencode-agent/dist/index.js virtual-desktop-agent/e2b/files/opencode-bridge.js
+    @echo "✅ OpenCode bridge built and copied to virtual-desktop-agent/e2b/files/opencode-bridge.js"
+
 test-agno-agent:
     @echo "Running agno-agent locally..."
     cd agno-agent && uv run main.py
@@ -103,7 +109,7 @@ test-claude-agent:
     cd claude-agent && uv run main.py
 
 # Virtual Desktop Agent tasks
-build-e2b-sandbox: build-agno-agent
+build-e2b-sandbox: build-opencode-bridge
     @echo "Building E2B sandbox..."
     cd virtual-desktop-agent/e2b && uv run build_prod.py
 
@@ -117,11 +123,11 @@ dev: setup-web setup-voice-agent setup-agno-agent setup-claude-agent
         "just web-dev" \
         "just voice-agent-dev"
 
-build: build-web build-agno-agent build-claude-agent
+build: build-web build-agno-agent build-claude-agent build-opencode-bridge
     @echo "✅ Build complete."
 
-build-all: build-web build-agno-agent build-claude-agent build-e2b-sandbox
-    @echo "✅ Full build complete (web + agno-agent + claude-agent + e2b sandbox)."
+build-all: build-web build-agno-agent build-claude-agent build-opencode-bridge build-e2b-sandbox
+    @echo "✅ Full build complete (web + agno-agent + claude-agent + opencode-bridge + e2b sandbox)."
 
 deploy: deploy-voice-agent deploy-web deploy-bifrost build-e2b-sandbox
     @echo "✅ Deployment complete."

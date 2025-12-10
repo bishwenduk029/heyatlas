@@ -1,28 +1,22 @@
 import React from "react";
 import { createMetadata } from "@/lib/metadata";
 import { PricingSection } from "@/components/payment-options";
-import { PAYMENT_PROVIDER } from "@/lib/config/constants";
 import {
   Check,
-  Zap,
-  Shield,
-  Info,
   ShieldCheck,
   Award,
-  X,
-  Flag,
 } from "lucide-react";
 
 export const metadata = createMetadata({
   title: "Pricing Plans - Choose Your Perfect Plan",
   description:
-    "Simple, transparent pricing for every business size. Start with our free plan or choose from our flexible subscription options. 7-Day money-back guarantee included.",
+    "Simple, transparent pricing for every need. Start with our free plan or choose from our flexible monthly subscription options.",
   keywords: [
     "pricing",
     "plans",
     "subscription",
     "saas pricing",
-    "business plans",
+    "free tier",
   ],
 });
 
@@ -58,35 +52,34 @@ export default function PricingPage() {
             <div className="mt-20 text-center">
               <div className="mx-auto max-w-4xl">
                 <h3 className="text-foreground mb-4 text-2xl font-semibold">
-                  Why choose our platform?
+ Why choose our platform?
                 </h3>
                 <p className="text-muted-foreground mb-8">
-                  Join thousands of satisfied customers who trust our secure,
-                  reliable platform
+                  Start with our free plan and upgrade when you need more tokens
                 </p>
 
-                <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-4">
+                <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-3">
                   <div className="border-border bg-background/50 hover:bg-background/80 flex flex-col items-center gap-3 rounded-xl border p-6 transition-colors">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
                       <Check className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div className="text-center">
                       <h4 className="text-foreground mb-1 font-semibold">
-                        7-Day Free Trial
+                        Free Plan Available
                       </h4>
                       <p className="text-muted-foreground text-sm">
-                        Full money-back*
+                        2M tokens to get started
                       </p>
                     </div>
                   </div>
 
                   <div className="border-border bg-background/50 hover:bg-background/80 flex flex-col items-center gap-3 rounded-xl border p-6 transition-colors">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                      <Zap className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      <Award className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="text-center">
                       <h4 className="text-foreground mb-1 font-semibold">
-                        Instant Activation
+                        Instant Setup
                       </h4>
                       <p className="text-muted-foreground text-sm">
                         Start using immediately
@@ -96,28 +89,14 @@ export default function PricingPage() {
 
                   <div className="border-border bg-background/50 hover:bg-background/80 flex flex-col items-center gap-3 rounded-xl border p-6 transition-colors">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
-                      <Shield className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                      <ShieldCheck className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div className="text-center">
                       <h4 className="text-foreground mb-1 font-semibold">
-                        Enterprise Security
+                        Secure Platform
                       </h4>
                       <p className="text-muted-foreground text-sm">
-                        Bank-grade protection
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="border-border bg-background/50 hover:bg-background/80 flex flex-col items-center gap-3 rounded-xl border p-6 transition-colors">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                      <Info className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <div className="text-center">
-                      <h4 className="text-foreground mb-1 font-semibold">
-                        24/7 Support
-                      </h4>
-                      <p className="text-muted-foreground text-sm">
-                        Always here to help
+                        Your data is protected
                       </p>
                     </div>
                   </div>
@@ -141,8 +120,8 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Security & Compliance Section */}
-      <div className="bg-muted/20 py-16">
+      {/* Security & Compliance Section - Hidden for now */}
+      {/* <div className="bg-muted/20 py-16">
         <div className="mx-auto max-w-6xl px-4">
           <div className="mb-12 text-center">
             <h3 className="text-foreground mb-3 text-xl font-semibold">
@@ -153,7 +132,6 @@ export default function PricingPage() {
             </p>
           </div>
 
-          {/* Security Badges */}
           <div className="mb-12 grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="bg-background/60 border-border/50 flex flex-col items-center rounded-lg border p-4">
               <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -192,7 +170,6 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* Payment Methods */}
           <div className="text-center">
             <p className="text-muted-foreground mb-6 text-sm">
               Accepted payment methods
@@ -215,7 +192,6 @@ export default function PricingPage() {
               </div>
             </div>
 
-            {/* Powered by */}
             <div className="border-border/30 border-t pt-6">
               <p className="text-muted-foreground text-xs">
                 Powered by{" "}
@@ -227,7 +203,7 @@ export default function PricingPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </section>
   );
 }

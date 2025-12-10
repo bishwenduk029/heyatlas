@@ -1,0 +1,20 @@
+{
+  "name": "opencode-agent",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "bridge": "bun run index.ts",
+    "dev": "bun run --hot index.ts",
+    "build": "mkdir -p dist && bun build index.ts --outdir=dist --target=node --minify"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.0.134"
+  }
+}

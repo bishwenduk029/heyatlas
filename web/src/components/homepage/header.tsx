@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, Menu, UserCircle, ExternalLink } from "lucide-react";
+import { ChevronDown, Menu, ExternalLink } from "lucide-react";
 import { APP_NAME } from "@/lib/config/constants";
 
 interface NavItem {
@@ -37,6 +37,10 @@ const navigationItems: NavItem[] = [
   {
     title: "Pricing",
     href: "/pricing",
+  },
+  {
+    title: "Settings",
+    href: "/settings",
   },
   // {
   //   title: "About",
@@ -64,6 +68,10 @@ const mobileNavItems: NavItem[] = [
   {
     title: "Pricing",
     href: "/pricing",
+  },
+  {
+    title: "Settings",
+    href: "/settings",
   },
   {
     title: "About",
@@ -186,12 +194,6 @@ function AuthButtons({
   if (session?.user && session?.session) {
     return (
       <div className="hidden items-center gap-2 md:flex">
-        <Button asChild size="sm">
-          <Link href="/voice">
-            <UserCircle className="mr-2 h-4 w-4" />
-            Voice Assistant
-          </Link>
-        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -249,12 +251,6 @@ function MobileAuthButtons({
   if (session?.user && session?.session) {
     return (
       <div className="mt-8 space-y-3">
-        <Button asChild className="w-full">
-          <Link href="/voice">
-            <UserCircle className="mr-2 h-4 w-4" />
-            Voice Assistant
-          </Link>
-        </Button>
         <Button
           variant="outline"
           className="w-full"
@@ -295,6 +291,13 @@ function MobileNavigation({
 }) {
   const { data: session, isPending } = useSession();
 
+  const filteredMobileNavItems = mobileNavItems.filter((item) => {
+    if (item.href === "/settings") {
+      return session?.user;
+    }
+    return true;
+  });
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-80 p-0">
@@ -306,7 +309,7 @@ function MobileNavigation({
 
         <div className="flex flex-col p-6">
           <nav className="space-y-4">
-            {mobileNavItems.map((item, index) => (
+            {filteredMobileNavItems.map((item, index) => (
               <Link
                 key={index}
                 href={item.href!}
@@ -340,6 +343,20 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const filteredNavigationItems = navigationItems.filter((item) => {
+    if (item.href === "/settings") {
+      return session?.user;
+    }
+    return true;
+  });
+
+  const filteredMobileNavItems = mobileNavItems.filter((item) => {
+    if (item.href === "/settings") {
+      return session?.user;
+    }
+    return true;
+  });
+
   return (
     <>
       <header
@@ -360,7 +377,7 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden items-center gap-1 md:flex">
-              {navigationItems.map((item, index) => (
+              {filteredNavigationItems.map((item, index) => (
                 <div key={index}>
                   {item.items ? (
                     <NavigationDropdown item={item} />

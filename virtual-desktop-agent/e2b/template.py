@@ -103,6 +103,10 @@ template = (
     )
     # Install logdy for log streaming (installs directly to /usr/local/bin)
     .run_cmd("curl https://logdy.dev/install-silent.sh | sh")
+    # Install Bun for OpenCode bridge
+    .run_cmd("curl -fsSL https://bun.sh/install | bash && mv /root/.bun/bin/bun /usr/local/bin/bun && chmod 755 /usr/local/bin/bun")
+    # Install opencode CLI
+    .run_cmd("curl -fsSL https://opencode.ai/install | bash && mv /root/.opencode/bin/opencode /usr/local/bin/opencode && chmod 755 /usr/local/bin/opencode || true")
     # Install uv and move to /usr/local/bin for system-wide access (installs to /root/.local/bin as root)
     .run_cmd(
         "curl -LsSf https://astral.sh/uv/install.sh | bash && mv /root/.local/bin/uv /usr/local/bin/uv && mv /root/.local/bin/uvx /usr/local/bin/uvx && chmod 755 /usr/local/bin/uv /usr/local/bin/uvx"
@@ -155,6 +159,11 @@ template = (
             CopyItem(
                 src="claude_agent-0.1.0-py2.py3-none-any.whl",
                 dest="/home/user/agents/claude_agent-0.1.0-py2.py3-none-any.whl",
+            ),
+            # Copy opencode-bridge bundle (build with: just build-opencode-bridge)
+            CopyItem(
+                src="opencode-bridge.js",
+                dest="/home/user/agents/opencode-bridge.js",
             ),
         ]
     )

@@ -1,9 +1,8 @@
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { Inter, Fira_Mono } from "next/font/google";
+import { DM_Sans, Fraunces, Fira_Mono, Instrument_Serif } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import Script from "next/script";
 import { createMetadata } from "@/lib/metadata";
 import {
   APP_NAME,
@@ -14,16 +13,33 @@ import env from "@/env";
 
 import NextTopLoader from "nextjs-toploader";
 import { CookieConsent } from "@/components/cookie-consent";
+import { Analytics } from "@vercel/analytics/next";
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  display: "swap",
+  // Optional: Adjust axes for a more specific look if needed
+  // axes: ["SOFT", "WONK", "OPSZ"],
+});
+
 const firaMono = Fira_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--font-mono",
+  display: "swap",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-instrument-serif",
   display: "swap",
 });
 
@@ -68,7 +84,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${firaMono.variable}`}
+      className={`${dmSans.variable} ${fraunces.variable} ${firaMono.variable} ${instrumentSerif.variable}`}
       suppressHydrationWarning
     >
       <head />
@@ -84,6 +100,7 @@ export default function RootLayout({
             {children}
             <Toaster />
             <CookieConsent />
+            <Analytics />
           </ThemeProvider>
         </NuqsAdapter>
       </body>

@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
@@ -23,12 +26,22 @@ export function Hero() {
       <div className="relative mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div className="flex flex-col items-center justify-center gap-12 text-center">
           {/* Center Content */}
-          <div className="max-w-3xl space-y-8">
+          <motion.div 
+            className="max-w-3xl space-y-8"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
             {/* Status Badge */}
-            <div className="border-border bg-background/50 inline-flex items-center rounded-full border px-3 py-1 text-sm backdrop-blur-sm">
+            <motion.div 
+              className="border-border bg-background/50 inline-flex items-center rounded-full border px-3 py-1 text-sm backdrop-blur-sm"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
               <Sparkles className="text-primary mr-2 h-3 w-3" />
               <span className="text-muted-foreground">AI Agent</span>
-            </div>
+            </motion.div>
 
             {/* Main Heading */}
             <div className="space-y-4">
@@ -79,7 +92,12 @@ export function Hero() {
             </div>
 
             {/* Social Proof */}
-            <div className="text-muted-foreground flex items-center justify-center gap-4 text-sm">
+            <motion.div 
+              className="text-muted-foreground flex items-center justify-center gap-4 text-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+            >
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
                 <span className="font-medium">Free Plan Available</span>
@@ -89,8 +107,8 @@ export function Hero() {
                 <Shield className="h-4 w-4 text-blue-500" />
                 <span>No Credit Card Required</span>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     </section>

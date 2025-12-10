@@ -6,7 +6,7 @@ primary_region = "iad"
   APP_PORT = "8080"
 
 [build]
-  image = "maximhq/bifrost:latest"
+  image = "maximhq/bifrost:v1.3.38"
 
 [http_service]
   internal_port = 8080

@@ -11,7 +11,7 @@
 # const sandbox = await Sandbox.create('nirmanus-computer-agent')
 
 team_id = "3f8a7683-4afc-4553-8238-ff3be4a51624"
-memory_mb = 4_048
+memory_mb = 8012
 cpu_count = 4
 start_cmd = "sh /home/user/agent/start.sh"
 dockerfile = "e2b.Dockerfile"

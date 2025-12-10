@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -64,11 +67,17 @@ const features: Feature[] = [
   },
 ];
 
-function FeatureCard({ feature }: { feature: Feature; index: number }) {
+function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   const IconComponent = feature.icon;
 
   return (
-    <Card className="group relative overflow-hidden p-6 transition-all duration-300 hover:shadow-md">
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+    >
+      <Card className="group relative overflow-hidden p-6 transition-all duration-300 hover:shadow-md">
       <div className="space-y-4">
         {/* Icon and Category */}
         <div className="flex items-center justify-between">
@@ -91,11 +100,12 @@ function FeatureCard({ feature }: { feature: Feature; index: number }) {
         </div>
       </div>
 
-      {/* Hover Arrow */}
-      <div className="absolute right-4 bottom-4 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
-        <ArrowRight className="text-muted-foreground h-4 w-4" />
-      </div>
-    </Card>
+        {/* Hover Arrow */}
+        <div className="absolute right-4 bottom-4 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
+          <ArrowRight className="text-muted-foreground h-4 w-4" />
+        </div>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -104,7 +114,13 @@ export function Features() {
     <section className="bg-background py-24">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section Header */}
-        <div className="mx-auto mb-16 max-w-2xl text-center">
+        <motion.div 
+          className="mx-auto mb-16 max-w-2xl text-center"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.6 }}
+        >
           <Badge variant="secondary" className="mb-4">
             <Sparkles className="mr-2 h-3 w-3" />
             Everything Included
@@ -119,17 +135,23 @@ export function Features() {
             HeyComputer combines voice AI, virtual computer access, and
             intelligent automation to become your ultimate digital assistant.
           </p>
-        </div>
+        </motion.div>
 
         {/* Features Grid */}
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature) => (
-            <FeatureCard key={feature.title} feature={feature} index={0} /> // Removed unused index from map and passed 0 as index to FeatureCard
+          {features.map((feature, index) => (
+            <FeatureCard key={feature.title} feature={feature} index={index} />
           ))}
         </div>
 
         {/* Bottom Stats */}
-        <div className="mt-16 grid grid-cols-3 gap-8 text-center">
+        <motion.div 
+          className="mt-16 grid grid-cols-3 gap-8 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
           <div>
             <div className="text-foreground text-2xl font-bold">24/7</div>
             <div className="text-muted-foreground text-sm">
@@ -144,7 +166,7 @@ export function Features() {
             <div className="text-foreground text-2xl font-bold">100%</div>
             <div className="text-muted-foreground text-sm">Privacy Focused</div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

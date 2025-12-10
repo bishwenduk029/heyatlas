@@ -2,6 +2,7 @@
   /* Brand theme - Neutral / Zinc (Black & White) */
   --radius: 0.5rem;
   --font-satoshi: 'Satoshi', sans-serif;
+  --font-instrument-serif: 'Instrument Serif', serif;
   
   /* Light Mode */
   --background: oklch(1 0 0);
@@ -80,11 +81,6 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
-
-  /* Fonts - Clean, modern fonts */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "Fira Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
 }
 
 @theme inline {
@@ -117,6 +113,7 @@
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
   --font-satoshi: var(--font-satoshi);
+  --font-instrument-serif: var(--font-instrument-serif);
 
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);

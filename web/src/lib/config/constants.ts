@@ -1,7 +1,7 @@
 // Brand Configuration
 export const APP_NAME =
   process.env.NODE_ENV === "development" ? "heycomputer.me" : "heycomputer.me";
-export const APP_DESCRIPTION = "Talk to your AI-powered digital assistant";
+export const APP_DESCRIPTION = "Your AI voice agent with a cloud computer for digital tasks";
 export const COMPANY_NAME = "heycomputer.me";
 export const COMPANY_TAGLINE = "Talking AI Agents";
 
