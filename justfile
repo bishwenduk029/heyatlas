@@ -9,50 +9,81 @@ build-web:
 
 web-dev:
     @echo "Running web in dev mode..."
-    cd web && pnpm run dev
+    cd cloud/web && pnpm run dev
 
 deploy-web:
-    @echo "Checking for changes in web..."
-    @cd web && if ! git diff --quiet HEAD^ HEAD .; then \
-        echo "🔄 Changes detected in web, proceeding with deployment..." && \
-        vercel deploy --prod; \
-    else \
-        echo "✋ No changes in web, skipping deployment"; \
-    fi
+    echo "🔄 Changes detected in web, proceeding with deployment..."
+    cd on-cloud/web
+    vercel deploy --prod
 
-# Voice Agent tasks
+# Voice Agent tasks (Python)
 setup-voice-agent:
     @echo "Setting up voice-agent..."
-    cd voice-agent && uv sync
+    cd on-cloud/voice-agent && uv sync
 
 voice-agent-dev:
     @echo "Running voice-agent in dev mode..."
-    cd voice-agent && uv run main.py dev
+    cd on-cloud/voice-agent && uv run main.py dev
+
+voice-agent-download:
+    @echo "Downloading voice-agent model files..."
+    cd on-cloud/voice-agent && uv run main.py download-files
 
 voice-agent-console:
-    @echo "Running voice-agent in dev mode..."
-    npx -y concurrently \
-        "cd claude-agent && uv sync && uv run main.py" \
-        "cd voice-agent && uv sync && uv run main.py console"
+    @echo "Running voice-agent in console mode..."
+    cd on-cloud/voice-agent && uv run main.py console
 
 deploy-voice-agent:
     @echo "Checking for changes in voice-agent..."
-    @cd voice-agent && if ! git diff --quiet HEAD^ HEAD .; then \
+    @cd on-cloud/voice-agent && if ! git diff --quiet HEAD^ HEAD .; then \
         echo "🔄 Changes detected in voice-agent, proceeding with deployment..." && \
         fly deploy; \
     else \
         echo "✋ No changes in voice-agent, skipping deployment"; \
     fi
 
-# Agno Agent tasks
-setup-agno-agent:
-    @echo "Setting up agno-agent..."
-    cd agno-agent && uv sync
+# PartyKit Relay tasks
+setup-party-relay:
+    @echo "Setting up PartyKit relay..."
+    cd cloud/party-relay && pnpm install
 
-# Claude Agent tasks
-setup-claude-agent:
-    @echo "Setting up claude-agent..."
-    cd claude-agent && uv sync
+party-relay-dev:
+    @echo "Running PartyKit relay in dev mode..."
+    cd cloud/party-relay && pnpm run dev
+
+party-relay-deploy:
+    @echo "Deploying PartyKit relay..."
+    cd cloud/party-relay && pnpm run deploy
+
+# Agent Bridge tasks
+setup-agent-bridge-sidecar:
+    @echo "Setting up agent-bridge..."
+    cd on-device/agent-bridge && bun install
+
+build-agent-bridge-sidecar:
+    @echo "Setting up agent-bridge..."
+    cd on-device/agent-bridge && pnpm run build
+    cp on-device/agent-bridge/dist/heycomputer-agent-bridge on-device/desktop/src-tauri/sidecars/heycomputer-agent-bridge-aarch64-apple-darwin
+    @echo "✅ Agent Bridge binary compiled to on-device/desktop/src-tauri/sidecars/"
+
+agent-bridge-dev:
+    @echo "Running agent-bridge in dev mode..."
+    cd on-device/agent-bridge && bun run index.ts
+
+# MCP UI Server tasks
+setup-mcp-ui-server:
+    @echo "Setting up mcp-ui-server..."
+    cd on-cloud/mcp-ui-server && bun install
+
+mcp-ui-server-dev:
+    @echo "Running mcp-ui-server in dev mode..."
+    cd on-cloud/mcp-ui-server && bun run dev
+
+deploy-mcp-ui-server:
+    @echo "Deploying mcp-ui-server to Cloudflare Workers..."
+    cd on-cloud/mcp-ui-server && bunx wrangler@3.78.0 deploy
+    @echo "⚠️  Don't forget to set the API key secret:"
+    @echo "    cd on-cloud/mcp-ui-server && bunx wrangler@3.78.0 secret put NIRMANUS_API_KEY"
 
 # Bifrost Gateway tasks
 deploy-bifrost:
@@ -64,73 +95,28 @@ deploy-bifrost:
         echo "✋ No changes in bifrost-gateway, skipping deployment"; \
     fi
 
-build-agno-agent:
-    @echo "Building agno-agent wheel..."
-    cd agno-agent && rm -rf dist/ build/ *.egg-info
-    cd agno-agent && uv build
-    @echo "Copying wheel to e2b files directory..."
-    rm -f virtual-desktop-agent/e2b/files/agno_agent-*.whl
-    cp agno-agent/dist/agno_agent-*.whl virtual-desktop-agent/e2b/files/
-    @echo "✅ Agno Agent wheel built and copied to virtual-desktop-agent/e2b/files/"
-
-build-claude-agent:
-    @echo "Building claude-agent wheel..."
-    cd claude-agent && rm -rf dist/ build/ *.egg-info
-    cd claude-agent && uv build
-    @echo "Copying wheel to e2b files directory..."
-    rm -f virtual-desktop-agent/e2b/files/claude_agent-*.whl
-    cp claude-agent/dist/claude_agent-*.whl virtual-desktop-agent/e2b/files/
-    @echo "✅ Claude Agent wheel built and copied to virtual-desktop-agent/e2b/files/"
-
-clean-agno-agent:
-    @echo "Cleaning agno-agent build artifacts..."
-    cd agno-agent && rm -rf dist/ build/ *.egg-info __pycache__ .pytest_cache
-    rm -f virtual-desktop-agent/e2b/files/agno-agent.whl
-    @echo "✅ Clean complete"
-
-clean-claude-agent:
-    @echo "Cleaning claude-agent build artifacts..."
-    cd claude-agent && rm -rf dist/ build/ *.egg-info __pycache__ .pytest_cache
-    rm -f virtual-desktop-agent/e2b/files/claude_agent-*.whl
-    @echo "✅ Clean complete"
-
-build-opencode-bridge:
-    @echo "Building opencode-bridge..."
-    cd opencode-agent && bun build index.ts --outfile=dist/index.js --target=node --minify
-    cp opencode-agent/dist/index.js virtual-desktop-agent/e2b/files/opencode-bridge.js
-    @echo "✅ OpenCode bridge built and copied to virtual-desktop-agent/e2b/files/opencode-bridge.js"
-
-test-agno-agent:
-    @echo "Running agno-agent locally..."
-    cd agno-agent && uv run main.py
-
-test-claude-agent:
-    @echo "Running claude-agent locally..."
-    cd claude-agent && uv run main.py
-
-# Virtual Desktop Agent tasks
-build-e2b-sandbox: build-opencode-bridge
-    @echo "Building E2B sandbox..."
-    cd virtual-desktop-agent/e2b && uv run build_prod.py
-
 # Composite tasks
-setup: setup-web setup-voice-agent setup-agno-agent setup-claude-agent
+setup: setup-web setup-voice-agent setup-party-relay setup-agent-bridge-sidecar setup-mcp-ui-server
     @echo "✅ Setup complete."
 
-dev: setup-web setup-voice-agent setup-agno-agent setup-claude-agent
+dev:
     @echo "Starting development environment..."
     npx -y concurrently \
         "just web-dev" \
+        "just party-relay-dev" \
         "just voice-agent-dev"
 
-build: build-web build-agno-agent build-claude-agent build-opencode-bridge
-    @echo "✅ Build complete."
+dev-voice:
+    @echo "Starting voice pipeline (party-relay + voice-agent + agent-bridge + mcp-ui-server)..."
+    npx -y concurrently \
+        "just party-relay-dev" \
+        "just voice-agent-dev" \
+        "just agent-bridge-dev" \
 
-build-all: build-web build-agno-agent build-claude-agent build-opencode-bridge build-e2b-sandbox
-    @echo "✅ Full build complete (web + agno-agent + claude-agent + opencode-bridge + e2b sandbox)."
-
-deploy: deploy-voice-agent deploy-web deploy-bifrost build-e2b-sandbox
     @echo "✅ Deployment complete."
 
-clean: clean-agno-agent clean-claude-agent
-    @echo "✅ Clean complete."
+desktop-dev: build-agent-bridge-sidecar
+    cd on-device/desktop && pnpm run dev
+
+desktop-build: build-agent-bridge-sidecar
+    cd on-device/desktop && pnpm run build

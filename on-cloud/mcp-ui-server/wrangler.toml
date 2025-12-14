@@ -1,0 +1,12 @@
+name = "heycomputer-mcp-ui"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables
+# Set these as secrets in Cloudflare Workers: wrangler secret put NIRMANUS_API_KEY
+[vars]
+ENVIRONMENT = "production"
+
+# Secrets (set via: wrangler secret put NIRMANUS_API_KEY)
+# NIRMANUS_API_KEY = "your_secure_api_key_here"

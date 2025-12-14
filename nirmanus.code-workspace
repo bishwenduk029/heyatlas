@@ -11,7 +11,7 @@
       "name": "voice-agent",
       "path": "voice-agent",
       "settings": {
-        "python.defaultInterpreterPath": "voice-agent/.venv/bin/python"
+        "python.defaultInterpreterPath": "cloud/voice-agent/.venv/bin/python"
       }
     },
     {
@@ -22,14 +22,14 @@
       "name": "web",
       "path": "web",
       "settings": {
-        "typescript.tsdk": "web/node_modules/typescript/lib"
+        "typescript.tsdk": "on-device/web/node_modules/typescript/lib"
       }
     },
     {
       "name": "agno-agent",
       "path": "agno-agent",
       "settings": {
-        "python.defaultInterpreterPath": "agno-agent/.venv/bin/python"
+        "python.defaultInterpreterPath": "cloud/agno-agent/.venv/bin/python"
       }
     }
   ],

@@ -1,55 +1,64 @@
-# Nirmanus Workspace
+HeyComputer 🎙️💻
+Talk to your computer. It listens, thinks, and gets things done. A real-time voice interface for local AI agents, powered by WebRTC and Durable Objects.
 
-Multi-package monorepo workspace containing various agent projects.
+![alt text](image.png)
 
-## Structure
+📖 Overview
+HeyComputer is an open-source framework that turns any computer into a voice-controlled agent. It bridges the gap between ultra-low latency Voice AI (in the cloud) and secure Task Execution (on your local machine).
 
-This workspace contains the following packages:
+Unlike traditional assistants that just "search the web," HeyComputer uses a local WebSocket connection to drive agents like OpenCode, Goose, or Droid to perform actual work on your filesystem, terminal, and browser.
 
-### voice-agent
-Python-based voice agent using LiveKit
-- Language: Python 3.12+
-- Virtual environment: `.venv`
-- Dependencies managed via `pyproject.toml`
+🏗️ Architecture
+The system operates like a multiplayer game where the "User" and the "Computer" are synchronized players.
 
-### virtual-desktop-agent
-Docker-based desktop agent with E2B configuration
-- Deployment: Docker
-- Configuration: E2B sandbox environment
+The Brain (Voice AI): Running on LiveKit.
 
-## Setup
+Ears: Deepgram (STT).
 
-### Prerequisites
-- Python 3.12+
-- Docker
-- VSCode (recommended)
+Mind: Inception Mercury (Diffusion LLM) for speed.
 
-### Getting Started
+Mouth: Cartesia (TTS) for realism.
 
-1. Open the workspace in VSCode:
-   ```bash
-   code nirmanus.code-workspace
-   ```
+The Nervous System (Relay): PartyKit (Durable Objects).
 
-2. For Python projects (voice-agent):
-   - Virtual environment will be automatically detected
-   - Install dependencies: `cd voice-agent && .venv/bin/pip install -e .`
+Acts as a secure, stateful WebSocket relay.
 
-3. For Docker projects (virtual-desktop-agent):
-   - Build and run using Docker commands as per project documentation
+No port forwarding or public tunnels required.
 
-## VSCode Integration
+The Hands (Local Agent): Your Computer.
 
-The workspace is configured with:
-- Per-folder Python interpreter detection
-- Automatic virtual environment activation
-- Docker file associations
-- Recommended extensions for Python, TypeScript, and Docker
+Runs a lightweight WebSocket client.
 
-## Development
+Receives tasks from PartyKit.
 
-Each package is independent with its own:
-- Dependencies
-- Configuration files
-- Development environment
-- Git tracking (if needed)
+Executes via OpenCode CLI / Goose.
+
+✨ Features
+⚡ Real-time Latency: Uses WebRTC for voice and WebSockets for control, ensuring near-instant response.
+
+🔒 Local-First Security: Your computer initiates the connection. No incoming ports opened.
+
+🔑 Bring Your Own Key (BYOK): Sustainable architecture. You control your API keys (Cartesia, Deepgram, OpenAI).
+
+🛠️ Agent Agnostic: Works with any CLI-based agent tool (OpenCode, Goose, etc.).
+
+🗺️ Roadmap
+Stage 1 (Current): Open Source Developer Preview. CLI-based setup. BYOK model.
+
+Stage 2: Desktop App Bundle. One-click installer containing the WebSocket client and a bundled agent environment.
+
+Stage 3: Cloud Desktops. Integration with E2B for fully sandboxed, cloud-hosted computer agents.
+
+🤝 Contributing
+We welcome contributions! Whether it's adding support for new local agents (e.g., Devin, Aider) or optimizing the PartyKit relay.
+
+Fork the repo.
+
+Create your feature branch (git checkout -b feature/amazing-feature).
+
+Commit your changes.
+
+Open a Pull Request.
+
+📄 License
+MIT License. See LICENSE for more information.

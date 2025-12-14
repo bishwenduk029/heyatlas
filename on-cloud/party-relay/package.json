@@ -1,0 +1,12 @@
+{
+  "name": "heycomputer-agents-rooms",
+  "version": "0.0.1",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "partykit dev",
+    "deploy": "partykit deploy"
+  },
+  "dependencies": {
+    "partykit": "^0.0.105"
+  }
+}

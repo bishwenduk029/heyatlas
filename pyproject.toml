@@ -1,0 +1,17 @@
+[project]
+name = "nirmanus"
+version = "0.1.0"
+description = "HeyComputer - Talk to your computer. Real-time voice interface for local AI agents."
+authors = [
+    {name = "Bishwendu Kundu", email = "bishwenduk029@gmail.com"}
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
