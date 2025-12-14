@@ -62,6 +62,18 @@ build/
 *.tsbuildinfo
 .cache/
 
+# Rust / Tauri (desktop app)
+target/
+**/target/
+src-tauri/target/
+on-device/desktop/src-tauri/target/
+*.tmp
+*.msi
+*.deb
+*.AppImage
+*.dmg
+*.app
+
 # Docker
 .dockerignore
 
