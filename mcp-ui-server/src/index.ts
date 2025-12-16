@@ -18,7 +18,7 @@ app.use(
       "Content-Type",
       "Accept",
       "mcp-session-id",
-      "NIRMANUS_API_KEY",
+      "HEYATLAS_API_KEY",
       "X-User-ID",
     ],
     allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
@@ -90,30 +90,30 @@ mcpServer.tool(
 
 // Authentication middleware
 const authMiddleware = async (c: any, next: any) => {
-  const nirmanusApiKey = c.req.header("NIRMANUS_API_KEY");
+  const heyatlasApiKey = c.req.header("HEYATLAS_API_KEY");
   const userId = c.req.header("X-User-ID");
 
   // Check if headers are present
-  if (!nirmanusApiKey || !userId) {
+  if (!heyatlasApiKey || !userId) {
     console.warn("[Auth] Rejected request - missing headers:", {
-      hasApiKey: !!nirmanusApiKey,
+      hasApiKey: !!heyatlasApiKey,
       hasUserId: !!userId,
     });
     return c.json(
       {
         error: "Unauthorized",
-        message: "Missing required authentication headers: NIRMANUS_API_KEY and X-User-ID",
+        message: "Missing required authentication headers: HEYATLAS_API_KEY and X-User-ID",
       },
       403
     );
   }
 
   // Validate API key against environment variable
-  const validApiKey = c.env?.NIRMANUS_API_KEY || process.env.NIRMANUS_API_KEY;
-  if (validApiKey && nirmanusApiKey !== validApiKey) {
+  const validApiKey = c.env?.HEYATLAS_API_KEY || process.env.HEYATLAS_API_KEY;
+  if (validApiKey && heyatlasApiKey !== validApiKey) {
     console.warn("[Auth] Rejected request - invalid API key:", {
       userId,
-      providedKey: nirmanusApiKey.substring(0, 8) + "...",
+      providedKey: heyatlasApiKey.substring(0, 8) + "...",
     });
     return c.json(
       {

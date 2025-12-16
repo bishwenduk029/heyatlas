@@ -25,7 +25,7 @@ def create_assistant(tier: str, user_id: str, room, bifrost_key: str):
         tier: Assistant tier ("genin", "chunin", "jonin")
         user_id: User identifier
         room: LiveKit room
-        bifrost_key: API key
+        bifrost_key: User's unique virtual key for token tracking (required)
 
     Returns:
         Configured assistant instance (only the one requested!)

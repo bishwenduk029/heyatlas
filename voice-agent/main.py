@@ -77,7 +77,5 @@ if __name__ == "__main__":
         f"🌍 Environment: COMPUTER_PROVIDER={os.getenv('COMPUTER_PROVIDER', 'local')}"
     )
     agents.cli.run_app(
-        agents.WorkerOptions(
-            entrypoint_fnc=entrypoint, agent_name="heycomputer-agent-dev"
-        )
+        agents.WorkerOptions(entrypoint_fnc=entrypoint, agent_name="heyatlas-agent-dev")
     )

@@ -49,6 +49,15 @@ class GeninAssistant(Agent):
         self.room = ctx.room
         self.bifrost_key = ctx.bifrost_key
 
+        # Validate user has a virtual key (required for token tracking)
+        if not self.bifrost_key:
+            raise ValueError(
+                f"No Bifrost virtual key found for user {self.user_id}. "
+                "User must have a virtual key created in the database for token usage tracking."
+            )
+
+        logger.info(f"✅ Using virtual key: {self.bifrost_key[:8]}...")
+
         instructions = build_sales_instructions()
         super().__init__(instructions=instructions)
 
@@ -63,7 +72,7 @@ class GeninAssistant(Agent):
         )
 
         # Create session internally
-        logger.info(f"🎯 Creating Genin session for user: {user_id}")
+        logger.info(f"🎯 Creating Genin session for user: {self.user_id}")
         logger.info(f"⚠️  Memory disabled for Genin tier")
         logger.info(f"⚠️  MCP servers disabled for Genin tier")
 
@@ -75,7 +84,7 @@ class GeninAssistant(Agent):
             llm=openai.LLM(
                 base_url=os.getenv("BIFROST_URL") + "/v1",
                 model=os.getenv("VOICE_AGENT_LLM"),
-                api_key=bifrost_key,
+                api_key=self.bifrost_key,
             ),
             tts=openai.TTS(
                 base_url=os.getenv("VOICE_AGENT_TTS_PROVIDER"),

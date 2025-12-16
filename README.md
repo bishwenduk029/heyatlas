@@ -1,12 +1,23 @@
-HeyComputer 🎙️💻
-Talk to your computer. It listens, thinks, and gets things done. A real-time voice interface for local AI agents, powered by WebRTC and Durable Objects.
+HeyAtlas 🎙️💻
+Talk to your computer. It listens, thinks, and gets things done. A real-time voice interface for local AI agents, powered by WebRTC and PartyKit.
 
 ![alt text](image.png)
 
 📖 Overview
-HeyComputer is an open-source framework that turns any computer into a voice-controlled agent. It bridges the gap between ultra-low latency Voice AI (in the cloud) and secure Task Execution (on your local machine).
+HeyAtlas is an open-source framework that turns any computer into a voice-controlled agent. It bridges the gap between ultra-low latency Voice AI (in the cloud) and secure Task Execution (on your local machine).
 
-Unlike traditional assistants that just "search the web," HeyComputer uses a local WebSocket connection to drive agents like OpenCode, Goose, or Droid to perform actual work on your filesystem, terminal, and browser.
+Unlike traditional assistants that just "search the web," HeyAtlas uses a local WebSocket connection to drive agents like OpenCode, Goose, or Droid to perform actual work on your filesystem, terminal, and browser.
+
+## 📁 Project Structure
+
+```
+heyatlas/
+├── web/                    # Next.js web app (Vercel)
+├── voice-agent/            # Python LiveKit voice agent (Fly.io)
+├── agent-rooms-server/     # PartyKit relay for WebSocket tunneling
+├── mcp-ui-server/          # MCP UI forms server (Cloudflare Workers)
+└── cli/                    # CLI tool for connecting local agents
+```
 
 🏗️ Architecture
 The system operates like a multiplayer game where the "User" and the "Computer" are synchronized players.

@@ -14,13 +14,13 @@ import logging
 import os
 import uuid
 
-from livekit.agents import AgentSession, RunContext, function_tool
-from mem0 import MemoryClient
+from livekit.agents import RunContext, function_tool
+
+from computer_use import E2BProvider
 
 from .chunin import ChuninAssistant
 from .context import AssistantContext
 from .registry import register_assistant
-from computer_use import E2BProvider
 
 logger = logging.getLogger(__name__)
 

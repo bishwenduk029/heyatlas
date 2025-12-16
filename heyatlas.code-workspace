@@ -1,0 +1,55 @@
+{
+  "folders": [
+    {
+      "name": "web",
+      "path": "web"
+    },
+    {
+      "name": "voice-agent",
+      "path": "voice-agent"
+    },
+    {
+      "name": "agent-rooms-server",
+      "path": "agent-rooms-server"
+    },
+    {
+      "name": "mcp-ui-server",
+      "path": "mcp-ui-server"
+    },
+    {
+      "name": "cli",
+      "path": "cli"
+    }
+  ],
+  "settings": {
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff",
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+      }
+    },
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/.next": true,
+      "**/.git": true,
+      "**/.DS_Store": true
+    },
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/.venv/**": true,
+      "**/.git/**": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "charliermarsh.ruff",
+      "ms-vscode.vscode-typescript-next",
+      "ms-azuretools.vscode-docker"
+    ]
+  }
+}

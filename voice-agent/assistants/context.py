@@ -20,7 +20,7 @@ class AssistantContext(BaseModel):
 
     user_id: str
     room: Any  # LiveKit room object (not Pydantic-friendly)
-    bifrost_key: str
+    bifrost_key: str  # Required - each user must have unique virtual key for token tracking
 
     def __repr__(self) -> str:
         return f"AssistantContext(user_id={self.user_id!r})"

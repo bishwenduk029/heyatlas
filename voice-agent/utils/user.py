@@ -10,13 +10,13 @@ from mem0 import MemoryClient
 logger = logging.getLogger(__name__)
 
 
-def initialize_memory(user_id: str, bifrost_key: str) -> MemoryClient:
+def initialize_memory() -> MemoryClient:
     """
     Initialize Mem0 memory instance for user.
 
     Args:
         user_id: User identifier
-        bifrost_key: Bifrost API key for authentication
+        bifrost_key: User's virtual key (unused here, kept for signature compatibility)
 
     Returns:
         MemoryClient instance
@@ -69,31 +69,45 @@ async def get_user_virtual_key(user_id: str) -> tuple[str | None, str]:
         import httpx
 
         web_url = os.getenv("WEB_URL", "http://localhost:3000")
-        heyatlas_key = os.getenv("HEYATLAS_API_KEY")
+        nirmanus_key = os.getenv("NIRMANUS_API_KEY")
 
-        if heyatlas_key:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{web_url}/api/user/virtual-key",
-                    params={"userId": user_id},
-                    headers={"HEYATLAS_API_KEY": heyatlas_key},
-                    timeout=5.0,
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    bifrost_key = data.get("key")
-                    assistant_tier = data.get("assistantTier", "genin")
+        if not nirmanus_key:
+            logger.error("❌ NIRMANUS_API_KEY not set in environment")
+            return None, "genin"
 
-                    if bifrost_key:
-                        logger.info(f"✅ User {user_id} - Plan: {assistant_tier}")
-                        return bifrost_key, assistant_tier
-                    else:
-                        logger.warning(f"No virtual key found for user {user_id}")
-                        return None, "genin"
+        logger.info(f"🔍 Fetching virtual key for user {user_id} from {web_url}")
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{web_url}/api/user/virtual-key",
+                params={"userId": user_id},
+                headers={"NIRMANUS_API_KEY": nirmanus_key},
+                timeout=5.0,
+            )
+
+            logger.info(f"📡 API response status: {resp.status_code}")
+
+            if resp.status_code == 200:
+                data = resp.json()
+                bifrost_key = data.get("key")
+                assistant_tier = data.get("assistantTier", "genin")
+
+                if bifrost_key:
+                    logger.info(
+                        f"✅ User {user_id} - Plan: {assistant_tier}, Key: {bifrost_key[:8]}..."
+                    )
+                    return bifrost_key, assistant_tier
                 else:
-                    logger.warning(f"Failed to fetch key (status {resp.status_code})")
+                    logger.warning(
+                        f"⚠️ API returned null key for user {user_id}: {data}"
+                    )
                     return None, "genin"
-    except Exception as e:
-        logger.warning(f"Error fetching user data: {e}")
+            else:
+                logger.error(
+                    f"❌ Failed to fetch key (status {resp.status_code}): {resp.text}"
+                )
+                return None, "genin"
 
-    return None, "genin"
+    except Exception as e:
+        logger.error(f"❌ Error fetching user data: {e}", exc_info=True)
+        return None, "genin"

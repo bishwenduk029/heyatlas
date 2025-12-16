@@ -1,14 +1,14 @@
 interface TextInputConfig {
   prompt: string;
   placeholder?: string;
-  inputType?: 'text' | 'email' | 'tel' | 'url' | 'password';
+  inputType?: "text" | "email" | "tel" | "url" | "password";
   multiline?: boolean;
   maxLength?: number;
 }
 
 interface TextInputForm {
   id: string;
-  type: 'text-input';
+  type: "text-input";
   config: TextInputConfig;
   html: string;
 }
@@ -17,19 +17,19 @@ export const textInputUI = {
   createForm(config: TextInputConfig): TextInputForm {
     return {
       id: `form-${Date.now()}`,
-      type: 'text-input',
+      type: "text-input",
       config,
-      html: this.renderHTML(config)
+      html: this.renderHTML(config),
     };
   },
 
   renderHTML(config?: TextInputConfig): string {
     const defaultConfig: TextInputConfig = {
-      prompt: config?.prompt || 'Enter your input',
-      placeholder: config?.placeholder || '',
-      inputType: config?.inputType || 'text',
+      prompt: config?.prompt || "Enter your input",
+      placeholder: config?.placeholder || "",
+      inputType: config?.inputType || "text",
       multiline: config?.multiline || false,
-      maxLength: config?.maxLength || 500
+      maxLength: config?.maxLength || 500,
     };
 
     const inputElement = defaultConfig.multiline
@@ -377,5 +377,5 @@ export const textInputUI = {
 </body>
 </html>
     `;
-  }
+  },
 };

@@ -94,7 +94,7 @@ class ChuninAssistant(GeninAssistant):
             llm=openai.LLM(
                 base_url=os.getenv("BIFROST_URL") + "/v1",
                 model=os.getenv("VOICE_AGENT_LLM"),
-                api_key=ctx.bifrost_key,
+                api_key=self.bifrost_key,  # Already set with fallback in parent
             ),
             tts=openai.TTS(
                 base_url=os.getenv("VOICE_AGENT_TTS_PROVIDER"),
