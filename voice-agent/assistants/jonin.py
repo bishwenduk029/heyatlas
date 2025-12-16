@@ -35,18 +35,8 @@ class JoninAssistant(ChuninAssistant):
     """
 
     def __init__(self, ctx: AssistantContext) -> None:
-        # Call parent (Chunin) init - sets up memory, MCP, session
+        # Call parent (Chunin) init - sets up memory, MCP, session, and instructions
         super().__init__(ctx)
-
-        # Override with Chunin/Jonin instructions
-        from utils.instructions import build_chunin_jonin_instructions
-        from utils.user import generate_persona
-
-        user_persona = generate_persona(self.memory, ctx.user_id) if self.memory else ""
-        instructions = build_chunin_jonin_instructions(user_persona=user_persona)
-
-        # Override instructions
-        self.instructions = instructions
 
         # Add E2B-specific components
         self.computer_provider = E2BProvider()
