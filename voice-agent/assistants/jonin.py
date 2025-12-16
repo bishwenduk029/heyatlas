@@ -38,12 +38,12 @@ class JoninAssistant(ChuninAssistant):
         # Call parent (Chunin) init - sets up memory, MCP, session
         super().__init__(ctx)
 
-        # Override with sophisticated instructions
+        # Override with Chunin/Jonin instructions
         from utils.instructions import build_chunin_jonin_instructions
         from utils.user import generate_persona
 
         user_persona = generate_persona(self.memory, ctx.user_id) if self.memory else ""
-        instructions = build_sophisticated_instructions(user_persona=user_persona)
+        instructions = build_chunin_jonin_instructions(user_persona=user_persona)
 
         # Override instructions
         self.instructions = instructions
