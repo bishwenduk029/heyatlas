@@ -12,9 +12,6 @@ export class CodexAgent extends BaseCLIAgent {
   executable = "codex";
 
   buildCommand(task: string): string[] {
-    return [
-      "codex",
-      task,
-    ];
+    return ["codex", task];
   }
 }

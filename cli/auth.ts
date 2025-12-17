@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "fs";
 
 const CONFIG_DIR = join(homedir(), ".heyatlas");
 const CREDENTIALS_FILE = join(CONFIG_DIR, "credentials.json");
-const API_BASE = process.env.HEYATLAS_API || "https://www.heyatlas.ai";
+const API_BASE = process.env.HEYATLAS_API || "https://www.heyatlas.app";
 const CLIENT_ID = "heyatlas-cli";
 
 interface Credentials {

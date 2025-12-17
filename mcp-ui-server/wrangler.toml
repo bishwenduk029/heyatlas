@@ -1,4 +1,4 @@
-name = "heycomputer-mcp-ui"
+name = "heyatlas-mcp-ui"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]

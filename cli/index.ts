@@ -1,147 +1,90 @@
 /**
- * Agent Warp - Tunnel local CLI agents to the cloud
- *
- * HTTP API server that manages tunnel connections for exposing
- * local CLI agents (opencode, claude, droid, etc.) to relay rooms.
+ * heyatlas CLI - Tunnel local AI agents to the cloud
  */
 
-import { Hono } from "hono";
 import { parseArgs } from "util";
-import { appendFileSync, mkdirSync } from "fs";
-import { dirname, join } from "path";
-import { homedir } from "os";
-import { CLIAgentBridge } from "./CLIAgentBridge";
+import { warp } from "./commands/warp";
 import type { AgentType } from "./agents";
 
-// Parse command line arguments
-const { values } = parseArgs({
-  args: Bun.argv,
+const SUPPORTED_AGENTS = [
+  "opencode",
+  "droid",
+  "gemini",
+  "codex",
+  "claude",
+  "goose",
+  "crush",
+];
+
+const { positionals, values } = parseArgs({
+  args: process.argv.slice(2),
   options: {
-    port: { type: "string" },
-    room: { type: "string" },
-    agent: { type: "string" },
+    help: { type: "boolean", short: "h" },
+    version: { type: "boolean", short: "v" },
+    "no-browser": { type: "boolean" },
   },
-  strict: false,
   allowPositionals: true,
 });
 
-// Configuration
-const PARTY_HOST = process.env.PARTY_HOST;
-const PARTY_ROOM = (values.room as string) || process.env.PARTY_ROOM || "";
-const AGENT_ID = process.env.AGENT_ID || "on-device-computer";
-const DEFAULT_AGENT = ((values.agent as string) ||
-  process.env.AGENT ||
-  "opencode") as AgentType;
-const API_PORT = parseInt(
-  (values.port as string) || process.env.API_PORT || "3001",
-);
+function printHelp() {
+  console.log(`
+heyatlas - Tunnel local AI agents to the cloud
 
-// --- Logging ---
+Usage:
+  heyatlas warp <agent>    Connect local agent to cloud
 
-const AGENT_WARP_LOG_FILE =
-  process.env.AGENT_WARP_LOG_FILE ||
-  join(homedir(), ".heyatlas", "agent-warp", "agent-warp.log");
+Agents:
+  ${SUPPORTED_AGENTS.join(", ")}
 
-process.env.AGENT_WARP_LOG_FILE = AGENT_WARP_LOG_FILE;
+Options:
+  -h, --help        Show this help message
+  -v, --version     Show version
+  --no-browser      Don't open browser automatically
 
-try {
-  mkdirSync(dirname(AGENT_WARP_LOG_FILE), { recursive: true });
-} catch {
-  // ignore
+Examples:
+  heyatlas warp codex      Warp Codex agent
+  heyatlas warp claude     Warp Claude Code
+  heyatlas warp opencode   Warp OpenCode
+`);
 }
-
-function appendLog(text: string) {
-  if (process.env.AGENT_WARP_LOG_CAPTURE === "1") return;
-  try {
-    appendFileSync(
-      AGENT_WARP_LOG_FILE,
-      `\n[${new Date().toISOString()}] ${text}\n`,
-    );
-  } catch {
-    // ignore
-  }
-}
-
-// --- CLI Agent Bridge Instance ---
-
-const bridge = new CLIAgentBridge({
-  host: PARTY_HOST,
-  agentId: AGENT_ID,
-  defaultAgent: DEFAULT_AGENT,
-  reconnect: true,
-  reconnectDelay: 3000,
-  onLog: appendLog,
-});
-
-// --- Hono HTTP API ---
-
-const app = new Hono();
-
-app.get("/health", (c) =>
-  c.json({ status: "ok", connected: bridge.isConnected }),
-);
-
-app.post("/connect", async (c) => {
-  try {
-    const body = await c.req.json();
-    const { roomId, agent } = body;
-    if (!roomId) return c.json({ error: "roomId is required" }, 400);
-
-    if (agent) {
-      bridge.setAgent(agent);
-    }
-
-    console.log(`[API] Connecting to room: ${roomId}`);
-    await bridge.connect(roomId);
-    return c.json({ status: "connected", roomId, agent: bridge.agent });
-  } catch (e) {
-    return c.json(
-      { error: e instanceof Error ? e.message : "Connection failed" },
-      500,
-    );
-  }
-});
-
-app.post("/disconnect", async (c) => {
-  console.log(`[API] Disconnecting`);
-  if (bridge.isConnected) {
-    await bridge.disconnect();
-    return c.json({ status: "disconnected" });
-  }
-  return c.json({ status: "not_connected" });
-});
-
-app.get("/status", (c) => {
-  return c.json({
-    connected: bridge.isConnected,
-    room: bridge.room,
-    agent: bridge.agent,
-  });
-});
-
-app.get("/agents", async (c) => {
-  const available = await bridge.getAvailableAgents();
-  return c.json({ supported: bridge.supportedAgents, available });
-});
-
-// --- Main ---
 
 async function main() {
-  if (PARTY_ROOM) {
-    await bridge.connect(PARTY_ROOM);
-  } else {
-    console.log("Waiting for /connect request to join a room...");
+  if (values.help || positionals.length === 0) {
+    printHelp();
+    process.exit(0);
   }
 
-  console.error(`🔌 API Server running on port ${API_PORT}`);
+  if (values.version) {
+    console.log("heyatlas v0.1.0");
+    process.exit(0);
+  }
 
-  Bun.serve({
-    port: API_PORT,
-    fetch: app.fetch,
-  });
+  const command = positionals[0];
+
+  if (command === "warp") {
+    const agent = positionals[1];
+    if (!agent) {
+      console.error("Error: Agent name required");
+      console.error("Usage: heyatlas warp <agent>");
+      console.error(`Agents: ${SUPPORTED_AGENTS.join(", ")}`);
+      process.exit(1);
+    }
+
+    if (!SUPPORTED_AGENTS.includes(agent)) {
+      console.error(`Error: Unknown agent '${agent}'`);
+      console.error(`Supported agents: ${SUPPORTED_AGENTS.join(", ")}`);
+      process.exit(1);
+    }
+
+    await warp(agent as AgentType, { openBrowser: !values["no-browser"] });
+  } else {
+    console.error(`Unknown command: ${command}`);
+    printHelp();
+    process.exit(1);
+  }
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
+main().catch((err) => {
+  console.error("Fatal error:", err.message);
   process.exit(1);
 });

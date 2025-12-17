@@ -39,7 +39,6 @@ class TunnelInterface(ABC):
     def sub(self, callback: Callable) -> None:
         """Subscribe to incoming messages with a callback."""
         self._callback = callback
-        logger.info("✅ Subscribed to tunnel messages")
 
     @property
     def is_connected(self) -> bool:

@@ -44,7 +44,7 @@ class JoninAssistant(ChuninAssistant):
         self.log_url = ""
         self.heycomputer_sandbox = {}
 
-        logger.info(f"🎯 Jonin tier initialized with E2B capabilities")
+        logger.info("✅ Computer capabilities initialized")
 
     @function_tool()
     async def display_computer(self, context: RunContext) -> None:
@@ -52,7 +52,7 @@ class JoninAssistant(ChuninAssistant):
         if self.room.remote_participants:
             participant_identity = next(iter(self.room.remote_participants))
         else:
-            logger.warning("⚠️ No remote participants found, skipping VNC display")
+            pass
             self.agent_url = self.heycomputer_sandbox["computer_agent_url"]
             self.log_url = self.heycomputer_sandbox.get("logs_url", "")
             await self.connect_computer_agent()
@@ -73,9 +73,9 @@ class JoninAssistant(ChuninAssistant):
                 payload=payload_json,
                 response_timeout=5.0,
             )
-            logger.info(f"🖥️  Successfully sent VNC URL to frontend: {vnc_url}")
-        except Exception as e:
-            logger.error(f"❌ Failed to send VNC URL to frontend: {e}")
+            pass
+        except Exception:
+            pass
 
         await self.connect_computer_agent()
 
@@ -87,7 +87,6 @@ class JoninAssistant(ChuninAssistant):
     async def launch_computer(self) -> None:
         """Launch virtual computer with E2B."""
         agent_type = os.getenv("AGENT_TYPE", "goose")
-        logger.info(f"🚀 Launching computer with agent: {agent_type}")
         heycomputer_sandbox = await self.computer_provider.launch_virtual_computer(
             template_id="heycomputer-desktop",
             user_id=self.user_id,
@@ -99,7 +98,7 @@ class JoninAssistant(ChuninAssistant):
     async def connect_computer_agent(self):
         """Connect to agent via relay room (for E2B sandbox scenario)."""
         await self.tunnel.connect(self.agent_url, agent_id="voice-agent")
-        await self.register_computer_agent_response_callback(self._session)
+        await self.register_computer_agent_response_callback(self.agent_session)
 
     @function_tool()
     async def get_computer_status(self, context: RunContext) -> str:
@@ -112,7 +111,6 @@ class JoninAssistant(ChuninAssistant):
             else:
                 return "Your virtual computer is not connected."
         except Exception as e:
-            logger.error(f"❌ Exception in get_computer_status: {e}")
             return f"Error retrieving computer status: {str(e)}"
 
     @function_tool()
@@ -124,5 +122,4 @@ class JoninAssistant(ChuninAssistant):
             await self.connect_to_party_relay()
             return "Connected to your virtual computer instance."
         except Exception as e:
-            logger.error(f"❌ Exception in connect_to_party_relay: {e}")
             return f"Error connecting to virtual computer: {str(e)}"

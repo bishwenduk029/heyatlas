@@ -3,29 +3,27 @@
   "version": "0.1.0",
   "description": "Tunnel local AI agents to the cloud for voice-powered interactions",
   "bin": {
-    "heyatlas": "./cli.ts"
+    "heyatlas": "./dist/cli.js"
   },
-  "module": "index.ts",
+  "main": "./dist/cli.js",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "start": "bun run cli.ts",
+    "start": "bun run index.ts",
     "dev": "bun run --hot index.ts",
-    "build": "mkdir -p dist && bun build cli.ts --compile --outfile=dist/heyatlas"
+    "build": "bun build index.ts --target=node --outfile=dist/cli.js && { echo '#!/usr/bin/env node'; cat dist/cli.js; } > dist/cli.tmp && mv dist/cli.tmp dist/cli.js",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/bun": "latest"
   },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
   "dependencies": {
-    "@hono/mcp": "npm:@jsr/hono__mcp",
-    "@modelcontextprotocol/sdk": "^1.24.3",
-    "@opencode-ai/sdk": "^1.0.134",
-    "@zenyr/bun-pty": "^0.4.4",
-    "bun-pty": "^0.4.2",
-    "hono": "^4.10.8",
-    "zod": "^4.1.13"
+    "partysocket": "^1.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "ai",

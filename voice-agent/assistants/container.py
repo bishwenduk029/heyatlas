@@ -45,5 +45,5 @@ def create_assistant(tier: str, user_id: str, room, bifrost_key: str):
     assistant_class = get_assistant_class(tier)
 
     # Create ONLY this assistant (lazy!)
-    logger.info(f"🏭 Creating {assistant_class.__name__} for tier: {tier}")
+    pass
     return assistant_class(ctx)

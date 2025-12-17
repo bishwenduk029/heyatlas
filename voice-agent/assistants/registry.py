@@ -27,10 +27,7 @@ def register_assistant(tier: str):
         tier: Tier name ("genin", "chunin", "jonin")
     """
     def decorator(cls):
-        if tier in _ASSISTANT_REGISTRY:
-            logger.warning(f"Overwriting existing registration for tier: {tier}")
         _ASSISTANT_REGISTRY[tier] = cls
-        logger.info(f"✅ Registered {cls.__name__} for tier: {tier}")
         return cls
     return decorator
 

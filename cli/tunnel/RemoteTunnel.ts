@@ -13,10 +13,13 @@ import {
   type MessageCallback,
 } from "./TunnelInterface";
 
+import { WebSocket } from "partysocket";
+
 export interface RemoteTunnelOptions {
   reconnect?: boolean;
   reconnectDelay?: number;
   host?: string;
+  token?: string;
 }
 
 const DEFAULT_HOST = "heyatlas-agents-rooms.bishwenduk029.partykit.dev";
@@ -35,6 +38,13 @@ export class RemoteTunnel extends TunnelInterface {
       reconnectDelay: 3000,
       ...options,
     };
+  }
+
+  /**
+   * Set auth token for connections.
+   */
+  setToken(token: string): void {
+    this.options.token = token;
   }
 
   /**
@@ -60,7 +70,10 @@ export class RemoteTunnel extends TunnelInterface {
       const role = options.role || "agent";
 
       const separator = url.includes("?") ? "&" : "?";
-      const fullUrl = `${url}${separator}id=${this._agentId}&role=${role}`;
+      const tokenParam = this.options.token
+        ? `&token=${encodeURIComponent(this.options.token)}`
+        : "";
+      const fullUrl = `${url}${separator}id=${this._agentId}&role=${role}${tokenParam}`;
       this.currentUrl = url;
 
       // Extract room name from URL

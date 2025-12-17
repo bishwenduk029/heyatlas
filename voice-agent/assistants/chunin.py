@@ -14,12 +14,18 @@ import json
 import logging
 import os
 
-from livekit.agents import AgentSession, FunctionToolsExecutedEvent, RunContext, function_tool, mcp
+from livekit.agents import (
+    AgentSession,
+    FunctionToolsExecutedEvent,
+    RunContext,
+    function_tool,
+    mcp,
+)
 from livekit.plugins import deepgram, openai
 from mem0 import MemoryClient
 
-from .genin import GeninAssistant
 from .context import AssistantContext
+from .genin import GeninAssistant
 from .registry import register_assistant
 
 logger = logging.getLogger(__name__)
@@ -36,16 +42,15 @@ class ChuninAssistant(GeninAssistant):
 
     def __init__(self, ctx: AssistantContext) -> None:
         # Initialize memory and persona
-        from utils.user import initialize_memory, generate_persona
         from utils.instructions import build_chunin_jonin_instructions
+        from utils.user import generate_persona, initialize_memory
 
         try:
             user_id = ctx.user_id  # Fix: use ctx.user_id instead of undefined user_id
             self.memory = initialize_memory(user_id, ctx.bifrost_key)
             user_persona = generate_persona(self.memory, user_id)
-            logger.info(f"✅ Memory initialized for user: {user_id}")
-        except Exception as e:
-            logger.warning(f"⚠️ Memory initialization failed: {e}")
+            logger.info("✅ Memory initialized")
+        except Exception:
             self.memory = None
             user_persona = ""
 
@@ -59,9 +64,6 @@ class ChuninAssistant(GeninAssistant):
         self.instructions = instructions
 
         # Recreate session with MCP servers
-        logger.info(f"🎯 Creating Chunin session for user: {ctx.user_id}")
-        logger.info(f"✅ Memory enabled for Chunin tier")
-        logger.info(f"✅ MCP servers enabled for Chunin tier")
 
         # Configure MCP servers
         mcp_ui_server = os.getenv("MCP_UI_SERVER_URL")
@@ -86,7 +88,7 @@ class ChuninAssistant(GeninAssistant):
             ),
         ]
 
-        self.session = AgentSession(
+        self.agent_session = AgentSession(
             stt=deepgram.STTv2(
                 model="flux-general-en",
                 eager_eot_threshold=0.4,
@@ -106,20 +108,19 @@ class ChuninAssistant(GeninAssistant):
             mcp_servers=mcp_servers_list,
         )
 
-        # Update reference
-        self._session = self.session
-
         # Register MCP UI event handler
         self._register_mcp_ui_handler()
 
     def _register_mcp_ui_handler(self):
         """Register event handler to forward MCP UI resources to frontend."""
 
-        @self.session.on("function_tools_executed")
+        @self.agent_session.on("function_tools_executed")
         def on_function_tools_executed(event: FunctionToolsExecutedEvent):
             """Detect MCP UI tool calls and forward UIResource to frontend via RPC"""
 
-            async def forward_ui_resource(resource: dict, tool_name: str, arguments: dict):
+            async def forward_ui_resource(
+                resource: dict, tool_name: str, arguments: dict
+            ):
                 """Async helper to forward UIResource via RPC"""
                 if self.room.remote_participants:
                     participant_identity = next(iter(self.room.remote_participants))
@@ -138,14 +139,13 @@ class ChuninAssistant(GeninAssistant):
                             payload=json.dumps(ui_payload),
                             response_timeout=5.0,
                         )
-                        logger.info(f"✅ Forwarded UIResource to frontend via RPC")
-                    except Exception as e:
-                        logger.error(f"❌ Failed to forward UIResource: {e}")
+                        pass
+                    except Exception:
+                        pass
 
             for call, output in event.zipped():
                 # Check if this is an MCP UI tool
                 if "display" in call.name.lower() or "ui" in call.name.lower():
-                    logger.info(f"🎨 Detected MCP UI tool call: {call.name}")
 
                     # Parse the output (it's a JSON string)
                     try:
@@ -157,16 +157,14 @@ class ChuninAssistant(GeninAssistant):
 
                             # Check if it's a UI resource (mimeType: text/html)
                             if resource.get("mimeType") == "text/html":
-                                logger.info(f"✨ Found UIResource in tool response")
-
                                 # Forward to frontend via RPC (non-blocking)
                                 asyncio.create_task(
-                                    forward_ui_resource(resource, call.name, call.arguments)
+                                    forward_ui_resource(
+                                        resource, call.name, call.arguments
+                                    )
                                 )
-                    except (json.JSONDecodeError, AttributeError) as e:
-                        logger.error(f"❌ Failed to parse tool output: {e}")
-
-        logger.info("✅ MCP UI event handler registered")
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
 
     @function_tool(
         description="Save information about the user to memory and respond back to user with status"
@@ -180,7 +178,6 @@ class ChuninAssistant(GeninAssistant):
             else:
                 return "Memory system not available"
         except Exception as e:
-            logger.error(f"❌ Error saving memory: {e}")
             return f"Failed to save memory: {str(e)}"
 
     @function_tool(
@@ -191,8 +188,8 @@ class ChuninAssistant(GeninAssistant):
         try:
             if self.memory:
                 self.memory.add(f"User memory - {memory}", user_id=self.user_id)
-        except Exception as e:
-            logger.error(f"❌ Error saving memory: {e}")
+        except Exception:
+            pass
 
     @function_tool(description="Search through stored memories about the user")
     async def search_memories(
@@ -211,5 +208,4 @@ class ChuninAssistant(GeninAssistant):
             else:
                 return "Memory system not available"
         except Exception as e:
-            logger.error(f"❌ Error searching memories: {e}")
             return f"Failed to search memories: {str(e)}"

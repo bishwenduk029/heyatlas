@@ -27,11 +27,10 @@ export class AgentError extends Error {
 }
 
 export async function checkExecutable(name: string): Promise<boolean> {
-  try {
-    const proc = Bun.spawn(["which", name], { stdout: "pipe", stderr: "pipe" });
-    const exitCode = await proc.exited;
-    return exitCode === 0;
-  } catch {
-    return false;
-  }
+  const { spawn } = await import("child_process");
+  return new Promise((resolve) => {
+    const proc = spawn("which", [name], { stdio: "pipe" });
+    proc.on("close", (code) => resolve(code === 0));
+    proc.on("error", () => resolve(false));
+  });
 }

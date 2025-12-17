@@ -44,15 +44,15 @@ deploy-voice-agent:
 # Agent Rooms Server tasks
 setup-agent-rooms:
     @echo "Setting up agent-rooms-server..."
-    cd agent-rooms-server && pnpm install
+    cd agent-rooms-server && bun install
 
 agent-rooms-dev:
     @echo "Running agent-rooms-server in dev mode..."
-    cd agent-rooms-server && pnpm run dev
+    cd agent-rooms-server && bun run dev
 
 agent-rooms-deploy:
     @echo "Deploying agent-rooms-server..."
-    cd agent-rooms-server && pnpm run deploy
+    cd agent-rooms-server && bun run deploy
 
 # CLI tasks
 setup-cli:

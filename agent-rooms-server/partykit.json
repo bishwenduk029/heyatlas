@@ -1,5 +1,5 @@
 {
-  "name": "heycomputer-agents-rooms",
+  "name": "heyatlas-agents-rooms",
   "main": "src/server.ts",
   "compatibilityDate": "2025-02-12"
 }

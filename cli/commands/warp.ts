@@ -29,9 +29,12 @@ export async function warp(agent: AgentType, options: WarpOptions = {}) {
 
   console.log(`🤖 Agent locked: ${agent}`);
 
-  // 3. Connect tunnel
+  // 3. Connect tunnel with authentication
   const roomId = credentials.userId;
-  const tunnel = new RemoteTunnel({ reconnect: true });
+  const tunnel = new RemoteTunnel({
+    reconnect: true,
+    token: credentials.accessToken,
+  });
 
   // Set up message handler
   tunnel.sub(async (content, data) => {
@@ -69,14 +72,14 @@ export async function warp(agent: AgentType, options: WarpOptions = {}) {
   });
 
   await tunnel.connectToRoom(roomId, {
-    agentId: "heyatlas-cli",
-    role: "computer",
+    agentId: agent,
+    role: "local-agent",
   });
 
   console.log(`🔗 Tunnel established`);
 
   // 4. Open browser
-  const baseUrl = process.env.HEYATLAS_API || "https://www.heyatlas.ai";
+  const baseUrl = process.env.HEYATLAS_API || "https://www.heyatlas.app";
   const voiceUrl = `${baseUrl}/voice`;
 
   if (options.openBrowser !== false) {
