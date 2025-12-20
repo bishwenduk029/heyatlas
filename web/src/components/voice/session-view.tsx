@@ -14,6 +14,7 @@ import { Footer } from "@/components/voice/footer";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
 import { Header } from "../homepage/header";
 import { RpcError, RpcInvocationData } from "livekit-client";
+import { AssistantChat } from "./assistant-chat";
 
 interface SessionViewProps {
   sessionStarted: boolean;
@@ -22,6 +23,9 @@ interface SessionViewProps {
   logUrl?: string;
   userId?: string;
   mode?: "local" | "sandbox";
+  onToggleChat?: () => void;
+  isChatMode?: boolean;
+  agentToken?: string;
 }
 
 export const SessionView = ({
@@ -31,6 +35,9 @@ export const SessionView = ({
   logUrl,
   userId,
   mode = "local",
+  onToggleChat,
+  isChatMode,
+  agentToken,
   ref,
 }: React.ComponentProps<"div"> & SessionViewProps) => {
   const room = useRoomContext();
@@ -148,7 +155,7 @@ export const SessionView = ({
 
     return (
       <>
-        <div className="flex-1 overflow-hidden rounded-lg border bg-card shadow-sm h-full">
+        <div className="flex-1 overflow-hidden rounded-lg bg-card shadow-sm">
           <div
             ref={chatScrollRef}
             className="h-full overflow-y-auto p-4"
@@ -180,6 +187,8 @@ export const SessionView = ({
             onDisconnect={handleDisconnect}
             sessionStarted={sessionStarted}
             agentState={room.state === "connected" ? agentState : undefined}
+            onToggleChat={onToggleChat}
+            isChatMode={false}
           />
         </div>
       </>
@@ -191,19 +200,26 @@ export const SessionView = ({
     return (
       <div
         ref={ref}
-        className="flex h-screen flex-col"
+        className="flex-1 flex flex-col"
       >
-        <Header />
-
         {/* Single Centered Column for Local CLI Agent */}
-        <div className="flex flex-1 justify-center overflow-hidden px-2 md:px-6 pb-2">
+        <div className="flex-1 flex justify-center overflow-hidden px-2 md:px-6 pb-2">
           <div className="flex w-full max-w-2xl flex-col gap-3 h-full">
-            {renderChatContent()}
+            {sessionStarted && agentState && agentState !== "idle" && (
+              <div className="flex flex-col items-center justify-center py-2 shrink-0">
+                <div className="h-4 flex items-center justify-center">
+                  <p className="text-xs font-medium text-primary animate-pulse">
+                    {agentState === "listening" ? "Listening..." : 
+                     agentState === "speaking" ? "Atlas is speaking" : 
+                     agentState === "thinking" ? "Thinking..." : ""}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {renderChatContent()}
+            </div>
           </div>
-        </div>
-
-        <div className="mt-6">
-          <Footer />
         </div>
       </div>
     );
@@ -213,16 +229,21 @@ export const SessionView = ({
   return (
     <div
       ref={ref}
-      className="flex h-screen flex-col"
+      className="flex-1 flex flex-col"
     >
-      {/* App Header */}
-      <Header />
-
       {/* Main Content Area - Responsive Layout */}
-      <div className="flex flex-1 gap-4 overflow-hidden px-2 md:px-6 pb-2">
+      <div className="flex-1 flex gap-4 overflow-hidden px-2 md:px-6 pb-2">
         {/* Left Column - Chat Messages and Controls (Desktop Only) */}
         <div className="hidden w-2/5 flex-col gap-3 md:flex h-full">
-          {renderChatContent()}
+          {isChatMode && agentToken ? (
+            <AssistantChat 
+              userId={userId || "user"} 
+              token={agentToken} 
+              onToggleMode={onToggleChat}
+            />
+          ) : (
+            renderChatContent()
+          )}
         </div>
 
         {/* Right/Main Column - Desktop Viewer (Desktop & Mobile) */}
@@ -239,11 +260,6 @@ export const SessionView = ({
             }
           />
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-6">
-        <Footer />
       </div>
     </div>
   );

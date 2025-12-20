@@ -3,7 +3,7 @@
 import { Track } from "livekit-client";
 import { useLocalParticipant } from "@livekit/components-react";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Play } from "lucide-react";
+import { Mic, MicOff, Play, Keyboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AgentControlBarProps {
@@ -11,6 +11,8 @@ interface AgentControlBarProps {
   onDisconnect?: () => void;
   sessionStarted?: boolean;
   agentState?: string;
+  onToggleChat?: () => void;
+  isChatMode?: boolean;
 }
 
 export function AgentControlBar({
@@ -18,6 +20,8 @@ export function AgentControlBar({
   onDisconnect,
   sessionStarted,
   agentState,
+  onToggleChat,
+  isChatMode,
 }: AgentControlBarProps) {
   const { localParticipant } = useLocalParticipant();
 
@@ -79,7 +83,20 @@ export function AgentControlBar({
       </div>
 
       {/* Right: Start/End Button */}
-      {!sessionStarted ? (
+      <div className="flex items-center gap-2">
+        {onToggleChat && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleChat}
+            className={cn("h-10 w-10", isChatMode && "bg-muted")}
+            title={isChatMode ? "Switch to Voice" : "Switch to Chat"}
+          >
+            <Keyboard className="h-5 w-5" />
+          </Button>
+        )}
+
+        {!sessionStarted ? (
         <Button
           variant="default"
           onClick={onStartSession}
@@ -95,6 +112,7 @@ export function AgentControlBar({
           End Session
         </Button>
       )}
+      </div>
     </div>
   );
 }

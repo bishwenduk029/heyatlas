@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json({ error: "Missing userId parameter" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing userId parameter" },
+        { status: 400 },
+      );
     }
 
     // 3. Fetch User's Virtual Key
@@ -41,26 +44,29 @@ export async function GET(request: Request) {
     });
 
     // 5. Map productId to assistant tier (genin, chunin, jonin)
-    let assistantTier = "genin"; // Default to free tier
+    let assistantTier = "jonin"; // Default to free tier
     if (subscription && subscription.status === "active") {
       const productId = subscription.productId;
       // Map product IDs to assistant tiers
       if (productId === "max_monthly") {
         assistantTier = "jonin"; // Full features: memory + web search + cloud desktop
       } else if (productId === "pro_monthly") {
-        assistantTier = "chunin"; // Mid tier: memory + web search, no cloud desktop
+        assistantTier = "jonin"; // Mid tier: memory + web search, no cloud desktop
       } else if (productId === "free") {
-        assistantTier = "genin"; // Basic: no memory, no web search, no cloud desktop
+        assistantTier = "jonin"; // Basic: no memory, no web search, no cloud desktop
       }
     }
 
     return NextResponse.json({
       key: user.bifrostApiKey,
       assistantTier: assistantTier,
-      productId: subscription?.productId || "free"
+      productId: subscription?.productId || "free",
     });
   } catch (error) {
     console.error("Error fetching virtual key:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

@@ -54,6 +54,38 @@ agent-rooms-deploy:
     @echo "Deploying agent-rooms-server..."
     cd agent-rooms-server && bun run deploy
 
+# Agent Smith tasks
+setup-agent-smith:
+    @echo "Setting up agent-smith..."
+    cd desktop-sandbox/agent-smith && bun install
+
+build-agent-smith: setup-agent-smith
+    @echo "Building agent-smith..."
+    cd desktop-sandbox/agent-smith && bun run build
+    @echo "Copying built agent-smith.cjs to template/files..."
+    cp desktop-sandbox/agent-smith/dist/agent-smith.cjs desktop-sandbox/template/files/agent-smith.cjs
+
+agent-smith-dev:
+    @echo "Running agent-smith in dev mode..."
+    cd desktop-sandbox/agent-smith && bun run dev
+
+# Desktop Sandbox tasks
+setup-desktop-sandbox:
+    @echo "Setting up desktop-sandbox template..."
+    cd desktop-sandbox/template && uv sync
+
+build-desktop-sandbox: setup-desktop-sandbox build-agent-smith
+    cd desktop-sandbox/template && uv run python build_prod.py
+    @echo "✅ Desktop sandbox built successfully"
+
+desktop-sandbox-dev:
+    @echo "Running desktop-sandbox in dev mode..."
+    cd desktop-sandbox/template && uv run python build_dev.py
+
+deploy-desktop-sandbox:
+    @echo "Deploying desktop-sandbox..."
+    cd desktop-sandbox/template && uv run python build_docker.py
+
 # CLI tasks
 setup-cli:
     @echo "Setting up CLI..."
@@ -93,8 +125,29 @@ deploy-bifrost:
         echo "✋ No changes in bifrost-gateway, skipping deployment"; \
     fi
 
+# Experimental Atlas Beta tasks
+setup-atlas-beta:
+    @echo "Setting up experimental atlas beta..."
+    cd experimental/atlas/beta && pnpm install
+
+atlas-beta-dev:
+    @echo "Running experimental atlas beta in dev mode..."
+    cd experimental/atlas/beta && pnpm run dev
+
+typecheck-atlas-beta:
+    @echo "Type checking experimental atlas beta..."
+    cd experimental/atlas/beta && pnpm run typecheck
+
+deploy-atlas-beta:
+    @echo "Deploying experimental atlas beta..."
+    cd experimental/atlas/beta && pnpm run deploy
+
+tail-atlas-beta:
+    @echo "Tailing logs for experimental atlas beta..."
+    cd experimental/atlas/beta && pnpm run tail
+
 # Composite tasks
-setup: setup-web setup-voice-agent setup-agent-rooms setup-cli setup-mcp-ui-server
+setup: setup-web setup-voice-agent setup-agent-rooms setup-cli setup-mcp-ui-server setup-agent-smith setup-desktop-sandbox setup-atlas-beta
     @echo "✅ Setup complete."
 
 dev:
@@ -111,10 +164,17 @@ dev-voice:
         "just voice-agent-dev" \
         "just cli-dev"
 
+desktop-dev:
+    @echo "Starting desktop development environment (agent-smith + desktop-sandbox)..."
+    npx -y concurrently \
+        "just agent-smith-dev" \
+        "just desktop-sandbox-dev"
+
 deploy-all:
     @echo "Deploying all services..."
     just deploy-web
     just deploy-voice-agent
     just agent-rooms-deploy
     just deploy-mcp-ui-server
+    just deploy-desktop-sandbox
     @echo "✅ Deployment complete."

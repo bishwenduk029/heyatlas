@@ -10,6 +10,13 @@ import { SessionView } from "@/components/voice/session-view";
 import { MCPUIHandler } from "@/components/voice/mcp-ui-handler";
 import useConnectionDetails from "@/hooks/useConnectionDetails";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
+import { AssistantChat } from "./assistant-chat";
+import { Button } from "@/components/ui/button";
+import { Keyboard, Mic } from "lucide-react";
+import useAgentToken from "@/hooks/useAgentToken";
+import { Header } from "../homepage/header";
+import { Footer } from "./footer";
 
 interface VoiceAppProps {
   userId?: string;
@@ -21,6 +28,9 @@ export function VoiceApp({ userId, mode = "local" }: VoiceAppProps) {
   const [sessionStarted, setSessionStarted] = useState(false);
   const [vncUrl, setVncUrl] = useState<string | null>(null);
   const [logUrl, setLogUrl] = useState<string | null>(null);
+  const [isChatMode, setIsChatMode] = useState(false);
+  const { token: agentToken } = useAgentToken();
+
   const {
     error: connectionError,
     refreshConnectionDetails,
@@ -29,6 +39,10 @@ export function VoiceApp({ userId, mode = "local" }: VoiceAppProps) {
 
   const handleStartSession = () => {
     setSessionStarted(true);
+  };
+
+  const handleToggleChat = () => {
+    setIsChatMode((prev) => !prev);
   };
 
   // Debug log
@@ -149,17 +163,55 @@ export function VoiceApp({ userId, mode = "local" }: VoiceAppProps) {
   return (
     <RoomContext.Provider value={room}>
       <MCPUIHandler />
-      <main className="relative min-h-screen bg-background">
-        <RoomAudioRenderer />
-
-        <SessionView
-          onStartSession={handleStartSession}
-          sessionStarted={sessionStarted}
-          vncUrl={vncUrl ?? undefined}
-          logUrl={logUrl ?? undefined}
-          userId={userId}
-          mode={mode}
-        />
+      <main className="h-screen bg-background flex flex-col overflow-hidden">
+        <Header />
+        <div className="flex-1 overflow-hidden flex flex-col m-2">
+          <AnimatePresence mode="wait">
+            {!isChatMode || mode === "sandbox" ? (
+              <motion.div
+                key="voice"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex-1 flex flex-col"
+              >
+                <RoomAudioRenderer />
+                <SessionView
+                  onStartSession={handleStartSession}
+                  sessionStarted={sessionStarted}
+                  vncUrl={vncUrl ?? undefined}
+                  logUrl={logUrl ?? undefined}
+                  userId={userId}
+                  mode={mode}
+                  onToggleChat={handleToggleChat}
+                  isChatMode={isChatMode}
+                  agentToken={agentToken}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="chat"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex-1 h-full flex flex-col"
+              >
+                {agentToken ? (
+                  <div className="flex-1 relative flex flex-col h-full">
+                    <AssistantChat userId={userId || "user"} token={agentToken} onToggleMode={handleToggleChat} />
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        <Footer />
       </main>
     </RoomContext.Provider>
   );

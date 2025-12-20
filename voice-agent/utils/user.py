@@ -39,9 +39,8 @@ def generate_persona(memory: MemoryClient, user_id: str) -> str:
     try:
         results = memory.search(
             "user information name details",
-            user_id=user_id,
+            filters={"user_id": user_id},
             limit=5,
-            threshold=0.7,
         )
         if results.get("results"):
             return "\n".join([r.get("memory", "") for r in results["results"]])

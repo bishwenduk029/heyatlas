@@ -1,0 +1,4 @@
+{
+  "name": "atlas-transport",
+  "main": "src/server.ts"
+}

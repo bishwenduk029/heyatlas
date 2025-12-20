@@ -22,7 +22,6 @@ from livekit.agents import (
     mcp,
 )
 from livekit.plugins import deepgram, openai
-from mem0 import MemoryClient
 
 from .context import AssistantContext
 from .genin import GeninAssistant
@@ -47,7 +46,7 @@ class ChuninAssistant(GeninAssistant):
 
         try:
             user_id = ctx.user_id  # Fix: use ctx.user_id instead of undefined user_id
-            self.memory = initialize_memory(user_id, ctx.bifrost_key)
+            self.memory = initialize_memory()
             user_persona = generate_persona(self.memory, user_id)
             logger.info("✅ Memory initialized")
         except Exception:
@@ -57,11 +56,8 @@ class ChuninAssistant(GeninAssistant):
         # Build instructions with persona
         instructions = build_chunin_jonin_instructions(user_persona=user_persona)
 
-        # Call parent init (which creates basic session)
-        super().__init__(ctx)
-
-        # Override parent's instructions
-        self.instructions = instructions
+        # Call parent init with custom instructions
+        super().__init__(ctx, instructions=instructions)
 
         # Recreate session with MCP servers
 
@@ -146,7 +142,6 @@ class ChuninAssistant(GeninAssistant):
             for call, output in event.zipped():
                 # Check if this is an MCP UI tool
                 if "display" in call.name.lower() or "ui" in call.name.lower():
-
                     # Parse the output (it's a JSON string)
                     try:
                         result = json.loads(output.output)
@@ -173,7 +168,7 @@ class ChuninAssistant(GeninAssistant):
         """Store user information or conversation context in memory."""
         try:
             if self.memory:
-                self.memory.add(f"User memory - {memory}", user_id=self.user_id)
+                self.memory.add(memory, user_id=self.user_id)
                 return f"Saved: {memory}"
             else:
                 return "Memory system not available"
@@ -187,7 +182,7 @@ class ChuninAssistant(GeninAssistant):
         """Store user information or conversation context in memory (silent)."""
         try:
             if self.memory:
-                self.memory.add(f"User memory - {memory}", user_id=self.user_id)
+                self.memory.add(memory, user_id=self.user_id)
         except Exception:
             pass
 
@@ -199,7 +194,7 @@ class ChuninAssistant(GeninAssistant):
         try:
             if self.memory:
                 results = self.memory.search(
-                    query, user_id=self.user_id, limit=limit, threshold=0.7
+                    query, filters={"user_id": self.user_id}, limit=limit
                 )
                 if results.get("results"):
                     return "\n".join([f"• {r['memory']}" for r in results["results"]])

@@ -57,6 +57,8 @@ const env = createEnv({
   client: {
     // Application settings
     NEXT_PUBLIC_APP_URL: z.string(),
+    // Atlas Agent URL
+    NEXT_PUBLIC_ATLAS_AGENT_URL: z.string().optional(),
   },
 
   // Linking runtime environment variables
@@ -95,6 +97,7 @@ const env = createEnv({
 
     // Application settings
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_ATLAS_AGENT_URL: process.env.NEXT_PUBLIC_ATLAS_AGENT_URL,
 
     // Payments - Creem
     CREEM_API_KEY: process.env.CREEM_API_KEY,

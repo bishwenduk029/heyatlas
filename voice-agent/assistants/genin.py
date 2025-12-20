@@ -43,7 +43,7 @@ class GeninAssistant(Agent):
     - No memory, no MCP servers
     """
 
-    def __init__(self, ctx: AssistantContext) -> None:
+    def __init__(self, ctx: AssistantContext, instructions: str | None = None) -> None:
         # Unpack context
         self.user_id = ctx.user_id
         self.room = ctx.room
@@ -58,7 +58,8 @@ class GeninAssistant(Agent):
 
         logger.info("✅ Virtual key loaded")
 
-        instructions = build_sales_instructions()
+        if instructions is None:
+            instructions = build_sales_instructions()
         super().__init__(instructions=instructions)
 
         # Initialize internal components
@@ -137,7 +138,7 @@ class GeninAssistant(Agent):
         success = await self.tunnel.pub(task, session_id=session_id)
         return success
 
-    async def connect_to_party_relay(self):
+    async def connect_to_remote_agents_room(self):
         """Connect to relay room for task routing using user_id as room name."""
         import os
 

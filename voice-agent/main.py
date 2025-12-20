@@ -7,9 +7,14 @@ Three-tier voice assistant system based on pricing plans:
 - Jonin: Elite (full cloud computer) - Memory + MCP + E2B
 
 Uses registry pattern for clean assistant instantiation.
+
+Console mode (for local testing with Atlas):
+  uv run main.py console
 """
 
 import logging
+import os
+import sys
 
 from dotenv import load_dotenv
 from livekit import agents
@@ -23,28 +28,44 @@ logger = logging.getLogger(__name__)
 load_dotenv(".env")
 
 
+def is_console_mode() -> bool:
+    """Check if running in console/dev mode for local Atlas testing.
+    
+    Set ATLAS_CONSOLE_MODE=1 to enable:
+      ATLAS_CONSOLE_MODE=1 uv run main.py console
+    """
+    return os.getenv("ATLAS_CONSOLE_MODE") == "1"
+
+
 async def entrypoint(ctx: JobContext):
     """Main entry point for voice agent."""
     job_metadata = parse_job_metadata(ctx.job.metadata)
-    user_id = job_metadata["user_id"]
+    user_id = job_metadata.get("user_id") or "test-user"
 
-    bifrost_key, pricing_plan = await get_user_virtual_key(user_id)
-    logger.info(f"🎯 Assistant: {pricing_plan}")
+    # Console mode: use experimental GeninLocalAssistant with Atlas
+    if is_console_mode():
+        from experimental.genin_local import GeninLocalAssistant
 
-    assistant = create_assistant(
-        tier=pricing_plan,
-        user_id=user_id,
-        room=ctx.room,
-        bifrost_key=bifrost_key,
-    )
+        logger.info("🧪 Console mode: Using GeninLocalAssistant with Atlas")
+        assistant = GeninLocalAssistant(user_id=user_id)
+        await assistant.connect_to_party_relay()
+    else:
+        # Production mode: use tier-based assistant
+        bifrost_key, pricing_plan = await get_user_virtual_key(user_id)
+        logger.info(f"🎯 Assistant: {pricing_plan}")
+
+        assistant = create_assistant(
+            tier=pricing_plan,
+            user_id=user_id,
+            room=ctx.room,
+            bifrost_key=bifrost_key,
+        )
+        await assistant.connect_to_remote_agents_room()
 
     def handle_text_input(agent_session, event: room_io.TextInputEvent) -> None:
         """Handle text input from LiveKit chat stream."""
         agent_session.interrupt()
         agent_session.generate_reply(user_input=event.text)
-
-    # Connect to relay room for task communication
-    await assistant.connect_to_party_relay()
 
     # Start the session
     await assistant.agent_session.start(
@@ -53,11 +74,12 @@ async def entrypoint(ctx: JobContext):
         room_input_options=RoomInputOptions(text_input_cb=handle_text_input),
     )
 
-    # Start background audio
-    await assistant.background_audio.start(
-        room=ctx.room, agent_session=assistant.agent_session
-    )
-    await assistant.background_audio.play("audio/startup.mp3")
+    # Start background audio (skip in console mode if no audio files)
+    if not is_console_mode():
+        await assistant.background_audio.start(
+            room=ctx.room, agent_session=assistant.agent_session
+        )
+        await assistant.background_audio.play("audio/startup.mp3")
 
 
 if __name__ == "__main__":

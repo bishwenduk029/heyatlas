@@ -17,7 +17,9 @@ export default class Server implements Party.Server {
 
       // Server-to-server auth via API key (for voice agent)
       if (apiKey && role === "voice") {
-        const serverApiKey = (lobby.env.NIRMANUS_API_KEY as string) || process.env.NIRMANUS_API_KEY;
+        const serverApiKey =
+          (lobby.env.NIRMANUS_API_KEY as string) ||
+          process.env.NIRMANUS_API_KEY;
         if (apiKey === serverApiKey) {
           request.headers.set("X-User-ID", "voice-agent");
           request.headers.set("X-Role", "voice");
@@ -85,5 +87,53 @@ export default class Server implements Party.Server {
         // Ignore parsing errors for logging
       }
     }
+  }
+
+  async onRequest(request: Party.Request): Promise<Response> {
+    // Handle HTTP POST from E2B sandbox (agent-smith)
+    if (request.method === "POST") {
+      try {
+        // Validate sandbox callback token
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new Response("Unauthorized: Missing token", { status: 401 });
+        }
+
+        const sandboxToken = authHeader.slice(7);
+
+        // Validate token against web API
+        const apiBase =
+          (this.room.env.AUTH_API_BASE as string) || AUTH_API_BASE;
+        const response = await fetch(
+          `${apiBase}/api/user/virtual-key/validate`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sandboxToken, roomId: this.room.id }),
+          },
+        );
+
+        if (!response.ok) {
+          return new Response("Unauthorized: Invalid sandbox token", {
+            status: 401,
+          });
+        }
+
+        // Parse and broadcast the message
+        const body = await request.json();
+        this.room.broadcast(JSON.stringify(body));
+        console.log(`HTTP broadcast: ${body.type} from sandbox`);
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("HTTP request error:", error);
+        return new Response("Internal server error", { status: 500 });
+      }
+    }
+
+    return new Response("Method not allowed", { status: 405 });
   }
 }

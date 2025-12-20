@@ -15,28 +15,27 @@ class VirtualComputerProvider(ABC):
     @abstractmethod
     async def launch_virtual_computer(
         self,
+        user_id: str,
         template_id: str,
         env_vars: Optional[dict[str, str]] = None,
-        user_id: Optional[str] = None,
         timeout: int = 3600,
-        agent_type: str = "goose",
         virtual_key: Optional[str] = None,
     ) -> dict[str, str]:
         """
-        Launch a virtual computer instance.
+        Launch a virtual computer instance with agent-smith.
 
         Args:
+            user_id: User ID for tracking
             template_id: The template/image identifier for the virtual computer
             env_vars: Optional environment variables to inject
-            user_id: Optional user ID for goose memory configuration
             timeout: Timeout in seconds for the instance
-            agent_type: Automation agent to run inside the sandbox ("goose" | "agno")
-            virtual_key: Optional Bifrost virtual key for LLM usage
+            virtual_key: Bifrost virtual key for LLM access
 
         Returns:
             Dictionary containing:
-                - sandbox_id: Unique identifier for the instance
-                - monitor_url: URL to monitor/access the instance
+                - vnc_stream: VNC stream URL
+                - computer_agent_url: WebSocket URL for agent-smith
+                - logs_url: Log stream URL
         """
         pass
 

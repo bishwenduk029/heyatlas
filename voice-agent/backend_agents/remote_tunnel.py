@@ -25,8 +25,9 @@ class RemoteTunnel(TunnelInterface):
         super().__init__()
         self.websocket = None
         self.agent_id = "voice-agent"
-        self.host = host or os.getenv("PARTYKIT_HOST")
+        self.host = host or os.getenv("PARTY_HOST")
         self.api_key = api_key
+        logger.info(f"🔧 RemoteTunnel initialized with host: {self.host}")
 
     async def connect_to_room(
         self, room_id: str, agent_id: str = "voice-agent", role: str = "voice-agent", **kwargs
@@ -35,8 +36,12 @@ class RemoteTunnel(TunnelInterface):
         Connect to a room by room ID (convenience method).
         Handles URL formation internally.
         """
+        if not self.host:
+            logger.error("❌ PARTY_HOST not set!")
+            raise ValueError("PARTY_HOST environment variable is not set")
         protocol = "ws" if "localhost" in self.host else "wss"
         url = f"{protocol}://{self.host}/parties/main/{room_id}"
+        logger.info(f"🔌 Connecting to PartyKit room: {url}")
         return await self.connect(url, agent_id=agent_id, role=role, **kwargs)
 
     async def connect(
@@ -49,12 +54,16 @@ class RemoteTunnel(TunnelInterface):
             api_key_param = f"&apiKey={self.api_key}" if self.api_key else ""
             full_url = f"{url}{separator}id={self.agent_id}&role={role}{api_key_param}"
 
+            # Log URL without API key for security
+            log_url = f"{url}{separator}id={self.agent_id}&role={role}"
+            logger.info(f"🔗 Attempting WebSocket connection to: {log_url}")
+
             self.websocket = await websockets.connect(full_url)
             self._is_connected = True
             asyncio.create_task(self._listen())
-            logger.info("✅ Connected to tunnel")
+            logger.info(f"✅ Connected to tunnel at {self.host}")
         except Exception as e:
-            logger.error(f"Failed to connect: {e}")
+            logger.error(f"❌ Failed to connect to {url}: {e}")
             self._is_connected = False
             raise
 
