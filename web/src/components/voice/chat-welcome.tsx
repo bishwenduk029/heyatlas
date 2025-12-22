@@ -1,40 +1,40 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Sparkles, Terminal, BookOpen, Code } from "lucide-react";
 
 interface ChatWelcomeProps {
-  onAction: (text: string) => void;
+  onAction?: (text: string) => void;
 }
 
 export function ChatWelcome({ onAction }: ChatWelcomeProps) {
   const suggestions = [
-    "What are the advantages of using Next.js?",
-    "Write code to demonstrate Dijkstra's algorithm",
-    "Help me write an essay about Silicon Valley",
-    "What is the weather in San Francisco?",
+    { icon: <Terminal className="h-4 w-4" />, label: "Run a system update", text: "Run a system update check on the computer" },
+    { icon: <Code className="h-4 w-4" />, label: "Debug my code", text: "Help me debug the code I'm working on" },
+    { icon: <BookOpen className="h-4 w-4" />, label: "Summarize docs", text: "Summarize the documentation for me" },
+    { icon: <Sparkles className="h-4 w-4" />, label: "Create a project", text: "Help me scaffold a new project" },
   ];
 
   return (
-    <div className="flex flex-col gap-8 max-w-3xl mx-auto w-full py-12 px-4 items-center text-center mt-20">
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-          Hello there!
-        </h1>
-        <h2 className="text-2xl font-medium text-muted-foreground">
-          How can I help you today?
-        </h2>
+    <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto space-y-8 mt-20">
+      <div className="flex flex-col items-center space-y-2">
+        <div className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center mb-4">
+          <Sparkles className="h-6 w-6 text-white" />
+        </div>
+        <h2 className="text-2xl font-semibold text-white">Hi, how can I help?</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mt-8">
-        {suggestions.map((suggestion, i) => (
+      <div className="grid grid-cols-2 gap-4 w-full">
+        {suggestions.map((s, i) => (
           <Button
             key={i}
             variant="outline"
-            className="h-auto py-4 px-6 justify-start text-left whitespace-normal rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-colors"
-            onClick={() => onAction(suggestion)}
+            className="h-auto py-4 px-6 flex flex-col items-start gap-2 bg-muted/10 border-white/5 hover:bg-white/5 hover:border-white/10 transition-all text-left"
+            onClick={() => onAction?.(s.text)}
           >
-            <span className="text-sm font-medium line-clamp-2">{suggestion}</span>
+            <div className="p-2 rounded-lg bg-white/5 text-white/80">
+              {s.icon}
+            </div>
+            <span className="text-sm font-medium text-white/90">{s.label}</span>
           </Button>
         ))}
       </div>

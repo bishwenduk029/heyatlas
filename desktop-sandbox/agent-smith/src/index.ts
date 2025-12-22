@@ -41,7 +41,7 @@ const mcpConfig = new MCPConfiguration({
     // Add more MCP servers as needed: notion, gmail, slack, github, etc.
   },
 })
-// Tool to send task updates back to voice agent via PartyKit
+// Tool to send task updates back to Atlas (which broadcasts to voice agent)
 const sendTaskUpdateTool = createTool({
   name: 'send_task_update',
   description:
@@ -55,14 +55,14 @@ const sendTaskUpdateTool = createTool({
   execute: async ({ message, status }) => {
     const callbackToken = process.env.SANDBOX_CALLBACK_TOKEN
     const userId = process.env.SANDBOX_USER_ID
-    const partyHost = process.env.PARTY_HOST
+    const atlasCallbackUrl = process.env.ATLAS_CALLBACK_URL
 
-    if (!callbackToken || !userId || !partyHost) {
+    if (!callbackToken || !userId || !atlasCallbackUrl) {
       return { success: false, error: 'Missing callback configuration' }
     }
 
-    const protocol = partyHost.includes('localhost') ? 'http' : 'https'
-    const url = `${protocol}://${partyHost}/parties/main/${userId}`
+    // POST to Atlas agent endpoint: {ATLAS_CALLBACK_URL}/agents/atlas-agent/{userId}
+    const url = `${atlasCallbackUrl}/agents/atlas-agent/${userId}`
 
     try {
       const response = await fetch(url, {
@@ -73,9 +73,9 @@ const sendTaskUpdateTool = createTool({
         },
         body: JSON.stringify({
           type: 'task-update',
+          content: message,
           status,
-          message,
-          source: 'agent-smith',
+          source: 'sandbox',
         }),
       })
 
@@ -83,7 +83,7 @@ const sendTaskUpdateTool = createTool({
         return { success: false, error: `HTTP ${response.status}` }
       }
 
-      return { success: true, message: 'Update sent to voice agent' }
+      return { success: true, message: 'Update sent to Atlas' }
     } catch (error) {
       return { success: false, error: String(error) }
     }

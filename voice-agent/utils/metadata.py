@@ -1,38 +1,63 @@
-"""
-Job metadata parsing utilities
-"""
+"""Job metadata parsing and user key fetching."""
 
 import json
 import logging
-from typing import TypedDict
+import os
+from typing import Optional
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
 
-class JobMetadata(TypedDict):
-    """Typed dictionary for parsed job metadata."""
+def parse_job_metadata(raw: str | None) -> dict:
+    """Parse job metadata JSON."""
+    try:
+        return json.loads(raw or "{}") if raw else {}
+    except Exception as e:
+        logger.warning(f"Error parsing metadata: {e}")
+        return {}
 
-    user_id: str
 
-
-def parse_job_metadata(metadata_raw: str | None) -> JobMetadata:
+async def get_user_virtual_key(user_id: str) -> tuple[Optional[str], str]:
     """
-    Parse job metadata and return consistent user information.
-
-    Args:
-        metadata_raw: Raw metadata string from job context
+    Fetch user's virtual key from web API.
 
     Returns:
-        JobMetadata with user_id
+        Tuple of (bifrost_key, tier)
     """
-    try:
-        metadata_raw = metadata_raw or "{}"
-        if isinstance(metadata_raw, str):
-            metadata = json.loads(metadata_raw) if metadata_raw else {}
-        else:
-            metadata = metadata_raw or {}
+    web_url = os.getenv("WEB_URL", "http://localhost:3000")
+    nirmanus_key = os.getenv("NIRMANUS_API_KEY")
 
-        return JobMetadata(user_id=metadata.get("user_id", "anonymous"))
+    logger.info(f"[VirtualKey] Fetching for user_id={user_id}")
+    logger.info(f"[VirtualKey] WEB_URL={web_url}, NIRMANUS_API_KEY={'set' if nirmanus_key else 'NOT SET'}")
+
+    if not nirmanus_key:
+        logger.warning("[VirtualKey] NIRMANUS_API_KEY not set, returning None")
+        return None, "genin"
+
+    try:
+        url = f"{web_url}/api/user/virtual-key"
+        headers = {"NIRMANUS_API_KEY": nirmanus_key}
+        params = {"userId": user_id}
+
+        logger.info(f"[VirtualKey] GET {url} params={params}")
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, params=params, headers=headers, timeout=5.0)
+
+            logger.info(f"[VirtualKey] Response: status={resp.status_code}")
+
+            if resp.status_code == 200:
+                data = resp.json()
+                key = data.get("key")
+                tier = data.get("assistantTier", "genin")
+                logger.info(f"[VirtualKey] Got key={'set' if key else 'NOT SET'}, tier={tier}")
+                return key, tier
+            else:
+                logger.warning(f"[VirtualKey] Failed: {resp.status_code} - {resp.text[:200]}")
+
     except Exception as e:
-        logger.warning(f"⚠️  Error parsing job metadata: {e}")
-        return JobMetadata(user_id="anonymous")
+        logger.warning(f"[VirtualKey] Error: {e}")
+
+    return None, "genin"

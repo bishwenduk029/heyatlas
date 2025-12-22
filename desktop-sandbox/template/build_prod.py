@@ -7,7 +7,7 @@ load_dotenv()
 
 Template.build(
     template_with_user_workdir,
-    alias="heycomputer-desktop",
+    alias="heyatlas-desktop",
     cpu_count=8,
     memory_mb=8192,
     on_build_logs=default_build_logger(),

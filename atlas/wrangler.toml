@@ -1,0 +1,35 @@
+name = "atlas-agent"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[durable_objects]
+bindings = [
+  { name = "atlas-agent", class_name = "AtlasAgent" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AtlasAgent"]
+
+[vars]
+AUTH_API_BASE = "https://www.heyatlas.app"
+LLM_MODEL = "gpt-4o-mini"
+
+# Development settings
+[env.dev]
+name = "atlas-agent-dev"
+
+[env.dev.vars]
+AUTH_API_BASE = "http://localhost:3000"
+
+[[routes]]
+pattern = "agent.heyatlas.app"
+custom_domain = true
+
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = false

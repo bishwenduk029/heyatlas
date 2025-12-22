@@ -20,7 +20,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "partysocket": "^1.0.3"
+    "agents": "^0.0.67"
   },
   "publishConfig": {
     "access": "public"

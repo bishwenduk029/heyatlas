@@ -1,3 +1,0 @@
-# Copy to .dev.vars and fill in values
-HEYATLAS_PROVIDER_API_KEY=your-api-key
-HEYATLAS_PROVIDER_API_URL=https://your-api-url/v1

@@ -102,3 +102,6 @@ qdrant_storage
 .partykit/
 .partykit-upload/
 .partykit-temp/
+
+# Wrangler
+.wrangler/

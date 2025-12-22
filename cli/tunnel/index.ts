@@ -1,22 +1,14 @@
 /**
- * Virtual Agent SDK for TypeScript/Bun
+ * Tunnel SDK for CLI agents
  *
- * Provides RemoteTunnel for pub/sub communication with relay servers.
+ * Provides AtlasTunnel for WebSocket communication with Atlas agent.
  */
 
 export {
   TunnelInterface,
   type MessageCallback,
   type ConnectOptions,
-  type SendMessageOptions
+  type SendMessageOptions,
 } from "./TunnelInterface";
 
-export {
-  RemoteTunnel,
-  type RemoteTunnelOptions
-} from "./RemoteTunnel";
-
-// Legacy aliases
-export { TunnelInterface as BaseVirtualAgent } from "./TunnelInterface";
-export { RemoteTunnel as RoomAgent } from "./RemoteTunnel";
-export type { RemoteTunnelOptions as RoomAgentOptions } from "./RemoteTunnel";
+export { AtlasTunnel, type AtlasTunnelOptions } from "./AtlasTunnel";

@@ -1,0 +1,16 @@
+# Copy to .dev.vars and fill in values
+NIRMANUS_API_KEY=your-api-key
+HEYATLAS_PROVIDER_API_KEY=your-openai-api-key
+HEYATLAS_PROVIDER_API_URL=https://api.openai.com/v1
+
+# Mem0 Platform (optional - for chunin/jonin tier memory)
+MEM0_API_KEY=your-mem0-api-key
+
+# Parallels Web Search MCP (optional - for chunin/jonin tier web search)
+PARALLELS_WEB_SEARCH_API=https://search-mcp.parallel.ai/mcp
+PARALLELS_WEB_SEARCH_API_KEY=your-parallels-api-key
+
+# E2B Desktop Sandbox (optional - for jonin tier cloud computer)
+E2B_API_KEY=your-e2b-api-key
+# Atlas callback URL for sandbox to send task updates (e.g., https://atlas.example.com)
+ATLAS_CALLBACK_URL=http://localhost:8787

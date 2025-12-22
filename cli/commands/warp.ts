@@ -1,9 +1,9 @@
 /**
- * Warp command - Connect local agent to cloud
+ * Warp command - Connect local agent to Atlas
  */
 
-import { login, loadCredentials, getUserId } from "../auth";
-import { RemoteTunnel } from "../tunnel";
+import { login, loadCredentials } from "../auth";
+import { AtlasTunnel } from "../tunnel";
 import { createAgent, type AgentType, buildTaskWithPrompt } from "../agents";
 
 interface WarpOptions {
@@ -29,51 +29,53 @@ export async function warp(agent: AgentType, options: WarpOptions = {}) {
 
   console.log(`🤖 Agent locked: ${agent}`);
 
-  // 3. Connect tunnel with authentication
-  const roomId = credentials.userId;
-  const tunnel = new RemoteTunnel({
-    reconnect: true,
+  // 3. Connect to Atlas agent via WebSocket
+  const atlasHost = process.env.ATLAS_AGENT_HOST || "localhost:8787";
+  const tunnel = new AtlasTunnel({
+    host: atlasHost,
     token: credentials.accessToken,
+    reconnect: true,
   });
 
-  // Set up message handler
+  // Set up message handler for tasks from Atlas
   tunnel.sub(async (content, data) => {
-    if (data?.type !== "tasks") return;
+    // Handle task messages from Atlas
+    if (data?.type !== "task" && data?.type !== "tasks") return;
 
-    if (process.env.DEBUG) {
-      console.log(`📥 Task received: ${content.substring(0, 80)}...`);
-    }
+    console.log(`📥 Task received: ${content.substring(0, 80)}...`);
 
     try {
       const fullTask = buildTaskWithPrompt(content, agent);
       const result = await (agentInstance as any).run(fullTask, {});
       const output = result.stdout || "Task completed";
 
+      // Send response back to Atlas
       await tunnel.publish({
         type: "task-response",
-        result: output,
+        content: output,
+        status: "completed",
         agent,
-        agent_id: "heyatlas-cli",
+        source: "cli",
       });
+
+      console.log(`✅ Task completed`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      if (process.env.DEBUG) {
-        console.error(`❌ Task failed: ${errorMsg}`);
-      }
+      console.error(`❌ Task failed: ${errorMsg}`);
 
       await tunnel.publish({
         type: "task-response",
+        content: errorMsg,
         status: "error",
-        error: errorMsg,
         agent,
-        agent_id: "heyatlas-cli",
+        source: "cli",
       });
     }
   });
 
-  await tunnel.connectToRoom(roomId, {
+  await tunnel.connectToRoom(credentials.userId, {
     agentId: agent,
-    role: "local-agent",
+    role: "cli-agent",
   });
 
   console.log(`🔗 Tunnel established`);
