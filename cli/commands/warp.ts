@@ -1,115 +1,105 @@
 /**
  * Warp command - Connect local agent to Atlas
+ * 
+ * Single responsibility: Connect to Atlas and route tasks to agents.
+ * Task state management is handled by agents (base.ts, droid.ts).
  */
 
-import { login, loadCredentials } from "../auth";
-import { AtlasTunnel } from "../tunnel";
-import { createAgent, type AgentType, buildTaskWithPrompt } from "../agents";
+import { login } from "../auth";
+import { AtlasTunnel, type Task } from "../tunnel";
+import { createAgent, type AgentType } from "../agents";
+import { ptyManager } from "../agents/pty-manager";
+import type { InteractiveSession } from "../agents/types";
 
 interface WarpOptions {
   openBrowser?: boolean;
+  interactive?: boolean;
 }
 
-export async function warp(agent: AgentType, options: WarpOptions = {}) {
+export async function warp(agentType: AgentType, options: WarpOptions = {}) {
   console.log("\n✨ Warming up the warp drive...\n");
 
-  // 1. Check/perform authentication
-  let credentials = loadCredentials();
-  if (!credentials) {
-    credentials = await login();
-  }
+  const credentials = await login();
 
-  // 2. Verify agent is available
-  const agentInstance = createAgent(agent);
-  const available = await agentInstance.isAvailable();
-  if (!available) {
-    console.error(`💀 Oops! '${agent}' is not installed or not in PATH`);
+  const agentInstance = createAgent(agentType);
+  if (!(await agentInstance.isAvailable())) {
+    console.error(`💀 Oops! '${agentType}' is not installed or not in PATH`);
     process.exit(1);
   }
 
-  console.log(`🤖 Agent locked: ${agent}`);
+  if (options.interactive && !agentInstance.interactive) {
+    console.error(`❌ Interactive mode not supported for ${agentType} agent`);
+    process.exit(1);
+  }
 
-  // 3. Connect to Atlas agent via WebSocket
-  const atlasHost = process.env.ATLAS_AGENT_HOST || "localhost:8787";
+  console.log(`🤖 Agent locked: ${agentType}${options.interactive ? " (interactive)" : ""}`);
+
   const tunnel = new AtlasTunnel({
-    host: atlasHost,
+    host: process.env.ATLAS_AGENT_HOST || "localhost:8787",
     token: credentials.accessToken,
-    reconnect: true,
+    interactive: options.interactive,
   });
 
-  // Set up message handler for tasks from Atlas
-  tunnel.sub(async (content, data) => {
-    // Handle task messages from Atlas
-    if (data?.type !== "task" && data?.type !== "tasks") return;
+  // Interactive session handle
+  let session: InteractiveSession | null = null;
 
-    console.log(`📥 Task received: ${content.substring(0, 80)}...`);
-
+  if (options.interactive && agentInstance.runInteractive) {
     try {
-      const fullTask = buildTaskWithPrompt(content, agent);
-      const result = await (agentInstance as any).run(fullTask, {});
-      const output = result.stdout || "Task completed";
-
-      // Send response back to Atlas
-      await tunnel.publish({
-        type: "task-response",
-        content: output,
-        status: "completed",
-        agent,
-        source: "cli",
-      });
-
-      console.log(`✅ Task completed`);
+      session = await agentInstance.runInteractive(tunnel);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`❌ Task failed: ${errorMsg}`);
-
-      await tunnel.publish({
-        type: "task-response",
-        content: errorMsg,
-        status: "error",
-        agent,
-        source: "cli",
-      });
-    }
-  });
-
-  await tunnel.connectToRoom(credentials.userId, {
-    agentId: agent,
-    role: "cli-agent",
-  });
-
-  console.log(`🔗 Tunnel established`);
-
-  // 4. Open browser
-  const baseUrl = process.env.HEYATLAS_API || "https://www.heyatlas.app";
-  const voiceUrl = `${baseUrl}/voice`;
-
-  if (options.openBrowser !== false) {
-    try {
-      const { execSync } = await import("child_process");
-      if (process.platform === "darwin") {
-        execSync(`open "${voiceUrl}"`, { stdio: "ignore" });
-      } else if (process.platform === "win32") {
-        execSync(`start "" "${voiceUrl}"`, { stdio: "ignore" });
-      } else {
-        execSync(`xdg-open "${voiceUrl}"`, { stdio: "ignore" });
-      }
-    } catch {
-      // Browser open failed silently
+      console.error(`❌ Failed to start interactive session: ${error}`);
+      process.exit(1);
     }
   }
 
-  // 5. Ready message
-  console.log(`\n🎙️  Your AI Voice Companion connected to ${agent}`);
+  // Route tasks to agent - state management handled by agent
+  tunnel.onNewTask(async (task: Task) => {
+
+    // Non-interactive: run agent with full task context
+    try {
+      await agentInstance.run(task, { 
+        tunnel,
+        taskContext: task.context,
+      });
+      console.log(`✅ Task completed`);
+    } catch (error) {
+      console.error(`❌ Task failed: ${error instanceof Error ? error.message : error}`);
+    }
+  });
+
+  await tunnel.connect(credentials.userId, agentType);
+  console.log(`🔗 Tunnel established`);
+
+  // Open browser
+  const voiceUrl = `${process.env.HEYATLAS_API || "https://www.heyatlas.app"}/voice`;
+  if (options.openBrowser !== false) {
+    try {
+      const { execSync } = await import("child_process");
+      const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start \"\"" : "xdg-open";
+      execSync(`${cmd} "${voiceUrl}"`, { stdio: "ignore" });
+    } catch {}
+  }
+
+  console.log(`\n🎙️  Your AI Voice Companion connected to ${agentType}`);
   console.log(`🌐 Talk here: ${voiceUrl}`);
   console.log(`\n🛑 Press Ctrl+C to disconnect\n`);
 
   process.on("SIGINT", async () => {
     console.log("\n👋 Warping out... See you next time!\n");
+    session?.kill();
+    ptyManager.killAll();
     await tunnel.disconnect();
     process.exit(0);
   });
 
-  // Keep process alive
   await new Promise(() => {});
+}
+
+/** Extract first task message for display (full context passed separately) */
+function extractTaskContent(task: Task): string | null {
+  if (task.context?.length) {
+    const first = task.context[0] as any;
+    return first?.content || first?.data?.text || first?.data?.content || null;
+  }
+  return task.result || null;
 }

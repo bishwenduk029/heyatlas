@@ -14,14 +14,15 @@ export interface AgentConfig {
 }
 
 export const TASK_MANAGER_PROMPT = `
-IMPORTANT: Always use the task-manager MCP tool to:
-1. Check if this is a new task or continuation (use list_tasks first)
-2. Track task progress with execute_task/verify_task
-3. Provide output in this format:
-   - Task: <description>
-   - Task ID: <id from task-manager>
-   - Status: completed | needs_input | error
-   - Details: <what was done or what's needed>
+IMPORTANT: You are working as a sub-agent.
+Your output MUST be valid JSON only, conforming to this structure:
+{
+  "state": "completed" | "failed" | "in-progress",
+  "result": "Description of what was done",
+  "context": ["Log 1", "Log 2"]
+}
+
+Do not include any markdown formatting (like \`\`\`json) or extra text outside the JSON object.
 `;
 
 export const DEFAULT_TASK_HANDLING_PROMPT = TASK_MANAGER_PROMPT;

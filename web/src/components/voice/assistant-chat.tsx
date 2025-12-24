@@ -220,42 +220,50 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
   };
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background overscroll-contain touch-pan-y">
+    <div className="flex h-full min-w-0 flex-col bg-background touch-pan-y">
       {/* Task Update Banner */}
       {lastTaskUpdate && (
-        <div className="mx-4 mt-2 p-3 rounded-lg bg-muted/50 border border-border flex items-start gap-3 shrink-0">
-          <Terminal className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">
-              Update from {lastTaskUpdate.agent}
-            </p>
-            <p className="text-sm text-foreground line-clamp-2">{lastTaskUpdate.content}</p>
+        <div className="mx-auto w-full max-w-4xl px-4 pt-2">
+          <div className="p-3 rounded-lg bg-muted/50 border border-border flex items-start gap-3 shrink-0">
+            <Terminal className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground mb-1">
+                Update from {lastTaskUpdate.agent}
+              </p>
+              <p className="text-sm text-foreground line-clamp-2">{lastTaskUpdate.content}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setLastTaskUpdate(null)}
+            >
+              Dismiss
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
-            onClick={() => setLastTaskUpdate(null)}
-          >
-            Dismiss
-          </Button>
         </div>
       )}
 
-      {/* Messages Area - Vercel ai-chatbot scroll pattern */}
-      <div className="relative flex-1">
+      
+      <div className="flex-1 overflow-y-auto">
         <div
           ref={containerRef}
-          className="absolute inset-0 touch-pan-y overflow-y-auto"
+          className="h-full"
         >
-          <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-6 px-4 py-4 pb-32">
+          <div className="flex min-w-0 max-w-4xl flex-col gap-4 px-2 py-4 pb-32 md:gap-6 md:px-4">
             {allMessages.length === 0 ? (
               <ChatWelcome onAction={handleAction} />
             ) : (
               <>
                 {allMessages.map(msg => (
-                  <div key={msg.id} className={cn("flex flex-col gap-2", msg.role === "user" ? "items-end" : "items-start")}>
-                    <div className={cn("flex items-start gap-3 max-w-[85%]", msg.role === "user" && "flex-row-reverse")}>
+                  <div key={msg.id} className={cn(
+                    "group fade-in w-full animate-in duration-200",
+                    msg.role === "user" ? "flex justify-end" : "flex justify-start"
+                  )}>
+                    <div className={cn(
+                      "flex items-start gap-3 max-w-[80%]",
+                      msg.role === "user" && "flex-row-reverse"
+                    )}>
                       <Avatar className="h-8 w-8 shrink-0 mt-1 border shadow-sm">
                         {msg.role === "user" ? (
                           <>
@@ -267,10 +275,10 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
                         )}
                       </Avatar>
                       <div className={cn(
-                        "px-4 py-3 rounded-2xl text-sm shadow-sm border whitespace-pre-wrap",
+                        "px-4 py-3 rounded-lg text-sm shadow-sm border whitespace-pre-wrap",
                         msg.role === "user" 
-                          ? "bg-primary text-primary-foreground rounded-tr-none border-primary" 
-                          : "bg-muted/50 text-foreground rounded-tl-none"
+                          ? "bg-primary text-primary-foreground" 
+                          : "bg-muted/50 text-foreground"
                       )}>
                         {msg.content}
                       </div>
@@ -284,25 +292,27 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
         </div>
 
         {/* Scroll to bottom button */}
-        <button
-          aria-label="Scroll to bottom"
-          className={cn(
-            "absolute bottom-4 left-1/2 -translate-x-1/2 z-10 rounded-full border bg-background p-2 shadow-lg transition-all hover:bg-muted",
-            isAtBottom
-              ? "pointer-events-none scale-0 opacity-0"
-              : "pointer-events-auto scale-100 opacity-100"
-          )}
-          onClick={() => scrollToBottom("smooth")}
-          type="button"
-        >
-          <ArrowDown className="size-4" />
-        </button>
+        <div className="sticky bottom-4 flex justify-center pointer-events-none">
+          <button
+            aria-label="Scroll to bottom"
+            className={cn(
+              "pointer-events-auto z-10 rounded-full border bg-background p-2 shadow-lg transition-all hover:bg-muted",
+              isAtBottom
+                ? "scale-0 opacity-0"
+                : "scale-100 opacity-100"
+            )}
+            onClick={() => scrollToBottom("smooth")}
+            type="button"
+          >
+            <ArrowDown className="size-4" />
+          </button>
+        </div>
       </div>
 
       {/* Bottom Input - sticky positioning */}
-      <div className="sticky bottom-0 z-10 mx-auto flex w-full max-w-3xl gap-2 border-t-0 bg-background px-4 pb-3 pt-2">
+      <div className="sticky bottom-0 z-10 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 pt-2 md:px-4 md:pb-4">
         <div className="w-full">
-          <form onSubmit={handleSubmit} className="relative rounded-3xl border-2 border-border bg-muted/20 focus-within:bg-muted/30 focus-within:ring-1 focus-within:ring-primary transition-all overflow-hidden">
+          <form onSubmit={handleSubmit} className="relative overflow-hidden rounded-xl border-2 bg-background shadow-lg transition-all duration-300 border-primary/20 hover:border-primary/40 focus-within:border-primary focus-within:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_0_15px_rgba(var(--primary),0.2)] animate-pulse-border">
             <TextareaAutosize
               value={input}
               onChange={handleInputChange}
@@ -314,20 +324,20 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
               }}
               minRows={1}
               maxRows={8}
-              className="w-full bg-transparent px-6 py-4 outline-none text-base placeholder:text-muted-foreground/50 resize-none"
+              className="w-full resize-none border-0 bg-transparent p-4 text-base outline-none ring-0 placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               placeholder="Send a message..."
               disabled={!isConnected || isLoading}
             />
-            
-            <div className="flex items-center justify-between px-4 pb-3 pt-1">
-              <div className="flex items-center gap-2">
+
+            <div className="flex items-center justify-between p-3 border-t border-border/50">
+              <div className="flex items-center gap-1">
                 {onToggleMode && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={onToggleMode}
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-white hover:bg-white/10"
+                    className="h-9 w-9 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     title="Switch to Voice"
                   >
                     <Mic className="h-4 w-4" />
@@ -340,7 +350,7 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
                   type="button"
                   size="icon"
                   onClick={stop}
-                  className="h-8 w-8 rounded-full bg-white text-black hover:bg-white/90"
+                  className="h-9 w-9 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg"
                 >
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </Button>
@@ -350,10 +360,10 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
                   size="icon" 
                   disabled={!isConnected || !input.trim()}
                   className={cn(
-                    "h-8 w-8 rounded-full transition-all",
+                    "h-9 w-9 rounded-lg transition-all duration-200 shadow-lg",
                     input.trim() 
-                      ? "bg-white text-black hover:bg-white/90" 
-                      : "bg-white/10 text-muted-foreground hover:bg-white/20"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_10px_rgba(var(--primary),0.5)] hover:shadow-[0_0_15px_rgba(var(--primary),0.7)]" 
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
                   )}
                 >
                   <ArrowUp className="h-4 w-4" />
@@ -361,9 +371,9 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
               )}
             </div>
           </form>
-          
+
           <div className="text-center mt-2">
-             <p className="text-[10px] text-muted-foreground/40">
+             <p className="text-xs text-muted-foreground/60">
                AI can make mistakes. Check important info.
              </p>
           </div>

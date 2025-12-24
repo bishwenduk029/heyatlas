@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "wrangler dev --port 8787",
     "deploy": "wrangler deploy --env=''",
+    "secrets": "wrangler secret bulk .dev.vars --env=''",
     "typecheck": "tsc --noEmit",
     "tail": "wrangler tail"
   },
@@ -26,7 +27,6 @@
     "agents": "^0.2.32",
     "ai": "^5.0.102",
     "hono": "^4.11.1",
-    "mem0ai": "^2.1.38",
     "zod": "^3.25.0"
   },
   "devDependencies": {

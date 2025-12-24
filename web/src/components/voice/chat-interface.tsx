@@ -1,20 +1,16 @@
 "use client";
 
-import { Terminal } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
+import { useState } from "react";
+import { TaskList } from "./task-list";
+import type { AtlasTask } from "./hooks/use-atlas-agent";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-}
-
-interface TaskUpdate {
-  content: string;
-  agent: string;
 }
 
 interface ChatInterfaceProps {
@@ -23,10 +19,11 @@ interface ChatInterfaceProps {
   onStop?: () => void;
   isLoading?: boolean;
   isConnected?: boolean;
-  taskUpdate?: TaskUpdate | null;
-  onDismissTaskUpdate?: () => void;
   onToggleVoice?: () => void;
   showVoiceToggle?: boolean;
+  tasks?: AtlasTask[];
+  onTaskSelect?: (task: AtlasTask) => void;
+  compact?: boolean;
 }
 
 export function ChatInterface({
@@ -35,58 +32,54 @@ export function ChatInterface({
   onStop,
   isLoading = false,
   isConnected = false,
-  taskUpdate,
-  onDismissTaskUpdate,
   onToggleVoice,
   showVoiceToggle = false,
+  tasks = [],
+  onTaskSelect,
+  compact = false,
 }: ChatInterfaceProps) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
+  const [viewMode, setViewMode] = useState<"chat" | "tasks">("chat");
 
   const handleSend = async (text: string) => {
     onSendMessage(text);
   };
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      {/* Task Update Banner */}
-      {taskUpdate && (
-        <div className="mx-4 mt-2 p-3 rounded-lg bg-muted/50 border border-border flex items-start gap-3 shrink-0">
-          <Terminal className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">
-              Update from {taskUpdate.agent}
-            </p>
-            <p className="text-sm text-foreground line-clamp-2">{taskUpdate.content}</p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
-            onClick={onDismissTaskUpdate}
-          >
-            Dismiss
-          </Button>
+    <div className={compact ? "flex flex-col h-full bg-background" : "flex flex-col min-h-screen bg-background"}>
+      {/* Content Area */}
+      <div className={compact ? "flex-1 flex flex-col w-full overflow-hidden" : "flex-1 flex flex-col w-full pb-32"}>
+        <div className={compact ? "flex-1 overflow-auto" : "flex-1"}>
+          {viewMode === "chat" ? (
+            <MessageList
+              messages={messages}
+              userImage={user?.image || undefined}
+              onQuickAction={isConnected ? handleSend : undefined}
+            />
+          ) : (
+            <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Messages */}
-      <MessageList
-        messages={messages}
-        userImage={user?.image || undefined}
-        onQuickAction={isConnected ? handleSend : undefined}
-      />
-
-      {/* Input */}
-      <div className="sticky bottom-0 z-10 mx-auto w-full max-w-3xl px-4 pb-3 pt-2 bg-background">
-        <ChatInput
-          onSend={handleSend}
-          onStop={onStop}
-          onToggleVoice={onToggleVoice}
-          isLoading={isLoading}
-          disabled={!isConnected}
-          showVoiceToggle={showVoiceToggle}
-        />
+      {/* Input Area - sticky in normal mode, relative in compact mode */}
+      <div className={compact 
+        ? "shrink-0 bg-background pt-2 pb-4 px-2" 
+        : "fixed bottom-0 left-0 right-0 z-10 bg-transparent pt-2 pb-4 pointer-events-none"
+      }>
+        <div className={compact ? "w-full" : "sticky bottom-0 z-1 mx-auto flex w-full max-w-5xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4 pointer-events-auto my-6"}>
+          <ChatInput
+            onSend={handleSend}
+            onStop={onStop}
+            onToggleVoice={onToggleVoice}
+            onToggleTasks={() => setViewMode(v => v === "chat" ? "tasks" : "chat")}
+            isLoading={isLoading}
+            disabled={!isConnected}
+            showVoiceToggle={showVoiceToggle}
+            isTasksView={viewMode === "tasks"}
+          />
+        </div>
       </div>
     </div>
   );

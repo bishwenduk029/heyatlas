@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Mic, ArrowUp } from "lucide-react";
+import { Loader2, Mic, ArrowUp, LayoutList, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TextareaAutosize from "react-textarea-autosize";
 
@@ -10,18 +10,22 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   onStop?: () => void;
   onToggleVoice?: () => void;
+  onToggleTasks?: () => void;
   isLoading?: boolean;
   disabled?: boolean;
   showVoiceToggle?: boolean;
+  isTasksView?: boolean;
 }
 
 export function ChatInput({
   onSend,
   onStop,
   onToggleVoice,
+  onToggleTasks,
   isLoading = false,
   disabled = false,
   showVoiceToggle = false,
+  isTasksView = false,
 }: ChatInputProps) {
   const [input, setInput] = useState("");
 
@@ -36,7 +40,7 @@ export function ChatInput({
     <div className="w-full">
       <form
         onSubmit={handleSubmit}
-        className="relative rounded-3xl border-2 border-border bg-muted/20 focus-within:bg-muted/30 focus-within:ring-1 focus-within:ring-primary transition-all overflow-hidden"
+        className="relative rounded-3xl border border-border/40 bg-background shadow-[0_0_15px_-3px_rgba(34,197,94,0.15)] focus-within:shadow-[0_0_25px_-5px_rgba(34,197,94,0.3)] focus-within:border-primary/30 transition-all overflow-hidden"
       >
         <TextareaAutosize
           value={input}
@@ -56,13 +60,33 @@ export function ChatInput({
 
         <div className="flex items-center justify-between px-4 pb-3 pt-1">
           <div className="flex items-center gap-2">
+            {onToggleTasks && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onToggleTasks}
+                className={cn(
+                  "h-8 w-8 rounded-full cursor-pointer icon-action",
+                  isTasksView && "active"
+                )}
+                title={isTasksView ? "Show Chat" : "Show Tasks"}
+              >
+                {isTasksView ? (
+                  <MessageSquare className="h-4 w-4" />
+                ) : (
+                  <LayoutList className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+
             {showVoiceToggle && onToggleVoice && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 onClick={onToggleVoice}
-                className="h-8 w-8 rounded-full text-muted-foreground hover:text-white hover:bg-white/10"
+                className="h-8 w-8 rounded-full cursor-pointer icon-action"
                 title="Switch to Voice"
               >
                 <Mic className="h-4 w-4" />
@@ -75,7 +99,7 @@ export function ChatInput({
               type="button"
               size="icon"
               onClick={onStop}
-              className="h-8 w-8 rounded-full bg-white text-black hover:bg-white/90"
+              className="h-8 w-8 rounded-full bg-white text-black hover:bg-white/90 cursor-pointer"
             >
               <Loader2 className="h-4 w-4 animate-spin" />
             </Button>
@@ -85,7 +109,7 @@ export function ChatInput({
               size="icon"
               disabled={disabled || !input.trim()}
               className={cn(
-                "h-8 w-8 rounded-full transition-all",
+                "h-8 w-8 rounded-full transition-all cursor-pointer",
                 input.trim()
                   ? "bg-white text-black hover:bg-white/90"
                   : "bg-white/10 text-muted-foreground hover:bg-white/20"

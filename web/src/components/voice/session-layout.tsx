@@ -9,17 +9,16 @@ import { MCPFormEntry } from "./mcp-form-entry";
 import { AgentControlBar } from "./agent-control-bar";
 import { DesktopViewer } from "./desktop-viewer";
 import { ChatInterface } from "./chat-interface";
+import { TaskList } from "./task-list";
+import { TaskViewer } from "./task-viewer";
+import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
+import type { AtlasTask } from "./hooks/use-atlas-agent";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-}
-
-interface TaskUpdate {
-  content: string;
-  agent: string;
 }
 
 interface SessionLayoutProps {
@@ -32,14 +31,12 @@ interface SessionLayoutProps {
   vncUrl?: string;
   logUrl?: string;
   userId?: string;
-  // Chat props (from atlas agent)
   messages: Message[];
   onSendMessage: (text: string) => void;
   onStopChat?: () => void;
   isChatLoading?: boolean;
   isChatConnected?: boolean;
-  taskUpdate?: TaskUpdate | null;
-  onDismissTaskUpdate?: () => void;
+  tasks?: AtlasTask[];
 }
 
 export function SessionLayout({
@@ -57,11 +54,18 @@ export function SessionLayout({
   onStopChat,
   isChatLoading,
   isChatConnected,
-  taskUpdate,
-  onDismissTaskUpdate,
+  tasks = [],
 }: SessionLayoutProps) {
   const room = useRoomContext();
   const { state: agentState } = useVoiceAssistant();
+  
+  // Voice view mode: "voice" or "tasks"
+  const [voiceViewMode, setVoiceViewMode] = useState<"voice" | "tasks">("voice");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  
+  // Get live task from tasks array (not a stale snapshot)
+  const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) || null : null;
+  
   const { messages: voiceMessages } = useChatAndTranscription();
   const chatScrollRef = useRef<HTMLDivElement>(null);
   
@@ -107,7 +111,7 @@ export function SessionLayout({
   };
 
   // Voice chat content (messages + MCP forms timeline)
-  const renderVoiceChat = () => {
+  const renderVoiceChat = (compact = false) => {
     type ChatItem =
       | { type: "message"; data: ReceivedChatMessage; timestamp: number }
       | { type: "form"; data: { form: (typeof mcpForms)[0]; index: number }; timestamp: number };
@@ -117,30 +121,39 @@ export function SessionLayout({
       ...mcpForms.map((form, index) => ({ type: "form" as const, data: { form, index }, timestamp: form.timestamp })),
     ].sort((a, b) => a.timestamp - b.timestamp);
 
+    const toggleTasksView = () => setVoiceViewMode(voiceViewMode === "tasks" ? "voice" : "tasks");
+
     return (
-      <>
-        <div className="flex-1 overflow-hidden rounded-lg bg-card shadow-sm">
-          <div ref={chatScrollRef} className="h-full overflow-y-auto p-4">
-            <div className="space-y-4">
-              {items.map((item) =>
-                item.type === "message" ? (
-                  <ChatEntry hideName key={item.data.id} entry={item.data} />
-                ) : (
-                  <MCPFormEntry
-                    key={`mcp-form-${item.data.index}`}
-                    resource={item.data.form.resource}
-                    timestamp={item.data.form.timestamp}
-                    submittedValue={item.data.form.submittedValue}
-                    onSubmit={(value) => handleFormSubmit(item.data.index, value)}
-                  />
-                )
-              )}
+      <div className={compact ? "flex flex-col h-full" : "contents"}>
+        <div className={compact ? "flex-1 overflow-hidden rounded-lg bg-card shadow-sm" : "flex-1 overflow-hidden rounded-lg bg-card shadow-sm"}>
+          {voiceViewMode === "tasks" ? (
+            <TaskList
+              tasks={tasks}
+              onTaskClick={(task) => setSelectedTaskId(task.id)}
+            />
+          ) : (
+            <div ref={chatScrollRef} className="h-full overflow-y-auto">
+              <div className="space-y-4">
+                {items.map((item) =>
+                  item.type === "message" ? (
+                    <ChatEntry hideName key={item.data.id} entry={item.data} />
+                  ) : (
+                    <MCPFormEntry
+                      key={`mcp-form-${item.data.index}`}
+                      resource={item.data.form.resource}
+                      timestamp={item.data.form.timestamp}
+                      submittedValue={item.data.form.submittedValue}
+                      onSubmit={(value) => handleFormSubmit(item.data.index, value)}
+                    />
+                  )
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Voice Control Bar */}
-        <div className="mt-3 rounded-lg border bg-card p-4 shadow-sm">
+        <div className={compact ? "mt-3 rounded-lg border bg-card p-3 shadow-sm shrink-0" : "mt-3 rounded-lg border bg-card p-4 shadow-sm"}>
           <AgentControlBar
             onStartSession={onStartVoiceSession}
             onDisconnect={onDisconnectVoice}
@@ -148,46 +161,113 @@ export function SessionLayout({
             agentState={room?.state === "connected" ? agentState : undefined}
             onToggleChat={onToggleMode}
             isChatMode={false}
+            onToggleTasks={toggleTasksView}
+            isTasksMode={voiceViewMode === "tasks"}
+            taskCount={tasks.length}
           />
         </div>
-      </>
+      </div>
     );
   };
 
-  // Local mode: single centered column
-  if (mode === "local") {
-    return (
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 flex justify-center overflow-hidden px-2 md:px-6 pb-2">
-          <div className="flex w-full max-w-2xl flex-col gap-3 h-full">
-            {/* Voice status indicator */}
-            {voiceSessionStarted && agentState && !isChatMode && (
-              <div className="flex flex-col items-center py-2 shrink-0">
-                <p className="text-xs font-medium text-primary animate-pulse">
-                  {agentState === "listening" ? "Listening..." : 
-                   agentState === "speaking" ? "Atlas is speaking" : 
-                   agentState === "thinking" ? "Thinking..." : ""}
-                </p>
-              </div>
-            )}
+  // Render the main chat/voice content
+  const renderMainContent = (compact = false) => (
+    <div className="flex w-full flex-col gap-3 h-full">
+      {/* Voice status indicator */}
+      {voiceSessionStarted && agentState && !isChatMode && !selectedTask && (
+        <div className="flex flex-col items-center py-2 shrink-0">
+          <p className="text-xs font-medium text-primary animate-pulse">
+            {agentState === "listening" ? "Listening..." : 
+             agentState === "speaking" ? "Atlas is speaking" : 
+             agentState === "thinking" ? "Thinking..." : ""}
+          </p>
+        </div>
+      )}
 
-            <div className="flex-1 overflow-hidden flex flex-col">
-              {isChatMode ? (
-                <ChatInterface
-                  messages={messages}
-                  onSendMessage={onSendMessage}
-                  onStop={onStopChat}
-                  isLoading={isChatLoading}
-                  isConnected={isChatConnected}
-                  taskUpdate={taskUpdate}
-                  onDismissTaskUpdate={onDismissTaskUpdate}
-                  onToggleVoice={onToggleMode}
-                  showVoiceToggle
-                />
-              ) : (
-                renderVoiceChat()
-              )}
+      <div className="flex-1 flex flex-col min-h-0">
+        {isChatMode ? (
+          <ChatInterface
+            messages={messages}
+            onSendMessage={onSendMessage}
+            onStop={onStopChat}
+            isLoading={isChatLoading}
+            isConnected={isChatConnected}
+            onToggleVoice={onToggleMode}
+            showVoiceToggle
+            tasks={tasks}
+            onTaskSelect={(task) => setSelectedTaskId(task.id)}
+            compact={compact}
+          />
+        ) : (
+          renderVoiceChat(compact)
+        )}
+      </div>
+    </div>
+  );
+
+  // Local mode: split view when task selected
+  if (mode === "local") {
+    // Split view: chat/voice on left, task viewer on right
+    if (selectedTask) {
+      return (
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex gap-4 overflow-hidden px-2 md:px-6 pb-2">
+            {/* Desktop: Left column - Chat/Voice (narrower) */}
+            <div className="hidden md:flex w-2/5 flex-col h-full">
+              {renderMainContent(true)}
             </div>
+            
+            {/* Desktop: Right column - Task Viewer (wider) */}
+            {/* Mobile: Full width Task Viewer with input below */}
+            <div className="flex flex-1 flex-col h-full">
+              <TaskViewer
+                task={selectedTask}
+                onClose={() => setSelectedTaskId(null)}
+              />
+              
+              {/* Mobile only: Input at bottom */}
+              <div className="md:hidden mt-3 shrink-0">
+                {isChatMode ? (
+                  <div className="rounded-lg border bg-card p-2 shadow-sm">
+                    <ChatInput
+                      onSend={onSendMessage}
+                      onStop={onStopChat}
+                      onToggleVoice={onToggleMode}
+                      onToggleTasks={() => setSelectedTaskId(null)}
+                      isLoading={isChatLoading}
+                      disabled={!isChatConnected}
+                      showVoiceToggle
+                      isTasksView={true}
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-lg border bg-card p-3 shadow-sm">
+                    <AgentControlBar
+                      onStartSession={onStartVoiceSession}
+                      onDisconnect={onDisconnectVoice}
+                      sessionStarted={voiceSessionStarted}
+                      agentState={room?.state === "connected" ? agentState : undefined}
+                      onToggleChat={onToggleMode}
+                      isChatMode={false}
+                      onToggleTasks={() => setSelectedTaskId(null)}
+                      isTasksMode={true}
+                      taskCount={tasks.length}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Single column (no task selected)
+    return (
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex justify-center pb-2">
+          <div className="w-full max-w-5xl mx-auto px-4">
+            {renderMainContent()}
           </div>
         </div>
       </div>
@@ -199,7 +279,7 @@ export function SessionLayout({
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex gap-4 overflow-hidden px-2 md:px-6 pb-2">
         {/* Left: Chat (desktop only) */}
-        <div className="hidden md:flex w-2/5 flex-col gap-3 h-full">
+        <div className="hidden md:flex w-3/5 flex-col gap-3 h-full">
           {isChatMode ? (
             <ChatInterface
               messages={messages}
@@ -207,10 +287,9 @@ export function SessionLayout({
               onStop={onStopChat}
               isLoading={isChatLoading}
               isConnected={isChatConnected}
-              taskUpdate={taskUpdate}
-              onDismissTaskUpdate={onDismissTaskUpdate}
               onToggleVoice={onToggleMode}
               showVoiceToggle
+              tasks={tasks}
             />
           ) : (
             renderVoiceChat()
@@ -232,8 +311,7 @@ export function SessionLayout({
                     onStop={onStopChat}
                     isLoading={isChatLoading}
                     isConnected={isChatConnected}
-                    taskUpdate={taskUpdate}
-                    onDismissTaskUpdate={onDismissTaskUpdate}
+                    tasks={tasks}
                   />
                 ) : (
                   renderVoiceChat()

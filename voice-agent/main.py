@@ -98,11 +98,6 @@ class VoiceAssistant(Agent):
         """Handle task update from Atlas (e.g., from CLI or sandbox agent)."""
         logger.info(f"[Atlas] Task update: {content[:50]}...")
 
-        self.agent_session.history.add_message(
-            role="assistant",
-            content=f"Computer Agent response: {content}",
-        )
-
         if self.agent_session.agent_state in ("speaking", "thinking"):
             self.task_queue.put_nowait(content)
         else:

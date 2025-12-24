@@ -2,7 +2,7 @@
 
 export function Footer() {
   return (
-    <footer className="border-t bg-background px-6 py-3">
+    <footer className="bg-background px-6 py-3">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <p>© 2024 Nirmanus</p>
         <div className="flex gap-4">

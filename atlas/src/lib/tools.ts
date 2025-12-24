@@ -6,8 +6,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { Tier } from "../prompts";
 import { getTierConfig } from "../prompts";
-import type { MemoryClient } from "../memory";
-import type { SandboxState } from "../types";
+import type { SandboxState, Task } from "../types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Tools = Record<string, any>;
@@ -17,41 +16,14 @@ type BroadcastFn = (message: string) => void;
 interface Deps {
   userId: string;
   tier: Tier;
-  memory: MemoryClient | null;
   broadcast?: BroadcastFn;
   sandbox?: SandboxState | null;
+  askLocalComputerAgent?: (task: string, existingTaskId?: string) => string;
+  updateTask?: (taskId: string, updates: string) => Task | null;
+  getTask?: (taskId: string) => Task | null;
+  listTasks?: () => Task[];
+  connectedAgentId?: string;
 }
-
-/**
- * Tool: Ask local coding agent (CLI) to perform a task.
- * Broadcasts task via WebSocket to connected CLI agents.
- */
-const askLocalCodingAgent = (broadcast?: BroadcastFn) =>
-  tool({
-    description:
-      "Delegate a coding or computer task to the local CLI agent running on the user's machine. Use this for file operations, code editing, running commands, etc.",
-    inputSchema: z.object({
-      task: z.string().describe("Detailed task description for the coding agent"),
-      priority: z.enum(["low", "normal", "high"]).default("normal"),
-    }),
-    execute: async ({ task, priority }: { task: string; priority: string }) => {
-      if (!broadcast) {
-        return "Local coding agent not available. No CLI connected.";
-      }
-
-      // Broadcast task to connected CLI agents
-      broadcast(
-        JSON.stringify({
-          type: "task",
-          content: task,
-          priority,
-          source: "atlas",
-        }),
-      );
-
-      return `Task delegated to local coding agent: "${task.substring(0, 100)}...". You will be notified when complete.`;
-    },
-  });
 
 /**
  * Tool: Ask sandbox computer agent (agent-smith in E2B) to perform a task.
@@ -91,32 +63,47 @@ const askSandboxComputerAgent = (sandbox: SandboxState | null) =>
     },
   });
 
-const saveMemory = (mem: MemoryClient, userId: string) =>
+/**
+ * Tool: Get task by ID
+ */
+const getTaskById = (getTask: (taskId: string) => Task | null) =>
   tool({
-    description: "Save information about the user to memory",
-    inputSchema: z.object({ memory: z.string().describe("Information to save") }),
-    execute: async ({ memory }: { memory: string }) => {
-      try {
-        await mem.add([{ role: "user", content: memory }], { user_id: userId });
-        return `Saved: ${memory}`;
-      } catch (e) {
-        return `Failed: ${e}`;
+    description: "Get details of a specific task by its ID. Use this when the user references a task ID to get its full context and status.",
+    inputSchema: z.object({
+      taskId: z.string().describe("The task ID (can be full UUID or first 8 characters)"),
+    }),
+    execute: async ({ taskId }: { taskId: string }) => {
+      const task = getTask(taskId);
+      if (!task) {
+        return `Task not found with ID: ${taskId}`;
       }
+      return JSON.stringify({
+        id: task.id,
+        agent: task.agentId,
+        state: task.state,
+        context: task.context,
+        createdAt: new Date(task.createdAt).toISOString(),
+        updatedAt: new Date(task.updatedAt).toISOString(),
+      }, null, 2);
     },
   });
 
-const searchMemory = (mem: MemoryClient, userId: string) =>
+/**
+ * Tool: List all tasks
+ */
+const listAllTasks = (listTasks: () => Task[]) =>
   tool({
-    description: "Search stored memories about the user",
-    inputSchema: z.object({ query: z.string().describe("Search query"), limit: z.number().default(5) }),
-    execute: async ({ query, limit }: { query: string; limit: number }) => {
-      try {
-        const results = await mem.search(query, { user_id: userId, limit });
-        if (!results || !(results as unknown[]).length) return "No memories found.";
-        return (results as { memory: string }[]).map((r) => `• ${r.memory}`).join("\n");
-      } catch (e) {
-        return `Failed: ${e}`;
+    description: "List all tasks with minimal details. Use this to check if user's request relates to an existing task before creating a new one.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const tasks = listTasks();
+      if (tasks.length === 0) {
+        return "No tasks found.";
       }
+      // Return minimal fields to help LLM decide: continue existing or create new
+      return tasks.map(t => 
+        `• ${t.id.slice(0, 8)} | ${t.agentId} | ${t.state} | ${t.description || "No description"}`
+      ).join("\n");
     },
   });
 
@@ -124,18 +111,32 @@ export function buildTools(deps: Deps): Tools {
   const cfg = getTierConfig(deps.tier);
   const tools: Tools = {};
 
-  // All tiers: Local coding agent (CLI)
-  tools.askLocalCodingAgent = askLocalCodingAgent(deps.broadcast);
+  // All tiers: Task management tools
+  if (deps.getTask) {
+    tools.getTask = getTaskById(deps.getTask);
+  }
+  if (deps.listTasks) {
+    tools.listTasks = listAllTasks(deps.listTasks);
+  }
+
+  if(deps.askLocalComputerAgent){
+    tools.askLocalComputerAgent = tool({
+      description:
+        "Delegate a task to the local computer agent. Describe the task in detail. Take note that task can be existing or new, accordingly set the existingTaskId parameter.",
+      inputSchema: z.object({
+        task: z.string().describe("Detailed task description for the local computer agent"),
+        existingTaskId: z.string().optional().describe("Optional existing task ID to continue an existing task instead of creating a new task"),
+      }),
+      execute: async ({ task, existingTaskId }: { task: string; existingTaskId?: string }) => {
+        const response = deps.askLocalComputerAgent!(task, existingTaskId);
+        return response;
+      },
+    });
+  }
 
   // Jonin only: Sandbox computer agent
   if (cfg.hasCloudDesktop) {
     tools.askSandboxComputerAgent = askSandboxComputerAgent(deps.sandbox || null);
-  }
-
-  // Chunin+: Memory tools
-  if (cfg.hasMemory && deps.memory) {
-    tools.saveMemory = saveMemory(deps.memory, deps.userId);
-    tools.searchMemories = searchMemory(deps.memory, deps.userId);
   }
 
   return tools;

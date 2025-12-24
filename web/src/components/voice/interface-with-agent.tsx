@@ -121,7 +121,7 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
       <MCPUIHandler />
       <main className="h-screen bg-background flex flex-col overflow-hidden">
         <Header />
-        <div className="flex-1 overflow-hidden flex flex-col m-2">
+        <div className="flex-1 flex flex-col overflow-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={isChatMode ? "chat" : "voice"}
@@ -129,7 +129,7 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="flex-1 flex flex-col"
+              className="flex-1 flex flex-col min-h-full"
             >
               <RoomAudioRenderer />
               <SessionLayout
@@ -147,8 +147,7 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
                 onStopChat={atlasAgent.stop}
                 isChatLoading={atlasAgent.isLoading}
                 isChatConnected={atlasAgent.isConnected}
-                taskUpdate={atlasAgent.taskUpdate}
-                onDismissTaskUpdate={atlasAgent.dismissTaskUpdate}
+                tasks={atlasAgent.tasks}
               />
             </motion.div>
           </AnimatePresence>

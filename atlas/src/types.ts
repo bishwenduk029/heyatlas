@@ -9,7 +9,6 @@ export interface Env {
   HEYATLAS_PROVIDER_API_KEY: string;
   HEYATLAS_PROVIDER_API_URL: string;
   LLM_MODEL: string;
-  MEM0_API_KEY?: string;
   PARALLELS_WEB_SEARCH_API?: string;
   PARALLELS_WEB_SEARCH_API_KEY?: string;
   E2B_API_KEY?: string;
@@ -37,8 +36,30 @@ export interface AgentState {
   persona: string | null;
   personaUpdatedAt: number | null;
   sandbox: SandboxState | null;
-  // Internal history for custom API methods (chat, chatCompletions)
-  history: Array<{ role: "user" | "assistant"; content: string }>;
+  tasks: Record<string, Task>;
+  connectedAgentId: string | null;
+  interactiveMode: boolean;
+  interactiveTaskId: string | null;
+}
+
+export interface Task {
+  id: string;
+  agentId?: string;
+  description: string; // Brief description of the task for listing
+  // Task lifecycle:
+  // - new: Fresh task, CLI should pick up and execute
+  // - continue: Existing task with new input, CLI should continue execution
+  // - in-progress: CLI is currently executing
+  // - pending-user-feedback: Completed, waiting for user response
+  // - completed: Task fully done
+  // - failed: Task failed
+  // - paused: Task paused by user
+  state: "new" | "continue" | "in-progress" | "pending-user-feedback" | "completed" | "failed" | "paused";
+  context: any[];
+  result?: string;
+  summary?: string; // Brief summary for voice feedback
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface SandboxState {

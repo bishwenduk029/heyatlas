@@ -12,10 +12,6 @@ bindings = [
 tag = "v1"
 new_sqlite_classes = ["AtlasAgent"]
 
-[vars]
-AUTH_API_BASE = "https://www.heyatlas.app"
-LLM_MODEL = "gpt-4o-mini"
-
 # Development settings
 [env.dev]
 name = "atlas-agent-dev"

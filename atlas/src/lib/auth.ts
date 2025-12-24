@@ -12,28 +12,18 @@ interface AuthUser {
   virtualKey?: { apiKey: string; apiUrl: string };
 }
 
-type AuthHeaders = {
+export interface AuthData {
   userId: string;
   email: string;
   apiKey: string;
   apiUrl: string;
   tier: string;
-};
-
-function setAuthHeaders(request: Request, auth: AuthHeaders): Request {
-  const headers = new Headers(request.headers);
-  headers.set("X-User-ID", auth.userId);
-  headers.set("X-User-Email", auth.email);
-  headers.set("X-Provider-API-Key", auth.apiKey);
-  headers.set("X-Provider-API-URL", auth.apiUrl);
-  headers.set("X-Atlas-Tier", auth.tier);
-  return new Request(request, { headers });
 }
 
 export async function authenticate(
   request: Request,
   env: Env
-): Promise<Request | Response> {
+): Promise<AuthData | Response> {
   const url = new URL(request.url);
   const tierParam = url.searchParams.get("tier") || "genin";
 
@@ -51,40 +41,46 @@ export async function authenticate(
     if (serverApiKey !== env.NIRMANUS_API_KEY) {
       return new Response("Unauthorized", { status: 401 });
     }
-    // token contains user's virtual key (bifrost key) for LLM access
-    return setAuthHeaders(request, {
+    return {
       userId: "voice-agent",
       email: "",
       apiKey: token || env.HEYATLAS_PROVIDER_API_KEY || "",
       apiUrl: env.HEYATLAS_PROVIDER_API_URL || "",
       tier: tierParam,
-    });
+    };
   }
 
   // Bearer token auth (from header or query param)
   if (!token) {
+    console.log("[Auth] No token provided");
     return new Response("Unauthorized: Missing token", { status: 401 });
   }
 
   try {
     const apiBase = env.AUTH_API_BASE || DEFAULT_AUTH_BASE;
+    console.log("[Auth] Validating token against:", apiBase);
+    
     const res = await fetch(`${apiBase}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     if (!res.ok) {
+      console.log("[Auth] Token validation failed:", res.status);
       return new Response("Unauthorized", { status: 401 });
     }
 
     const user = (await res.json()) as AuthUser;
-    return setAuthHeaders(request, {
+    console.log("[Auth] User authenticated:", user.id);
+    
+    return {
       userId: user.id,
       email: user.email || "",
       apiKey: user.virtualKey?.apiKey || env.HEYATLAS_PROVIDER_API_KEY || "",
       apiUrl: user.virtualKey?.apiUrl || env.HEYATLAS_PROVIDER_API_URL || "",
       tier: tierParam || user.tier || "genin",
-    });
-  } catch {
+    };
+  } catch (e) {
+    console.log("[Auth] Error:", e);
     return new Response("Unauthorized", { status: 401 });
   }
 }

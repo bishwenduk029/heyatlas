@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { getAgentByName } from "agents";
 import { AtlasAgent } from "./agent";
-import { authenticate } from "./lib/auth";
+import { authenticate, validateSandboxToken, type AuthData } from "./lib/auth";
 import type { Env } from "./types";
+import type { Tier } from "./prompts";
 
 export { AtlasAgent };
 
@@ -12,16 +13,8 @@ const app = new Hono<{ Bindings: Env }>();
 // CORS - allow custom auth headers
 app.use("*", cors({
   origin: "*",
-  allowHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Api-Key",
-    "X-Agent-Role",
-    "X-Atlas-Tier",
-  ],
+  allowHeaders: ["Content-Type", "Authorization", "X-Api-Key", "X-Agent-Role", "X-Atlas-Tier"],
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  exposeHeaders: ["Content-Length"],
-  maxAge: 86400,
 }));
 
 // Health check (no auth)
@@ -30,42 +23,86 @@ app.get("/health", (c) => c.json({ status: "ok", service: "atlas-agent" }));
 // Auth middleware for all agent routes
 app.use("/agents/*", async (c, next) => {
   const result = await authenticate(c.req.raw, c.env);
-  if (result instanceof Response) {
-    return result;
-  }
-  // Store authenticated request for use in handlers
-  c.set("authedRequest" as never, result as never);
+  if (result instanceof Response) return result;
+  c.set("auth" as never, result as never);
   await next();
 });
 
-// Agent routes: /agents/atlas-agent/:userId
-app.all("/agents/atlas-agent/:userId", async (c) => {
-  const userId = c.req.param("userId");
-  if (!userId) {
-    return c.json({ error: "Missing userId" }, 400);
-  }
-
+// Helper to get authenticated agent
+async function getAgent(c: { env: Env; get: (key: string) => unknown }, userId: string) {
   const agent = await getAgentByName<Env, AtlasAgent>(c.env["atlas-agent"], userId);
-  const authedRequest = c.get("authedRequest" as never) as Request;
-  return agent.fetch(authedRequest);
+  const auth = c.get("auth") as AuthData;
+  agent.setCredentials(auth);
+  return agent;
+}
+
+// OpenAI-compatible chat completions endpoint
+app.post("/agents/atlas-agent/:userId/v1/chat/completions", async (c) => {
+  const userId = c.req.param("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const agent = await getAgent(c, userId);
+  const body = await c.req.json<{
+    messages: Array<{ role: string; content: string }>;
+    stream?: boolean;
+    tier?: Tier;
+  }>();
+
+  const tier = (c.req.query("tier") || body.tier) as Tier | undefined;
+  return agent.handleChatCompletions(body.messages, body.stream ?? true, tier);
 });
 
-// Catch-all subroutes under agent
-app.all("/agents/atlas-agent/:userId/*", async (c) => {
+// Direct chat endpoint
+app.post("/agents/atlas-agent/:userId/chat", async (c) => {
   const userId = c.req.param("userId");
-  if (!userId) {
-    return c.json({ error: "Missing userId" }, 400);
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const agent = await getAgent(c, userId);
+  const body = await c.req.json<{ prompt: string; tier?: Tier }>();
+  const tier = (c.req.query("tier") || body.tier) as Tier | undefined;
+  
+  const response = await agent.handleChat(body.prompt, tier);
+  return c.json({ response });
+});
+
+// Sandbox task-update endpoint
+app.post("/agents/atlas-agent/:userId/task-update", async (c) => {
+  const userId = c.req.param("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const auth = c.req.header("Authorization");
+  if (!auth?.startsWith("Bearer ") || !(await validateSandboxToken(auth.slice(7), userId, c.env))) {
+    return c.json({ error: "Unauthorized" }, 401);
   }
 
   const agent = await getAgentByName<Env, AtlasAgent>(c.env["atlas-agent"], userId);
-  const authedRequest = c.get("authedRequest" as never) as Request;
-  return agent.fetch(authedRequest);
+  const body = await c.req.json<{ content?: string }>();
+  
+  agent.broadcast(JSON.stringify({ type: "task-update", content: body.content, source: "sandbox" }));
+  return c.json({ success: true });
+});
+
+// WebSocket upgrade and built-in routes (get-messages, etc.)
+app.all("/agents/atlas-agent/:userId", async (c) => {
+  const userId = c.req.param("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const agent = await getAgent(c, userId);
+  return agent.fetch(c.req.raw);
+});
+
+// Catch-all for other subroutes
+app.all("/agents/atlas-agent/:userId/*", async (c) => {
+  const userId = c.req.param("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const agent = await getAgent(c, userId);
+  return agent.fetch(c.req.raw);
 });
 
 // 404
 app.all("*", (c) => c.json({
   error: "Not found",
-  usage: { agents: "/agents/atlas-agent/:userId" },
 }, 404));
 
 export default app;

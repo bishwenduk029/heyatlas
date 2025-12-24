@@ -151,6 +151,11 @@ async function pollForToken(
 
 // Main login flow
 export async function login(): Promise<Credentials> {
+  const existing = loadCredentials();
+  if (existing) {
+    return existing;
+  }
+  
   // Request device code
   const { deviceCode, userCode, verificationUri, verificationUriComplete, interval } =
     await requestDeviceCode();

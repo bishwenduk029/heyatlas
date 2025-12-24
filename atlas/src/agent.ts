@@ -1,13 +1,13 @@
 /**
  * AtlasAgent - Cloudflare Durable Object Agent
  *
- * Tier-based AI assistant with memory, web search, and task delegation.
+ * Tier-based AI assistant with web search and task delegation.
+ * Memory is handled via CF_AGENT_STATE (implicit state sync).
  * Instance ID = userId (this.name)
  */
-import { type Connection, type ConnectionContext } from "agents";
+import { callable, type Connection, type ConnectionContext } from "agents";
 import { AIChatAgent } from "agents/ai-chat-agent";
 import {
-  generateText,
   streamText,
   convertToModelMessages,
   createUIMessageStream,
@@ -18,18 +18,11 @@ import {
 } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { Sandbox } from "@e2b/desktop";
-import type { Env, AgentState } from "./types";
+import type { Env, AgentState, Task } from "./types";
 import type { Tier } from "./prompts";
 import { getSystemPrompt, getTierConfig } from "./prompts";
-import {
-  createMemoryClient,
-  generatePersona,
-  PERSONA_CACHE_TTL,
-  type MemoryClient,
-} from "./memory";
 import { buildTools } from "./lib/tools";
-import { validateSandboxToken } from "./lib/auth";
-import { buildCompletion, createStreamResponse } from "./lib/completions";
+import { createStreamResponse } from "./lib/completions";
 
 const AGENT_SMITH_CONFIG = {
   template: "heyatlas-desktop",
@@ -47,23 +40,18 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     persona: null,
     personaUpdatedAt: null,
     sandbox: null,
-    history: [],
+    tasks: {},
+    connectedAgentId: null,
+    interactiveMode: false,
+    interactiveTaskId: null,
   };
 
-  private _memory: MemoryClient | null = null;
   private mcpConnected = false;
   private mcpConnecting: Promise<void> | null = null;
   private sandboxInstance: Sandbox | null = null;
 
   get userId() {
     return this.name;
-  }
-
-  private get memory() {
-    if (!this._memory && this.env.MEM0_API_KEY) {
-      this._memory = createMemoryClient(this.env.MEM0_API_KEY);
-    }
-    return this._memory;
   }
 
   private async ensureSandbox() {
@@ -143,25 +131,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       const logsHost = sandbox.getHost(logPort);
       const logsUrl = `https://${logsHost}`;
 
-      // VNC URL - E2B desktop might expose it differently
-      // Let's try to get it from the sandbox object if available, otherwise construct it
-      // Python: sandbox.stream.get_url()
-      // JS: sandbox.getProtocol('vnc')?.url ??
-      // Let's assume there is a method or we construct it.
-      // Actually, E2B desktop usually exposes :443 for web based VNC (noVNC) or similar.
-      // Let's check imports. I imported Sandbox.
-
-      // For this implementation, I will assume we can get the VNC url similarly or via getHost(6080) if using noVNC
-      // The python provider used `sandbox.stream.get_url()`.
-      // I will put a placeholder or try to infer.
-      // Actually, E2B Desktop exposes a stream URL.
-      // Let's assume `sandbox.getVncUrl()` or similar exists, if not we might need to check docs.
-      // Wait, I can't check docs easily without internet.
-      // I'll assume standard web-based VNC is on a port or exposed.
-
-      // Re-reading python code: `sandbox.stream.start()` then `sandbox.stream.get_url()`
-      // I'll try to replicate that.
-
       let vncUrl = "";
       // @ts-ignore
       if (sandbox.stream) {
@@ -180,7 +149,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       };
 
       this.setState({ ...this.state, sandbox: sandboxState });
-      console.log(`[Atlas] Sandbox created: ${sandbox.sandboxId}`);
 
       // Broadcast sandbox info to client - only send VNC URL for security/UI needs
       this.broadcast(
@@ -250,14 +218,97 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     const base = buildTools({
       userId: this.userId,
       tier: this.state.tier,
-      memory: this.memory,
       broadcast: (msg: string) => this.broadcast(msg),
       sandbox: this.state.sandbox,
+      askLocalComputerAgent: (description, existingTaskId) => this.askLocalComputerAgent(description, existingTaskId),
+      getTask: (taskId) => this.getTask(taskId),
+      listTasks: () => this.listTasks(),
+      connectedAgentId: this.state.connectedAgentId || undefined,
     });
     const cfg = getTierConfig(this.state.tier);
     return cfg.hasWebSearch && this.mcpConnected
       ? { ...base, ...this.mcp.getAITools() }
       : base;
+  }
+
+  // --- Task Management ---
+
+  askLocalComputerAgent(task: string, existingTaskId?: string): string {
+    if(existingTaskId) {
+      this.updateTask(existingTaskId, task);
+      return `Updated existing task ${existingTaskId} with new instructions.`;
+    }
+
+    const newTask = this.createTask(task);
+    return `Created new task ${newTask.id} for local computer agent.`;
+  }
+
+  createTask(description: string): Task {
+    const currentTasks = this.state.tasks || {};
+    
+    console.log(`[Atlas] createTask: interactive=${this.state.interactiveMode}, existingTaskId=${this.state.interactiveTaskId?.slice(0,8) || "none"}`);
+    
+    // Create new task with "new" state - CLI will pick this up
+    const id = crypto.randomUUID();
+    const task: Task = {
+      id,
+      description,
+      state: "new",
+      context: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    
+    this.setState({
+      ...this.state,
+      tasks: { ...currentTasks, [id]: task },
+    });
+    return task;
+  }
+
+  updateTask(taskId: string, newInput: string): Task | null {
+    const currentTasks = this.state.tasks || {};
+    const task = currentTasks[taskId];
+    if (!task) return null;
+
+    // Add new input to context and set state to "continue" - CLI will pick this up
+    const updatedTask: Task = {
+      ...task,
+      state: "continue",
+      context: [...task.context, { role: "user", content: newInput }],
+      updatedAt: Date.now(),
+    };
+
+    // State update auto-syncs to all clients via CF_AGENT_STATE
+    this.setState({
+      ...this.state,
+      tasks: { ...currentTasks, [taskId]: updatedTask },
+    });
+    return updatedTask;
+  }
+
+  getTask(taskId: string): Task | null {
+    const tasks = this.state.tasks || {};
+    // Direct match
+    if (tasks[taskId]) return tasks[taskId];
+    // Partial match (first 8 chars)
+    const match = Object.values(tasks).find(t => t.id.startsWith(taskId));
+    return match || null;
+  }
+
+  listTasks(): Task[] {
+    return Object.values(this.state.tasks || {});
+  }
+
+  @callable({description: "Update task by ID"})
+  async updateTaskFromClient(task: Task): Promise<void> {
+    const currentTasks = this.state.tasks || {};
+    if (!currentTasks[task.id]) return;
+
+    this.setState({
+      ...this.state,
+      tasks: { ...currentTasks, [task.id]: task },
+    });
   }
 
   // --- AIChatAgent Implementation ---
@@ -275,7 +326,10 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
           system: systemPrompt,
           messages: convertToModelMessages(this.messages),
           tools: allTools,
-          onFinish: onFinish as StreamTextOnFinishCallback<typeof allTools>,
+          onFinish: async (event) => {
+            // Call original onFinish
+            await (onFinish as StreamTextOnFinishCallback<typeof allTools>)(event);
+          },
           stopWhen: stepCountIs(10),
         });
 
@@ -293,68 +347,45 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       this.setState({
         ...this.state,
         tier,
-        persona: null,
-        personaUpdatedAt: null,
       });
     }
   }
 
   private addMessage(role: "user" | "assistant", content: string) {
-    const newHistory = [...(this.state.history || []), { role, content }];
-    this.setState({ ...this.state, history: newHistory });
-  }
-
-  // --- Persona ---
-
-  private async getPersona(): Promise<string> {
-    if (!getTierConfig(this.state.tier).hasMemory) return "";
-    if (
-      this.state.persona &&
-      this.state.personaUpdatedAt &&
-      Date.now() - this.state.personaUpdatedAt < PERSONA_CACHE_TTL
-    ) {
-      return this.state.persona;
-    }
-    if (!this.memory) return this.state.persona || "";
-
-    try {
-      const persona = await generatePersona(this.memory, this.userId);
-      this.setState({ ...this.state, persona, personaUpdatedAt: Date.now() });
-      return persona;
-    } catch (e) {
-      console.error("[Atlas] Persona error:", e);
-      return this.state.persona || "";
-    }
+    this.messages.push({ id: crypto.randomUUID(), role, parts: [{ type: "text", text: content }] });
   }
 
   private async getSystemPrompt() {
-    return getSystemPrompt(this.state.tier, await this.getPersona());
+    return getSystemPrompt(this.state.tier);
   }
 
   // --- Public Methods ---
 
   async chat(prompt: string, tier?: Tier): Promise<string> {
     if (tier) this.setTier(tier);
+    console.log("[Atlas] Chat prompt received", prompt);
     this.addMessage("user", prompt);
-
-    const { text } = await generateText({
-      model: this.model,
-      system: await this.getSystemPrompt(),
-      messages: this.state.history,
-      tools: this.tools,
+    
+    let responseText = '';
+    await this.onChatMessage(async (event) => {
+      if (event.text) {
+        responseText = event.text;
+        this.addMessage("assistant", event.text);
+        await this.persistMessages(this.messages);
+      }
     });
-
-    this.addMessage("assistant", text);
-    return text;
+    
+    return responseText;
   }
 
-  async streamChat(prompt: string) {
+  async streamChat(prompt: string): Promise<Response> {
     this.addMessage("user", prompt);
-    return streamText({
-      model: this.model,
-      system: await this.getSystemPrompt(),
-      messages: this.state.history,
-      tools: this.tools,
+    
+    return this.onChatMessage(async (event) => {
+      if (event.text) {
+        this.addMessage("assistant", event.text);
+        await this.persistMessages(this.messages);
+      }
     });
   }
 
@@ -364,42 +395,37 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     tier?: Tier,
   ): Promise<Response> {
     if (tier) this.setTier(tier);
-    const history = messages.filter(
-      (m) => m.role === "user" || m.role === "assistant",
-    ) as AgentState["history"];
-    this.setState({ ...this.state, history });
 
     const requestId = `chatcmpl-${crypto.randomUUID()}`;
-    const system = await this.getSystemPrompt();
+    const voiceMessages = messages.map(msg => ({
+        id: crypto.randomUUID(),
+        role: msg.role as "user" | "assistant",
+        parts: [{ type: "text" as const, text: msg.content }]
+      }));
 
-    if (!stream) {
-      const { text } = await generateText({
-        model: this.model,
-        system,
-        messages: history,
-        tools: this.tools,
-      });
-      this.addMessage("assistant", text);
-      return Response.json(buildCompletion({ id: requestId, text }));
+    // Add the voice messages to our conversation
+    for (const msg of voiceMessages) {
+      this.messages.push(msg);
     }
 
-    const result = streamText({
+    // Streaming: use the existing createStreamResponse with AI SDK streaming
+    const { textStream } = streamText({
       model: this.model,
-      system,
-      messages: history,
+      system: await this.getSystemPrompt(),
+      messages: convertToModelMessages(this.messages),
       tools: this.tools,
+      onFinish: async (event) => {
+        if (event.text) {
+          this.addMessage("assistant", event.text);
+          await this.persistMessages(this.messages);
+        }
+      },
     });
-    return createStreamResponse(requestId, result.textStream, (text) =>
-      this.addMessage("assistant", text),
-    );
-  }
 
-  getHistory() {
-    return this.state.history;
-  }
-
-  clearHistory() {
-    this.setState({ ...this.state, history: [] });
+    return createStreamResponse(requestId, textStream, (text) => {
+      // Text completion is already handled in the streamText onFinish callback
+      // This callback is required by createStreamResponse but we don't need additional logic here
+    });
   }
 
   // --- Lifecycle ---
@@ -431,103 +457,66 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       this.setState({ ...this.state, tier });
     }
 
+    // Capture connected agent ID and mode from headers if present (sent by CLI)
+    const connectedAgentId = h.get("X-Agent-Id");
+    const interactiveMode = h.get("X-Interactive-Mode") === "true";
+    if (connectedAgentId) {
+      this.setState({ 
+        ...this.state, 
+        connectedAgentId,
+        interactiveMode,
+        // Reset interactive task when switching modes or starting fresh interactive session
+        interactiveTaskId: interactiveMode ? this.state.interactiveTaskId : null,
+      });
+      console.log(`[Atlas] Connected agent: ${connectedAgentId}${interactiveMode ? " (interactive)" : ""}`);
+    } else if (this.state.interactiveMode) {
+      // Reset interactive mode if no agent ID header (non-CLI connection)
+      this.setState({
+        ...this.state,
+        interactiveMode: false,
+        interactiveTaskId: null,
+      });
+    }
+
     const cfg = getTierConfig(tier);
-    if (cfg.hasMemory) this.getPersona().catch(() => {});
     if (cfg.hasWebSearch) this.connectMcp().catch(() => {});
     if (cfg.hasCloudDesktop) this.ensureSandbox().catch(() => {});
 
     conn.send(JSON.stringify({ type: "connected", userId: this.userId }));
   }
 
-  async onMessage(conn: Connection, msg: string | ArrayBuffer) {
-    if (typeof msg !== "string") return;
-
-    try {
-      const data = JSON.parse(msg) as {
-        type: string;
-        content?: string;
-        messageId?: string;
-        status?: string;
-        source?: string;
-        agent?: string;
-      };
-      const { type, content, messageId } = data;
-
-      // Handle chat messages (from voice-agent or web client)
-      if (type === "chat" && content) {
-        const text = await this.chat(content);
-        conn.send(
-          JSON.stringify({ type: "chat:response", content: text, messageId }),
-        );
+  /**
+   * Hook called when state is updated (from server or client).
+   */
+  onStateUpdate(state: AgentState, source: "server" | Connection) {
+    const sourceType = source === "server" ? "server" : "client";
+    const taskCount = Object.keys(state.tasks || {}).length;
+    console.log(`[Atlas] onStateUpdate [${sourceType}]: tasks=${taskCount}`);
+    
+    // Log task states for debugging
+    if (state.tasks) {
+      for (const [taskId, task] of Object.entries(state.tasks)) {
+        console.log(`  - Task ${taskId.slice(0, 8)}: ${task.state}, context=${task.context?.length || 0}`);
       }
-
-      // Handle streaming chat
-      if (type === "stream" && content) {
-        const result = await this.streamChat(content);
-        conn.send(JSON.stringify({ type: "stream:start", messageId }));
-        for await (const chunk of result.textStream) {
-          conn.send(
-            JSON.stringify({ type: "stream:chunk", content: chunk, messageId }),
-          );
-        }
-        this.addMessage("assistant", await result.text);
-        conn.send(JSON.stringify({ type: "stream:end", messageId }));
-      }
-
-      // Handle task responses from CLI agent or sandbox
-      if (type === "task-response" && content) {
-        const source = data.source || "cli";
-        const agentName = data.agent || "coding agent";
-
-        // Add task result to conversation history
-        this.addMessage("assistant", `[Update from ${agentName}]\n${content}`);
-        
-        // Broadcast to all connected clients
-        this.broadcast(JSON.stringify({
-          type: "task-update",
-          content,
-          source,
-          agent: agentName,
-        }));
-      }
-
-      if (type === "clear_history") {
-        this.clearHistory();
-        conn.send(JSON.stringify({ type: "history_cleared" }));
-      }
-    } catch (e) {
-      conn.send(JSON.stringify({ type: "error", message: String(e) }));
     }
   }
 
+  // --- Public API (called from Hono router) ---
+
   /**
-   * Extract and set credentials from authenticated request headers
-   * Called for HTTP requests that have been authenticated by the router
+   * Set credentials from auth data
    */
-  private setCredentialsFromRequest(req: Request) {
-    const h = req.headers;
-    const apiKey = h.get("X-Provider-API-Key");
-    const apiUrl = h.get("X-Provider-API-URL");
-    const userId = h.get("X-User-ID");
-    const email = h.get("X-User-Email");
-    const tierHeader = h.get("X-Atlas-Tier");
+  setCredentials(auth: { userId: string; email: string; apiKey: string; apiUrl: string; tier: string }) {
+    const tier = (["genin", "chunin", "jonin"].includes(auth.tier) ? auth.tier : this.state.tier) as Tier;
 
-    // Set tier from header if valid
-    const tier = (
-      tierHeader && ["genin", "chunin", "jonin"].includes(tierHeader)
-        ? tierHeader
-        : this.state.tier
-    ) as Tier;
-
-    // Update credentials if provided
-    if (apiKey && apiUrl) {
+    if (auth.apiKey && auth.apiUrl) {
       this.setState({
         ...this.state,
         credentials: {
-          userId: userId || this.userId,
-          email: email || undefined,
-          providerApiKey: apiKey,
-          providerApiUrl: apiUrl,
+          userId: auth.userId || this.userId,
+          email: auth.email || undefined,
+          providerApiKey: auth.apiKey,
+          providerApiUrl: auth.apiUrl,
         },
         tier,
       });
@@ -536,75 +525,43 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     }
   }
 
+  /**
+   * Handle OpenAI-compatible chat completions (called from Hono router)
+   */
+  async handleChatCompletions(
+    messages: Array<{ role: string; content: string }>,
+    stream = true,
+    tier?: Tier,
+  ): Promise<Response> {
+    if (tier) this.setTier(tier);
+
+    const cfg = getTierConfig(this.state.tier);
+    if (cfg.hasWebSearch) await this.connectMcp();
+    if (this.state.credentials && cfg.hasCloudDesktop) {
+      this.ensureSandbox().catch(() => {});
+    }
+
+    return this.chatCompletions(messages, stream, tier);
+  }
+
+  /**
+   * Handle direct chat endpoint (called from Hono router)
+   */
+  async handleChat(prompt: string, tier?: Tier): Promise<string> {
+    if (tier && ["genin", "chunin", "jonin"].includes(tier)) {
+      this.setTier(tier);
+    }
+
+    const cfg = getTierConfig(this.state.tier);
+    if (cfg.hasWebSearch) await this.connectMcp();
+
+    return this.chat(prompt);
+  }
+
+  /**
+   * Handle built-in routes (get-messages, WebSocket upgrades, etc.)
+   */
   async onRequest(req: Request): Promise<Response> {
-    const url = new URL(req.url);
-
-    // Extract credentials from authenticated request headers
-    this.setCredentialsFromRequest(req);
-
-    // OpenAI-compatible chat completions
-    if (
-      url.pathname.endsWith("/v1/chat/completions") &&
-      req.method === "POST"
-    ) {
-      const tierParam = url.searchParams.get("tier");
-      const tier = (
-        tierParam && ["genin", "chunin", "jonin"].includes(tierParam)
-          ? tierParam
-          : undefined
-      ) as Tier | undefined;
-      if (tier) this.setTier(tier);
-
-      const cfg = getTierConfig(this.state.tier);
-      if (cfg.hasWebSearch) await this.connectMcp();
-
-      if (this.state.credentials && cfg.hasCloudDesktop) {
-        this.ensureSandbox().catch(() => {});
-      }
-
-      const body = (await req.json()) as {
-        messages: Array<{ role: string; content: string }>;
-        stream?: boolean;
-        tier?: Tier;
-      };
-      if (body.tier && !tier) this.setTier(body.tier);
-      return this.chatCompletions(body.messages, body.stream ?? true);
-    }
-
-    // Direct chat endpoint
-    if (url.pathname === "/chat" && req.method === "POST") {
-      const tierParam = url.searchParams.get("tier");
-      const body = (await req.json()) as { prompt: string; tier?: Tier };
-      const tier = (tierParam || body.tier) as Tier | undefined;
-      if (tier && ["genin", "chunin", "jonin"].includes(tier))
-        this.setTier(tier);
-
-      const cfg = getTierConfig(this.state.tier);
-      if (cfg.hasWebSearch) await this.connectMcp();
-
-      const response = await this.chat(body.prompt);
-      return Response.json({ response });
-    }
-
-    // Sandbox task-update endpoint (authenticated via sandbox token)
-    if (url.pathname.endsWith("/task-update") && req.method === "POST") {
-      const auth = req.headers.get("Authorization");
-      if (!auth?.startsWith("Bearer ")) {
-        return new Response("Unauthorized", { status: 401 });
-      }
-      if (!(await validateSandboxToken(auth.slice(7), this.userId, this.env))) {
-        return new Response("Unauthorized", { status: 401 });
-      }
-      const body = (await req.json()) as { content?: string };
-      this.broadcast(JSON.stringify({
-        type: "task-update",
-        content: body.content,
-        source: "sandbox",
-      }));
-      return Response.json({ success: true });
-    }
-
-    // Let AIChatAgent handle /get-messages and other built-in routes
     return super.onRequest(req);
   }
 }

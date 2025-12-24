@@ -3,7 +3,7 @@
 import { Track } from "livekit-client";
 import { useLocalParticipant } from "@livekit/components-react";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Play, Keyboard } from "lucide-react";
+import { Mic, MicOff, Play, Keyboard, LayoutList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AgentControlBarProps {
@@ -13,6 +13,9 @@ interface AgentControlBarProps {
   agentState?: string;
   onToggleChat?: () => void;
   isChatMode?: boolean;
+  onToggleTasks?: () => void;
+  isTasksMode?: boolean;
+  taskCount?: number;
 }
 
 export function AgentControlBar({
@@ -22,6 +25,9 @@ export function AgentControlBar({
   agentState,
   onToggleChat,
   isChatMode,
+  onToggleTasks,
+  isTasksMode,
+  taskCount = 0,
 }: AgentControlBarProps) {
   const { localParticipant } = useLocalParticipant();
 
@@ -41,7 +47,7 @@ export function AgentControlBar({
           variant={isMicEnabled ? "default" : "secondary"}
           size="icon"
           onClick={toggleMicrophone}
-          className="h-12 w-12"
+          className="h-12 w-12 cursor-pointer"
         >
           {isMicEnabled ? (
             <Mic className="h-5 w-5" />
@@ -84,12 +90,34 @@ export function AgentControlBar({
 
       {/* Right: Start/End Button */}
       <div className="flex items-center gap-2">
+        {onToggleTasks && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleTasks}
+            className={cn(
+              "h-10 w-10 cursor-pointer icon-action relative",
+              isTasksMode && "active"
+            )}
+            title={isTasksMode ? "Back to Voice" : "View Tasks"}
+          >
+            <LayoutList className="h-5 w-5" />
+            {taskCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 text-[10px] font-bold text-white flex items-center justify-center">
+                {taskCount > 9 ? "9+" : taskCount}
+              </span>
+            )}
+          </Button>
+        )}
         {onToggleChat && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggleChat}
-            className={cn("h-10 w-10", isChatMode && "bg-muted")}
+            className={cn(
+              "h-10 w-10 cursor-pointer icon-action",
+              isChatMode && "active"
+            )}
             title={isChatMode ? "Switch to Voice" : "Switch to Chat"}
           >
             <Keyboard className="h-5 w-5" />

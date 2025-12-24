@@ -22,6 +22,7 @@ const { positionals, values } = parseArgs({
     help: { type: "boolean", short: "h" },
     version: { type: "boolean", short: "v" },
     "no-browser": { type: "boolean" },
+    interactive: { type: "boolean", short: "i" },
   },
   allowPositionals: true,
 });
@@ -39,12 +40,13 @@ Agents:
 Options:
   -h, --help        Show this help message
   -v, --version     Show version
+  -i, --interactive Multi-turn conversation mode (droid only)
   --no-browser      Don't open browser automatically
 
 Examples:
-  heyatlas warp codex      Warp Codex agent
-  heyatlas warp claude     Warp Claude Code
-  heyatlas warp opencode   Warp OpenCode
+  heyatlas warp droid              Single-task mode
+  heyatlas warp --interactive droid  Multi-turn conversation
+  heyatlas warp claude             Warp Claude Code
 `);
 }
 
@@ -76,7 +78,10 @@ async function main() {
       process.exit(1);
     }
 
-    await warp(agent as AgentType, { openBrowser: !values["no-browser"] });
+    await warp(agent as AgentType, { 
+      openBrowser: !values["no-browser"],
+      interactive: values.interactive,
+    });
   } else {
     console.error(`Unknown command: ${command}`);
     printHelp();

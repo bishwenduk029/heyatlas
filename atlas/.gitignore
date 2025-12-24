@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Wrangler local state
+.wrangler/
+
+# Local environment variables (contains secrets)
+.dev.vars*
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

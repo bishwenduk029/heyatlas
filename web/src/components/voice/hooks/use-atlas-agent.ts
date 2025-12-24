@@ -1,12 +1,35 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "agents/ai-react";
 import type { UIMessage } from "@ai-sdk/react";
 import env from "@/env";
 
-// Agent state synced from atlas backend
+/**
+ * Task from Atlas agent state.
+ * Context contains only message events (type: "message", role: user/assistant).
+ */
+export interface AtlasTask {
+  id: string;
+  agentId: string;
+  description: string;
+  state: "pending" | "in-progress" | "completed" | "failed" | "pending-user-feedback";
+  context: StreamEvent[];
+  result?: string;
+  summary?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Event stored in task.context (only "message" events with role user/assistant are stored) */
+export interface StreamEvent {
+  type: string;
+  timestamp: number;
+  data: Record<string, unknown>;
+}
+
+/** Agent state synced from Atlas via CF_AGENT_STATE */
 export interface AtlasAgentState {
   sandbox?: {
     sandboxId: string;
@@ -15,20 +38,7 @@ export interface AtlasAgentState {
     logsUrl: string;
   } | null;
   tier?: string;
-  credentials?: {
-    userId: string;
-    email?: string;
-  } | null;
-}
-
-// WebSocket message types from agent
-export interface AgentMessage {
-  type: string;
-  vncUrl?: string;
-  logsUrl?: string;
-  content?: string;
-  source?: string;
-  agent?: string;
+  tasks?: Record<string, AtlasTask>;
 }
 
 interface UseAtlasAgentOptions {
@@ -37,47 +47,42 @@ interface UseAtlasAgentOptions {
   agentUrl?: string;
 }
 
+/**
+ * Hook for connecting to Atlas agent.
+ * All state (tasks, sandbox, etc.) is synced automatically via onStateUpdate.
+ */
 export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions) {
   const [sandboxInfo, setSandboxInfo] = useState<{ vncUrl?: string; logsUrl?: string }>({});
-  const [taskUpdate, setTaskUpdate] = useState<{ content: string; agent: string } | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [tasks, setTasks] = useState<AtlasTask[]>([]);
 
-  // Handle state updates from agent (sandbox creation, etc.)
+  // All data comes from state updates - single source of truth
   const handleStateUpdate = useCallback((state: AtlasAgentState) => {
+    setIsConnected(true);
     if (state.sandbox) {
       setSandboxInfo({
         vncUrl: state.sandbox.vncUrl,
         logsUrl: state.sandbox.logsUrl,
       });
     }
-  }, []);
-
-  // Handle WebSocket messages from agent
-  const handleMessage = useCallback((message: MessageEvent) => {
-    try {
-      const data = JSON.parse(message.data) as AgentMessage;
-      
-      // Handle sandbox_ready broadcast
-      if (data.type === "sandbox_ready" && data.vncUrl) {
-        setSandboxInfo({ vncUrl: data.vncUrl, logsUrl: data.logsUrl });
-      }
-      
-      // Handle task updates
-      if (data.type === "task-update" && data.content) {
-        setTaskUpdate({ content: data.content, agent: data.agent || "agent" });
-      }
-    } catch {
-      // Ignore non-JSON messages
+    if (state.tasks) {
+      const taskList = Object.values(state.tasks).sort((a, b) => b.updatedAt - a.updatedAt);
+      setTasks(taskList);
     }
   }, []);
 
-  // Connect to Atlas agent
+  const handleOpen = useCallback(() => setIsConnected(true), []);
+  const handleClose = useCallback(() => setIsConnected(false), []);
+
+  // Connect to Atlas agent - state sync handles everything
   const agentConnection = useAgent<AtlasAgentState>({
     agent: "atlas-agent",
     name: userId,
     host: agentUrl || env.NEXT_PUBLIC_ATLAS_AGENT_URL,
     query: { token },
     onStateUpdate: handleStateUpdate,
-    onMessage: handleMessage,
+    onOpen: handleOpen,
+    onClose: handleClose,
   });
 
   // Chat functionality
@@ -85,10 +90,8 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     agent: agentConnection as ReturnType<typeof useAgent>,
   });
 
-  const isConnected = agentConnection?.readyState === WebSocket.OPEN;
   const isLoading = chat.status === "submitted" || chat.status === "streaming";
 
-  // Helper to extract text from UIMessage
   const getMessageText = (msg: UIMessage): string => {
     if (!msg.parts) return "";
     return msg.parts
@@ -97,7 +100,6 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
       .join("");
   };
 
-  // Processed messages
   const messages = (chat.messages || [])
     .map((m) => ({
       id: m.id,
@@ -106,23 +108,24 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     }))
     .filter((m) => m.content);
 
-  const dismissTaskUpdate = useCallback(() => setTaskUpdate(null), []);
+  const getTask = useCallback((taskId: string): AtlasTask | undefined => {
+    return tasks.find(t => t.id === taskId || t.id.startsWith(taskId));
+  }, [tasks]);
+
+  const activeTasks = useMemo(() => 
+    tasks.filter(t => t.state === "in-progress" || t.state === "pending"),
+    [tasks]
+  );
 
   return {
-    // Connection state
     isConnected,
     isLoading,
     agentConnection,
-    
-    // Sandbox info (from state sync or broadcast)
     vncUrl: sandboxInfo.vncUrl,
     logsUrl: sandboxInfo.logsUrl,
-    
-    // Task updates
-    taskUpdate,
-    dismissTaskUpdate,
-    
-    // Chat
+    tasks,
+    activeTasks,
+    getTask,
     messages,
     sendMessage: chat.sendMessage,
     clearHistory: chat.clearHistory,

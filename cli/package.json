@@ -20,7 +20,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "agents": "^0.0.67"
+    "agents": "^0.2.35"
   },
   "publishConfig": {
     "access": "public"

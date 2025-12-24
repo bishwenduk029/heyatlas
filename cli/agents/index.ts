@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./base";
 export * from "./config";
+export { ptyManager, type OutputCallback } from "./pty-manager";
 export { ClaudeAgent } from "./claude";
 export { CodexAgent } from "./codex";
 export { DroidAgent } from "./droid";

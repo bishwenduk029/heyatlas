@@ -1,14 +1,14 @@
 /**
  * Tunnel SDK for CLI agents
  *
- * Provides AtlasTunnel for WebSocket communication with Atlas agent.
+ * State-based communication with Atlas agent via AgentClient.
  */
 
 export {
-  TunnelInterface,
-  type MessageCallback,
-  type ConnectOptions,
-  type SendMessageOptions,
-} from "./TunnelInterface";
-
-export { AtlasTunnel, type AtlasTunnelOptions } from "./AtlasTunnel";
+  AtlasTunnel,
+  type AtlasTunnelOptions,
+  type Task,
+  type TaskUpdate,
+  type TaskCallback,
+  type AgentState,
+} from "./AtlasTunnel";
