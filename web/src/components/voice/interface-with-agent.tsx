@@ -21,7 +21,7 @@ interface InterfaceWithAgentProps {
 export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentProps) {
   const room = useMemo(() => new Room(), []);
   const [voiceSessionStarted, setVoiceSessionStarted] = useState(false);
-  const [isChatMode, setIsChatMode] = useState(false);
+  const [isChatMode, setIsChatMode] = useState(true); // Default to chat mode
 
   const {
     error: connectionError,
@@ -40,16 +40,19 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
   const logUrl = atlasAgent.logsUrl;
 
   const handleToggleMode = useCallback(() => {
-    setIsChatMode((prev) => {
-      const newChatMode = !prev;
-      // Disconnect voice when switching to chat
-      if (newChatMode && room.state !== "disconnected") {
+    if (isChatMode) {
+      // Switching from chat to voice: start voice session and switch mode
+      setVoiceSessionStarted(true);
+      setIsChatMode(false);
+    } else {
+      // Switching from voice to chat: disconnect voice and switch mode
+      if (room.state !== "disconnected") {
         room.disconnect();
-        setVoiceSessionStarted(false);
       }
-      return newChatMode;
-    });
-  }, [room]);
+      setVoiceSessionStarted(false);
+      setIsChatMode(true);
+    }
+  }, [isChatMode, room]);
 
   const handleStartVoiceSession = useCallback(() => {
     setVoiceSessionStarted(true);
@@ -119,38 +122,27 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
   return (
     <RoomContext.Provider value={room}>
       <MCPUIHandler />
-      <main className="h-screen bg-background flex flex-col overflow-hidden">
+      <main className="h-screen bg-background flex flex-col">
         <Header />
-        <div className="flex-1 flex flex-col overflow-auto">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={isChatMode ? "chat" : "voice"}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="flex-1 flex flex-col min-h-full"
-            >
-              <RoomAudioRenderer />
-              <SessionLayout
-                mode={mode}
-                isChatMode={isChatMode}
-                voiceSessionStarted={voiceSessionStarted}
-                onStartVoiceSession={handleStartVoiceSession}
-                onToggleMode={handleToggleMode}
-                onDisconnectVoice={() => room.disconnect()}
-                vncUrl={vncUrl || undefined}
-                logUrl={logUrl || undefined}
-                userId={userId}
-                messages={atlasAgent.messages}
-                onSendMessage={handleSendMessage}
-                onStopChat={atlasAgent.stop}
-                isChatLoading={atlasAgent.isLoading}
-                isChatConnected={atlasAgent.isConnected}
-                tasks={atlasAgent.tasks}
-              />
-            </motion.div>
-          </AnimatePresence>
+        <div className="flex-1 flex flex-col min-h-0">
+          <RoomAudioRenderer />
+          <SessionLayout
+            mode={mode}
+            isChatMode={isChatMode}
+            voiceSessionStarted={voiceSessionStarted}
+            onStartVoiceSession={handleStartVoiceSession}
+            onToggleMode={handleToggleMode}
+            onDisconnectVoice={() => room.disconnect()}
+            vncUrl={vncUrl || undefined}
+            logUrl={logUrl || undefined}
+            userId={userId}
+            messages={atlasAgent.messages}
+            onSendMessage={handleSendMessage}
+            onStopChat={atlasAgent.stop}
+            isChatLoading={atlasAgent.isLoading}
+            isChatConnected={atlasAgent.isConnected}
+            tasks={atlasAgent.tasks}
+          />
         </div>
         <Footer />
       </main>

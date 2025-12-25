@@ -24,6 +24,8 @@ interface ChatInterfaceProps {
   tasks?: AtlasTask[];
   onTaskSelect?: (task: AtlasTask) => void;
   compact?: boolean;
+  isVoiceMode?: boolean;
+  disabled?: boolean;
 }
 
 export function ChatInterface({
@@ -37,6 +39,8 @@ export function ChatInterface({
   tasks = [],
   onTaskSelect,
   compact = false,
+  isVoiceMode = false,
+  disabled = false,
 }: ChatInterfaceProps) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -47,37 +51,36 @@ export function ChatInterface({
   };
 
   return (
-    <div className={compact ? "flex flex-col h-full bg-background" : "flex flex-col min-h-screen bg-background"}>
-      {/* Content Area */}
-      <div className={compact ? "flex-1 flex flex-col w-full overflow-hidden" : "flex-1 flex flex-col w-full pb-32"}>
-        <div className={compact ? "flex-1 overflow-auto" : "flex-1"}>
-          {viewMode === "chat" ? (
-            <MessageList
-              messages={messages}
-              userImage={user?.image || undefined}
-              onQuickAction={isConnected ? handleSend : undefined}
-            />
-          ) : (
+    <div className="flex flex-col h-full bg-background w-full">
+      <div className="flex-1 min-h-0">
+        {viewMode === "chat" ? (
+          <MessageList
+            messages={messages}
+            userImage={user?.image || undefined}
+            onQuickAction={isConnected ? handleSend : undefined}
+            tasks={tasks}
+            onTaskSelect={onTaskSelect}
+            compact={compact}
+          />
+        ) : (
+          <div className="h-full w-full overflow-y-auto pt-4">
             <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Input Area - sticky in normal mode, relative in compact mode */}
-      <div className={compact 
-        ? "shrink-0 bg-background pt-2 pb-4 px-2" 
-        : "fixed bottom-0 left-0 right-0 z-10 bg-transparent pt-2 pb-4 pointer-events-none"
-      }>
-        <div className={compact ? "w-full" : "sticky bottom-0 z-1 mx-auto flex w-full max-w-5xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4 pointer-events-auto my-6"}>
+      <div className="shrink-0 w-full bg-background border-t pt-2 pb-4 px-2">
+        <div className="w-full max-w-5xl mx-auto">
           <ChatInput
             onSend={handleSend}
             onStop={onStop}
             onToggleVoice={onToggleVoice}
             onToggleTasks={() => setViewMode(v => v === "chat" ? "tasks" : "chat")}
             isLoading={isLoading}
-            disabled={!isConnected}
+            disabled={disabled || !isConnected}
             showVoiceToggle={showVoiceToggle}
             isTasksView={viewMode === "tasks"}
+            isVoiceMode={isVoiceMode}
           />
         </div>
       </div>

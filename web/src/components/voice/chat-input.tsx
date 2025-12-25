@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Mic, ArrowUp, LayoutList, MessageSquare } from "lucide-react";
+import { Loader2, Mic, MicOff, ArrowUp, LayoutList, MessageSquare, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TextareaAutosize from "react-textarea-autosize";
 
@@ -15,6 +15,7 @@ interface ChatInputProps {
   disabled?: boolean;
   showVoiceToggle?: boolean;
   isTasksView?: boolean;
+  isVoiceMode?: boolean;
 }
 
 export function ChatInput({
@@ -26,6 +27,7 @@ export function ChatInput({
   disabled = false,
   showVoiceToggle = false,
   isTasksView = false,
+  isVoiceMode = false,
 }: ChatInputProps) {
   const [input, setInput] = useState("");
 
@@ -63,19 +65,19 @@ export function ChatInput({
             {onToggleTasks && (
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
+                variant="outline"
+                size="lg"
                 onClick={onToggleTasks}
                 className={cn(
-                  "h-8 w-8 rounded-full cursor-pointer icon-action",
+                  "h-12 w-12 rounded-full cursor-pointer icon-action hover:bg-muted",
                   isTasksView && "active"
                 )}
                 title={isTasksView ? "Show Chat" : "Show Tasks"}
               >
                 {isTasksView ? (
-                  <MessageSquare className="h-4 w-4" />
+                  <MessageSquare className="h-8 w-8" />
                 ) : (
-                  <LayoutList className="h-4 w-4" />
+                  <LayoutList className="h-8 w-8" />
                 )}
               </Button>
             )}
@@ -83,13 +85,31 @@ export function ChatInput({
             {showVoiceToggle && onToggleVoice && (
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
+                variant="outline"
+                size="lg"
                 onClick={onToggleVoice}
-                className="h-8 w-8 rounded-full cursor-pointer icon-action"
-                title="Switch to Voice"
+                className={cn(
+                  "h-12 w-12 rounded-full cursor-pointer icon-action transition-all duration-300 ease-in-out",
+                  isVoiceMode 
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" 
+                    : "hover:bg-muted"
+                )}
+                title={isVoiceMode ? "End Voice Session" : "Start Voice Session"}
               >
-                <Mic className="h-4 w-4" />
+                <div className="relative w-6 h-6 flex items-center justify-center">
+                  <div className={cn(
+                    "absolute transition-all duration-300 ease-in-out",
+                    isVoiceMode ? "opacity-0 scale-50 rotate-90" : "opacity-100 scale-100 rotate-0"
+                  )}>
+                    <Mic className="h-8 w-8" />
+                  </div>
+                  <div className={cn(
+                    "absolute transition-all duration-300 ease-in-out flex items-center justify-center",
+                    isVoiceMode ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-50 -rotate-90"
+                  )}>
+                    <Square className="h-4 w-4 fill-current" />
+                  </div>
+                </div>
               </Button>
             )}
           </div>
@@ -97,33 +117,29 @@ export function ChatInput({
           {isLoading ? (
             <Button
               type="button"
-              size="icon"
+              size="lg"
               onClick={onStop}
-              className="h-8 w-8 rounded-full bg-white text-black hover:bg-white/90 cursor-pointer"
+              className="h-12 w-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
             >
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-8 w-8 animate-spin" />
             </Button>
           ) : (
             <Button
               type="submit"
-              size="icon"
+              size="lg"
               disabled={disabled || !input.trim()}
               className={cn(
-                "h-8 w-8 rounded-full transition-all cursor-pointer",
+                "h-12 w-12 rounded-full transition-all cursor-pointer",
                 input.trim()
-                  ? "bg-white text-black hover:bg-white/90"
-                  : "bg-white/10 text-muted-foreground hover:bg-white/20"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              <ArrowUp className="h-4 w-4" />
+              <ArrowUp className="h-6 w-6" />
             </Button>
           )}
         </div>
       </form>
-
-      <p className="text-center mt-2 text-[10px] text-muted-foreground/40">
-        AI can make mistakes. Check important info.
-      </p>
     </div>
   );
 }

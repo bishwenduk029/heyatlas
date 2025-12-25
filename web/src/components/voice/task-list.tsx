@@ -3,6 +3,7 @@
 import { Terminal, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
 
 interface TaskListProps {
@@ -18,6 +19,15 @@ function getTaskDescription(task: AtlasTask): string {
   const firstMessage = first?.content || first?.data?.text;
   if (firstMessage) return firstMessage;
   return `Task ${task.id.slice(0, 8)}`;
+}
+
+function getLiveOutput(task: AtlasTask): string | null {
+  // For in-progress tasks, show the latest message text
+  if (task.state !== "in-progress" && task.state !== "pending") return null;
+  const last = task.context[task.context.length - 1] as any;
+  const data = last?.data || last;
+  const text = data?.text || data?.finalText;
+  return text && !data.role ? text : null;
 }
 
 function getStatusStyle(state: AtlasTask["state"]) {
@@ -89,9 +99,14 @@ export function TaskList({ tasks, onTaskClick }: TaskListProps) {
                 </div>
               </div>
               
-              <p className="text-sm text-muted-foreground line-clamp-2 pl-10">
-                {getTaskDescription(task)}
-              </p>
+              <div className="text-sm text-muted-foreground line-clamp-2 pl-10">
+                <p className="text-muted-foreground">{getTaskDescription(task)}</p>
+                {(task.state === "in-progress" || task.state === "pending") && getLiveOutput(task) && (
+                  <div className="text-xs text-green-600 mt-1 animate-pulse overflow-hidden">
+                    <Shimmer>{getLiveOutput(task)!}</Shimmer>
+                  </div>
+                )}
+              </div>
               
               {/* Click indicator */}
               {onTaskClick && (

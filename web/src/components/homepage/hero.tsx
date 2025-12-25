@@ -13,19 +13,10 @@ import {
 import { AnimatedHeroTitle } from "@/components/homepage/animated-hero-title";
 import { APP_DESCRIPTION } from "@/lib/config/constants";
 import Link from "next/link";
-import { DiscoLights } from "./disco-lights";
 
 export function Hero() {
   return (
-    <section className="bg-background relative flex items-center justify-center overflow-hidden">
-      {/* Disco Lights Background Animation - Rendered FIRST (at bottom of stack) */}
-      <DiscoLights />
-
-      {/* Subtle Background Pattern - Rendered SECOND (on top of lights) */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.03),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20" />
-      </div>
+    <section className="bg-background flex items-center justify-center">
       
       <div className="relative z-10 mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div className="flex flex-col items-center justify-center gap-12 text-center">
