@@ -261,21 +261,18 @@ export function SessionLayout({
       <div className="flex-1 flex gap-4 overflow-hidden px-2 md:px-6 pb-2">
         {/* Left: Chat (desktop only) */}
         <div className="hidden md:flex w-3/5 flex-col gap-3 h-full">
-          {isChatMode ? (
-            <ChatInterface
-              messages={messages}
-              onSendMessage={onSendMessage}
-              onStop={onStopChat}
-              isLoading={isChatLoading}
-              isConnected={isChatConnected}
-              onToggleVoice={onToggleMode}
-              showVoiceToggle
-              tasks={tasks}
-              isVoiceMode={false}
-            />
-          ) : (
-            renderVoiceChat()
-          )}
+          <ChatInterface
+            messages={isChatMode ? messages : getVoiceMessagesForChat()}
+            onSendMessage={onSendMessage}
+            onStop={onStopChat}
+            isLoading={isChatLoading}
+            isConnected={isChatMode ? isChatConnected : voiceSessionStarted}
+            onToggleVoice={onToggleMode}
+            showVoiceToggle
+            tasks={tasks}
+            isVoiceMode={!isChatMode && voiceSessionStarted}
+            disabled={!isChatMode}
+          />
         </div>
 
         {/* Right: Desktop Viewer */}
@@ -286,19 +283,18 @@ export function SessionLayout({
             userId={userId}
             mobileChatContent={
               <div className="flex h-full flex-col p-2">
-                {isChatMode ? (
-                  <ChatInterface
-                    messages={messages}
-                    onSendMessage={onSendMessage}
-                    onStop={onStopChat}
-                    isLoading={isChatLoading}
-                    isConnected={isChatConnected}
-                    tasks={tasks}
-                    isVoiceMode={false}
-                  />
-                ) : (
-                  renderVoiceChat()
-                )}
+                <ChatInterface
+                  messages={isChatMode ? messages : getVoiceMessagesForChat()}
+                  onSendMessage={onSendMessage}
+                  onStop={onStopChat}
+                  isLoading={isChatLoading}
+                  isConnected={isChatMode ? isChatConnected : voiceSessionStarted}
+                  onToggleVoice={onToggleMode}
+                  showVoiceToggle
+                  tasks={tasks}
+                  isVoiceMode={!isChatMode && voiceSessionStarted}
+                  disabled={!isChatMode}
+                />
               </div>
             }
           />

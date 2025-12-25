@@ -86,12 +86,16 @@ export function MessageList({ messages, userImage, onQuickAction, tasks = [], on
                     {msg.content}
                   </div>
                   {/* Show task artifact card if message is linked to a task */}
-                  {msg.taskId && taskMap.has(msg.taskId) && onTaskSelect && (
-                    <TaskArtifactCard
-                      task={taskMap.get(msg.taskId)!}
-                      onClick={() => onTaskSelect(taskMap.get(msg.taskId)!)}
-                    />
-                  )}
+                  {msg.taskId && taskMap.has(msg.taskId) && onTaskSelect && (() => {
+                    const task = taskMap.get(msg.taskId);
+                    if (!task) return null;
+                    return (
+                      <TaskArtifactCard
+                        task={task}
+                        onClick={() => onTaskSelect(task)}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             </div>
