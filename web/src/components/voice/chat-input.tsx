@@ -77,7 +77,7 @@ export function ChatInput({
                 className={cn(
                   isTasksView
                     ? "bg-primary/10 text-primary"
-                    : "bg-muted/60 text-muted-foreground hover:text-foreground"
+                    : "bg-secondary text-secondary-foreground hover:text-foreground"
                 )}
               />
             )}
@@ -109,7 +109,7 @@ export function ChatInput({
                 className={cn(
                   isVoiceMode
                     ? "bg-destructive text-destructive-foreground"
-                    : "bg-muted/60 text-muted-foreground hover:text-foreground"
+                    : "bg-secondary text-secondary-foreground hover:text-foreground"
                 )}
               />
             )}
