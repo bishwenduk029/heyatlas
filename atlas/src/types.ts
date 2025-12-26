@@ -6,7 +6,6 @@ export interface Env {
   "atlas-agent": AgentNamespace<AtlasAgent>;
   AUTH_API_BASE: string;
   NIRMANUS_API_KEY: string;
-  HEYATLAS_PROVIDER_API_KEY: string;
   HEYATLAS_PROVIDER_API_URL: string;
   LLM_MODEL: string;
   PARALLELS_WEB_SEARCH_API?: string;

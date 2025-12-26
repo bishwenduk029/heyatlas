@@ -13,11 +13,6 @@ class_name = "VoltAgentPartyServer"
 tag = "v1"
 new_classes = ["VoltAgentPartyServer"]
 
-# Environment variables (set these in Cloudflare dashboard or use .dev.vars locally)
-[vars]
-# HEYATLAS_PROVIDER_API_KEY = "set-in-dashboard"
-# HEYATLAS_PROVIDER_API_URL = "set-in-dashboard"
-
 # Development settings
 [dev]
 port = 8787

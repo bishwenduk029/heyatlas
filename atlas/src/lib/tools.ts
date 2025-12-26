@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { Tier } from "../prompts";
 import { getTierConfig } from "../prompts";
 import type { SandboxState, Task } from "../types";
+import { searchTool } from '@parallel-web/ai-sdk-tools';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Tools = Record<string, any>;
@@ -132,6 +133,10 @@ export function buildTools(deps: Deps): Tools {
         return response;
       },
     });
+  }
+
+  if(cfg.hasWebSearch) {
+    tools.webSearch = searchTool;
   }
 
   // Jonin only: Sandbox computer agent

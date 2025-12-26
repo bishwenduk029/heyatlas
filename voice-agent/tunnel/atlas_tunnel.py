@@ -98,6 +98,12 @@ class AtlasTunnel:
             await self._handle_state_update(data.get("state", {}))
         elif msg_type == "cf_agent_chat_messages":
             logger.debug(f"[Tunnel] Chat message: {content}")
+        elif msg_type == "voice_update":
+            # Handle voice update from CLI completion events
+            summary = data.get("summary", "")
+            if summary:
+                logger.info(f"[Tunnel] Voice update: {summary[:50]}...")
+                await self._invoke_callback(summary)
 
     async def _handle_state_update(self, state: dict):
         """Handle state updates from Atlas. Watch for pending-user-feedback tasks."""

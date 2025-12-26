@@ -35,7 +35,7 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
   console.log(`🤖 Agent locked: ${agentType}${options.interactive ? " (interactive)" : ""}`);
 
   const tunnel = new AtlasTunnel({
-    host: process.env.ATLAS_AGENT_HOST || "localhost:8787",
+    host: process.env.ATLAS_AGENT_HOST || "agent.heyatlas.app",
     token: credentials.accessToken,
     interactive: options.interactive,
   });

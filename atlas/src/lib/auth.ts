@@ -44,7 +44,7 @@ export async function authenticate(
     return {
       userId: "voice-agent",
       email: "",
-      apiKey: token || env.HEYATLAS_PROVIDER_API_KEY || "",
+      apiKey: token || "",
       apiUrl: env.HEYATLAS_PROVIDER_API_URL || "",
       tier: tierParam,
     };
@@ -75,7 +75,7 @@ export async function authenticate(
     return {
       userId: user.id,
       email: user.email || "",
-      apiKey: user.virtualKey?.apiKey || env.HEYATLAS_PROVIDER_API_KEY || "",
+      apiKey: user.virtualKey?.apiKey || "",
       apiUrl: user.virtualKey?.apiUrl || env.HEYATLAS_PROVIDER_API_URL || "",
       tier: tierParam || user.tier || "genin",
     };

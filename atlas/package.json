@@ -24,6 +24,7 @@
     "@ai-sdk/openai-compatible": "^1.0.29",
     "@ai-sdk/ui-utils": "^1.2.11",
     "@e2b/desktop": "^2.2.2",
+    "@parallel-web/ai-sdk-tools": "^0.1.6",
     "agents": "^0.2.32",
     "ai": "^5.0.102",
     "hono": "^4.11.1",

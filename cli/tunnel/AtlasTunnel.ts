@@ -191,6 +191,23 @@ export class AtlasTunnel {
     await this.updateTask(taskId, update);
   }
 
+  /**
+   * Send voice update to Atlas for voice agent to speak.
+   * Called when completion events occur in CLI agents.
+   */
+  async updateHuman(summary: string): Promise<void> {
+    if (!this.client || !this._isConnected) {
+      throw new Error("Not connected to Atlas");
+    }
+
+    try {
+      await this.client.call("update_human", [summary]);
+    } catch (error) {
+      console.error(`Failed to send voice update:`, error);
+      throw error;
+    }
+  }
+
   async disconnect(): Promise<void> {
     this._isConnected = false;
     this.currentUserId = null;

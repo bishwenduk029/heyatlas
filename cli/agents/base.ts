@@ -136,6 +136,12 @@ export abstract class BaseCLIAgent implements CLIAgent {
                   if (isUserOrAssistant || isCompletion) {
                     tunnel.appendContext(taskId, [event], "completed");
                   }
+                  // Trigger voice update when completion event occurs
+                  if (isCompletion && event.data.summary) {
+                    tunnel.updateHuman(event.data.summary).catch((err) => {
+                      console.error("Failed to send voice update:", err);
+                    });
+                  }
                 }
               }
             }

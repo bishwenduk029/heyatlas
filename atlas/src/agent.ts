@@ -45,9 +45,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     interactiveMode: false,
     interactiveTaskId: null,
   };
-
-  private mcpConnected = false;
-  private mcpConnecting: Promise<void> | null = null;
   private sandboxInstance: Sandbox | null = null;
 
   get userId() {
@@ -163,41 +160,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     }
   }
 
-  private async connectMcp() {
-    if (this.mcpConnected || !this.env.PARALLELS_WEB_SEARCH_API) return;
-    
-    // Prevent multiple simultaneous connection attempts
-    if (this.mcpConnecting) {
-      return this.mcpConnecting;
-    }
-
-    this.mcpConnecting = (async () => {
-      try {
-        console.log("[Atlas] Connecting to MCP...");
-        await this.addMcpServer(
-          "parallels",
-          this.env.PARALLELS_WEB_SEARCH_API!,
-          undefined,
-          undefined,
-          {
-            transport: {
-              headers: {
-                Authorization: `Bearer ${this.env.PARALLELS_WEB_SEARCH_API_KEY}`,
-              },
-            },
-          },
-        );
-        this.mcpConnected = true;
-      } catch (e) {
-        console.error("[Atlas] MCP connect error:", e);
-      } finally {
-        this.mcpConnecting = null;
-      }
-    })();
-
-    return this.mcpConnecting;
-  }
-
   private get llm() {
     const apiKey = this.state.credentials?.providerApiKey || this.env.HEYATLAS_PROVIDER_API_KEY;
     let baseURL = this.state.credentials?.providerApiUrl || this.env.HEYATLAS_PROVIDER_API_URL;
@@ -215,7 +177,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   }
 
   private get tools() {
-    const base = buildTools({
+    return buildTools({
       userId: this.userId,
       tier: this.state.tier,
       broadcast: (msg: string) => this.broadcast(msg),
@@ -225,10 +187,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       listTasks: () => this.listTasks(),
       connectedAgentId: this.state.connectedAgentId || undefined,
     });
-    const cfg = getTierConfig(this.state.tier);
-    return cfg.hasWebSearch && this.mcpConnected
-      ? { ...base, ...this.mcp.getAITools() }
-      : base;
   }
 
   // --- Task Management ---
@@ -479,7 +437,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     }
 
     const cfg = getTierConfig(tier);
-    if (cfg.hasWebSearch) this.connectMcp().catch(() => {});
     if (cfg.hasCloudDesktop) this.ensureSandbox().catch(() => {});
 
     conn.send(JSON.stringify({ type: "connected", userId: this.userId }));
@@ -536,7 +493,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     if (tier) this.setTier(tier);
 
     const cfg = getTierConfig(this.state.tier);
-    if (cfg.hasWebSearch) await this.connectMcp();
     if (this.state.credentials && cfg.hasCloudDesktop) {
       this.ensureSandbox().catch(() => {});
     }
@@ -553,9 +509,22 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     }
 
     const cfg = getTierConfig(this.state.tier);
-    if (cfg.hasWebSearch) await this.connectMcp();
 
     return this.chat(prompt);
+  }
+
+  /**
+   * Send voice update to connected voice agent
+   * Called when completion events arrive from CLI agents
+   */
+  @callable()
+  update_human(summary: string): void {
+    this.broadcast(
+      JSON.stringify({
+        type: "voice_update",
+        summary,
+      })
+    );
   }
 
   /**
