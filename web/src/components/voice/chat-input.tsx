@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Mic, MicOff, ArrowUp, LayoutList, MessageSquare, Square } from "lucide-react";
+import { Loader2, Mic, ArrowUp, LayoutList, MessageSquare, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TextareaAutosize from "react-textarea-autosize";
+import { RevealButton } from "@/components/ui/reveal-button";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -42,7 +43,7 @@ export function ChatInput({
     <div className="w-full">
       <form
         onSubmit={handleSubmit}
-        className="relative rounded-3xl border border-border/40 bg-background shadow-[0_0_15px_-3px_rgba(34,197,94,0.15)] focus-within:shadow-[0_0_25px_-5px_rgba(34,197,94,0.3)] focus-within:border-primary/30 transition-all overflow-hidden"
+        className="relative rounded-3xl border-2 bg-background shadow-md focus-within:border-primary/30 transition-all overflow-hidden"
       >
         <TextareaAutosize
           value={input}
@@ -63,54 +64,54 @@ export function ChatInput({
         <div className="flex items-center justify-between px-4 pb-3 pt-1">
           <div className="flex items-center gap-2">
             {onToggleTasks && (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
+              <RevealButton
+                icon={
+                  isTasksView ? (
+                    <MessageSquare className="h-5 w-5" />
+                  ) : (
+                    <LayoutList className="h-5 w-5" />
+                  )
+                }
+                label={isTasksView ? "Text Chat" : "Task List"}
                 onClick={onToggleTasks}
                 className={cn(
-                  "h-12 w-12 rounded-full cursor-pointer icon-action hover:bg-muted",
-                  isTasksView && "active"
+                  isTasksView
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground"
                 )}
-                title={isTasksView ? "Show Chat" : "Show Tasks"}
-              >
-                {isTasksView ? (
-                  <MessageSquare className="h-8 w-8" />
-                ) : (
-                  <LayoutList className="h-8 w-8" />
-                )}
-              </Button>
+              />
             )}
 
             {showVoiceToggle && onToggleVoice && (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
+              <RevealButton
+                icon={
+                  <div className="relative w-5 h-5 flex items-center justify-center">
+                    <div
+                      className={cn(
+                        "absolute transition-all duration-300 ease-in-out",
+                        isVoiceMode ? "opacity-0 scale-50 rotate-90" : "opacity-100 scale-100 rotate-0"
+                      )}
+                    >
+                      <Mic className="h-5 w-5" />
+                    </div>
+                    <div
+                      className={cn(
+                        "absolute transition-all duration-300 ease-in-out flex items-center justify-center",
+                        isVoiceMode ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-50 -rotate-90"
+                      )}
+                    >
+                      <Square className="h-3.5 w-3.5 fill-current" />
+                    </div>
+                  </div>
+                }
+                label={isVoiceMode ? "End Session" : "Voice Chat"}
                 onClick={onToggleVoice}
                 className={cn(
-                  "h-12 w-12 rounded-full cursor-pointer icon-action transition-all duration-300 ease-in-out",
-                  isVoiceMode 
-                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" 
-                    : "hover:bg-muted"
+                  isVoiceMode
+                    ? "bg-destructive text-destructive-foreground"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground"
                 )}
-                title={isVoiceMode ? "End Voice Session" : "Start Voice Session"}
-              >
-                <div className="relative w-6 h-6 flex items-center justify-center">
-                  <div className={cn(
-                    "absolute transition-all duration-300 ease-in-out",
-                    isVoiceMode ? "opacity-0 scale-50 rotate-90" : "opacity-100 scale-100 rotate-0"
-                  )}>
-                    <Mic className="h-8 w-8" />
-                  </div>
-                  <div className={cn(
-                    "absolute transition-all duration-300 ease-in-out flex items-center justify-center",
-                    isVoiceMode ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-50 -rotate-90"
-                  )}>
-                    <Square className="h-4 w-4 fill-current" />
-                  </div>
-                </div>
-              </Button>
+              />
             )}
           </div>
 

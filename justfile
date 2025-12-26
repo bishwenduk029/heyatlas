@@ -120,14 +120,6 @@ deploy-bifrost:
 setup: setup-web setup-atlas setup-voice-agent setup-cli setup-mcp-ui-server setup-agent-smith setup-desktop-sandbox
     @echo "✅ Setup complete."
 
-# Main dev command: starts atlas, voice-agent, and web
-dev:
-    @echo "Starting development environment (atlas + voice-agent + web)..."
-    npx -y concurrently \
-        "just atlas-dev" \
-        "just voice-agent-dev" \
-        "just web-dev"
-
 # Kill any stray dev processes (workerd, next, etc.)
 dev-cleanup:
     @echo "Cleaning up stray dev processes..."
@@ -137,7 +129,7 @@ dev-cleanup:
     @echo "Cleanup done."
 
 # Dev with mprocs TUI (nicer multiplexed logs)
-dev-tui: dev-cleanup
+dev: dev-cleanup
     @echo "Starting development environment with mprocs TUI..."
     @(sleep 3 && open http://localhost:3000) &
     mprocs "just atlas-dev" "just voice-agent-dev" "just web-dev"

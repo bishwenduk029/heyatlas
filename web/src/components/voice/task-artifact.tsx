@@ -105,7 +105,7 @@ export function TaskArtifact({ task, onClose }: TaskArtifactProps) {
           )}
         </div>
         {isRunning && lastText && (
-          <div className="text-green-400 mt-2 animate-pulse">
+          <div className="text-green-400 mt-2 animate-pulse p-4">
             <Shimmer>{lastText}</Shimmer>
           </div>
         )}
