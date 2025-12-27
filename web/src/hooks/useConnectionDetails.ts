@@ -40,8 +40,7 @@ export default function useConnectionDetails() {
 
   useEffect(() => {
     // Don't fetch on mount, wait for user to start session
-    // fetchConnectionDetails();
-  }, [fetchConnectionDetails]);
+  }, []);
 
   const isConnectionDetailsExpired = useCallback(() => {
     const token = connectionDetails?.participantToken;

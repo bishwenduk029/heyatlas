@@ -35,7 +35,7 @@ export function AuthForm({ mode, availableProviders }: AuthFormProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await (signIn as any).magicLink({
       email: data.email,
-      callbackURL: "/voice",
+      callbackURL: "/chat",
     });
 
     if (result.error) {
@@ -72,7 +72,7 @@ export function AuthForm({ mode, availableProviders }: AuthFormProps) {
       </Link>
     ),
     showTerms: !isLogin,
-    callbackURL: "/voice",
+    callbackURL: "/chat",
   };
 
   const fields = [

@@ -30,7 +30,14 @@ export interface Task {
   // - completed: Task fully done
   // - failed: Task failed
   // - paused: Task paused by user
-  state: "new" | "continue" | "in-progress" | "pending-user-feedback" | "completed" | "failed" | "paused";
+  state:
+    | "new"
+    | "continue"
+    | "in-progress"
+    | "pending-user-feedback"
+    | "completed"
+    | "failed"
+    | "paused";
   context: StreamEvent[];
   result?: string;
   summary?: string; // Brief summary for voice feedback
@@ -50,7 +57,7 @@ export interface AgentState {
 // Callback for new task detection
 export type TaskCallback = (task: Task) => void | Promise<void>;
 
-const DEFAULT_HOST = "localhost:8787";
+const DEFAULT_HOST = "agent.heyatlas.app";
 
 export class AtlasTunnel {
   private client: AgentClient<AgentState> | null = null;
@@ -81,8 +88,8 @@ export class AtlasTunnel {
   async connect(userId: string, agentId: string): Promise<void> {
     this.currentUserId = userId;
     this.agentId = agentId;
-    
-    const host = this.options.host || DEFAULT_HOST;
+
+    const host = DEFAULT_HOST;
     const headers: Record<string, string> = {
       "X-Agent-Id": agentId,
     };
@@ -127,12 +134,15 @@ export class AtlasTunnel {
    * Handle state updates from Atlas agent.
    * Only processes tasks with state "new" or "continue".
    */
-  private handleStateUpdate(state: AgentState, source: "server" | "client"): void {
+  private handleStateUpdate(
+    state: AgentState,
+    source: "server" | "client",
+  ): void {
     // Always store the latest state from server
     if (source === "server") {
       this.currentState = state;
     }
-    
+
     if (!state.tasks) return;
 
     for (const task of Object.values(state.tasks)) {
@@ -146,7 +156,10 @@ export class AtlasTunnel {
   /**
    * Update task on Atlas server via RPC.
    */
-  async updateTask(taskId: string, update: Partial<Omit<Task, "id" | "createdAt">>): Promise<void> {
+  async updateTask(
+    taskId: string,
+    update: Partial<Omit<Task, "id" | "createdAt">>,
+  ): Promise<void> {
     if (!this.client || !this._isConnected || !this.currentState) {
       throw new Error("Not connected to Atlas");
     }
@@ -175,8 +188,18 @@ export class AtlasTunnel {
   /**
    * Append context events to a task and sync to server.
    */
-  async appendContext(taskId: string, events: StreamEvent[], status?: Task["state"]): Promise<void> {
-    if (!this.client || !this._isConnected || !this.currentState || events.length === 0) return;
+  async appendContext(
+    taskId: string,
+    events: StreamEvent[],
+    status?: Task["state"],
+  ): Promise<void> {
+    if (
+      !this.client ||
+      !this._isConnected ||
+      !this.currentState ||
+      events.length === 0
+    )
+      return;
 
     const task = this.currentState.tasks?.[taskId];
     if (!task) return;
@@ -212,7 +235,7 @@ export class AtlasTunnel {
     this._isConnected = false;
     this.currentUserId = null;
     this.seenTaskIds.clear();
-    
+
     if (this.client) {
       try {
         this.client.close();

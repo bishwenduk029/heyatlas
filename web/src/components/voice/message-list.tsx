@@ -28,15 +28,30 @@ interface MessageListProps {
   tasks?: AtlasTask[];
   onTaskSelect?: (task: AtlasTask) => void;
   compact?: boolean;
+  selectedTask?: boolean;
 }
 
-export function MessageList({ messages, userImage, onQuickAction, tasks = [], onTaskSelect, compact = false }: MessageListProps) {
+export function MessageList({
+  messages,
+  userImage,
+  onQuickAction,
+  tasks = [],
+  onTaskSelect,
+  compact = false,
+  selectedTask = false,
+}: MessageListProps) {
   // Create a map of taskId -> task for quick lookup
-  const taskMap = new Map(tasks.map(t => [t.id, t]));
+  const taskMap = new Map(tasks.map((t) => [t.id, t]));
 
   return (
-    <Conversation className="w-full h-[calc(100vh-250px)] transition-all duration-300 ease-in-out">
-      <ConversationContent className="p-0 mx-auto md:p-6 gap-4 md:gap-6 w-full mx-auto">
+    <Conversation className="my-2 h-[calc(100vh-250px)] w-full transition-all duration-300 ease-in-out">
+      <ConversationContent
+        className={
+          selectedTask
+            ? "h-full w-full gap-4 p-0 md:gap-6 md:p-6"
+            : "mx-auto h-full gap-4 p-0 md:w-1/2 md:gap-6 md:p-6"
+        }
+      >
         {messages.length === 0 ? (
           <ConversationEmptyState>
             <ChatWelcome onAction={onQuickAction} />
@@ -44,63 +59,71 @@ export function MessageList({ messages, userImage, onQuickAction, tasks = [], on
         ) : (
           <>
             {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={cn(
-                "flex flex-col gap-2",
-                msg.role === "user" ? "items-end" : "items-start"
-              )}
-            >
               <div
+                key={msg.id}
                 className={cn(
-                  "flex items-start gap-3 max-w-[85%]",
-                  msg.role === "user" && "flex-row-reverse"
+                  "flex flex-col gap-2",
+                  msg.role === "user" ? "items-end" : "items-start",
                 )}
               >
-                <Avatar className="h-8 w-8 shrink-0 mt-1 border shadow-sm">
-                  {msg.role === "user" ? (
-                    <>
-                      <AvatarImage src={userImage} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        <User className="h-4 w-4" />
-                      </AvatarFallback>
-                    </>
-                  ) : (
-                    <>
-                      <AvatarImage src="/logo.svg" alt="Atlas" />
-                      <AvatarFallback className="bg-muted">
-                        <Image src="/logo.svg" alt="Atlas" width={16} height={16} />
-                      </AvatarFallback>
-                    </>
+                <div
+                  className={cn(
+                    "flex max-w-[85%] items-start gap-3",
+                    msg.role === "user" && "flex-row-reverse",
                   )}
-                </Avatar>
-                <div className="max-w-[85%] flex flex-col gap-2">
-                  <div
-                    className={cn(
-                      "px-4 py-3 rounded-2xl text-sm shadow-sm border whitespace-pre-wrap",
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-tr-none border-primary"
-                        : "bg-muted/50 text-foreground rounded-tl-none"
+                >
+                  <Avatar className="mt-1 h-8 w-8 shrink-0 border shadow-sm">
+                    {msg.role === "user" ? (
+                      <>
+                        <AvatarImage src={userImage} />
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          <User className="h-4 w-4" />
+                        </AvatarFallback>
+                      </>
+                    ) : (
+                      <>
+                        <AvatarImage src="/logo.svg" alt="Atlas" />
+                        <AvatarFallback className="bg-muted">
+                          <Image
+                            src="/logo.svg"
+                            alt="Atlas"
+                            width={16}
+                            height={16}
+                          />
+                        </AvatarFallback>
+                      </>
                     )}
-                  >
-                    {msg.content}
+                  </Avatar>
+                  <div className="flex max-w-[85%] flex-col gap-2">
+                    <div
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-sm whitespace-pre-wrap shadow-sm",
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground border-primary rounded-tr-none"
+                          : "bg-muted/50 text-foreground rounded-tl-none",
+                      )}
+                    >
+                      {msg.content.trim()}
+                    </div>
+                    {/* Show task artifact card if message is linked to a task */}
+                    {msg.taskId &&
+                      taskMap.has(msg.taskId) &&
+                      onTaskSelect &&
+                      (() => {
+                        const task = taskMap.get(msg.taskId);
+                        if (!task) return null;
+                        return (
+                          <TaskArtifactCard
+                            task={task}
+                            onClick={() => onTaskSelect(task)}
+                          />
+                        );
+                      })()}
                   </div>
-                  {/* Show task artifact card if message is linked to a task */}
-                  {msg.taskId && taskMap.has(msg.taskId) && onTaskSelect && (() => {
-                    const task = taskMap.get(msg.taskId);
-                    if (!task) return null;
-                    return (
-                      <TaskArtifactCard
-                        task={task}
-                        onClick={() => onTaskSelect(task)}
-                      />
-                    );
-                  })()}
                 </div>
               </div>
-            </div>
-          ))}
-        </>
+            ))}
+          </>
         )}
       </ConversationContent>
       <ConversationScrollButton />

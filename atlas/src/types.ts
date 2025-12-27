@@ -39,6 +39,9 @@ export interface AgentState {
   connectedAgentId: string | null;
   interactiveMode: boolean;
   interactiveTaskId: string | null;
+  systemPrompt: string | null;
+  userSection: string | null;
+  compressing: boolean;
 }
 
 export interface Task {

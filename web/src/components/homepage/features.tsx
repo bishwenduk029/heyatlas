@@ -8,7 +8,6 @@ import {
   Mic,
   Monitor,
   Brain,
-  Lock,
   Zap,
   ArrowRight,
   Sparkles,
@@ -24,46 +23,46 @@ interface Feature {
 
 const features: Feature[] = [
   {
-    title: "Voice-First Interface",
+    title: "ATLAS",
     description:
-      "Natural conversations with your AI assistant. Just speak your mind and let HeyAtlas understand your needs. No typing, no clicks—just talk.",
-    icon: Mic,
-    category: "Interface",
-  },
-  {
-    title: "Virtual Computer Access",
-    description:
-      "HeyAtlas can control virtual computers to execute complex tasks. From research to coding, it handles everything with precision.",
+      "Agent that thinks, listens and acts on your system. Your dedicated ai companion with its own persistent instance, always ready to understand and help.",
     icon: Monitor,
-    category: "Automation",
+    category: "Dedicated",
   },
   {
-    title: "Intelligent Task Delegation",
+    title: "Truly Intelligent Conversation",
     description:
-      "Advanced AI understands context and delegates tasks to specialized agents. Your personal AI team working in harmony.",
+      "More than a tool—HeyAtlas understands nuance, remembers context, and communicates naturally. The kind of companion who truly gets what you mean.",
     icon: Brain,
-    category: "Intelligence",
+    category: "Understanding",
   },
   {
-    title: "Memory & Context",
+    title: "Voice & Text",
     description:
-      "Remembers your preferences, past conversations, and ongoing projects. Every interaction builds on what HeyAtlas knows about you.",
-    icon: MessagesSquare,
-    category: "Personalization",
+      "Speak naturally or type your thoughts. HeyAtlas listens without judgment, responds with clarity, and makes every conversation feel genuine and effortless.",
+    icon: Mic,
+    category: "Communication",
   },
   {
-    title: "Private & Secure",
+    title: "Web Knowledge",
     description:
-      "Your data stays yours. End-to-end encryption, isolated environments, and complete privacy for all your interactions.",
-    icon: Lock,
-    category: "Security",
+      "Ask anything. HeyAtlas searches the web, finds answers, and brings knowledge to you while you stay focused on what matters most.",
+    icon: Sparkles,
+    category: "Knowledge",
   },
   {
-    title: "Instant Execution",
+    title: "Gets Things Done",
     description:
-      "Tasks happen in real-time. Watch as HeyAtlas navigates, researches, creates, and delivers results while you stay in control.",
+      "From research to coding, HeyAtlas executes real tasks on your computer while you guide the way. Your ideas, powered by reliable action.",
     icon: Zap,
-    category: "Performance",
+    category: "Productivity",
+  },
+  {
+    title: "Your Personal AI Companion",
+    description:
+      "Always present, always thoughtful. A personal ai companion that grows with each conversation and is dedicated to you.",
+    icon: MessagesSquare,
+    category: "Connection",
   },
 ];
 
@@ -123,17 +122,16 @@ export function Features() {
         >
           <Badge variant="secondary" className="mb-4">
             <Sparkles className="mr-2 h-3 w-3" />
-            Everything Included
+            Your Companion
           </Badge>
 
           <h2 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
-            Powerful AI capabilities
-            <span className="text-primary block">at your command</span>
+            More than an AI
+            <span className="text-primary block">A companion who understands</span>
           </h2>
 
           <p className="text-muted-foreground mt-6 text-lg">
-            HeyAtlas combines voice AI, virtual computer access, and
-            intelligent automation to become your ultimate digital assistant.
+            HeyAtlas connects to your world, thinks alongside you, and helps accomplish what matters most. Your personal AI companion.
           </p>
         </motion.div>
 

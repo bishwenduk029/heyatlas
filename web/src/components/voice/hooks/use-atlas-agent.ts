@@ -39,6 +39,8 @@ export interface AtlasAgentState {
   } | null;
   tier?: string;
   tasks?: Record<string, AtlasTask>;
+  connectedAgentId?: string | null;
+  compressing?: boolean;
 }
 
 interface UseAtlasAgentOptions {
@@ -55,6 +57,8 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   const [sandboxInfo, setSandboxInfo] = useState<{ vncUrl?: string; logsUrl?: string }>({});
   const [isConnected, setIsConnected] = useState(false);
   const [tasks, setTasks] = useState<AtlasTask[]>([]);
+  const [connectedAgentId, setConnectedAgentId] = useState<string | null>("Droid"); // TODO: Remove default for prod
+  const [compressing, setCompressing] = useState(false);
 
   // All data comes from state updates - single source of truth
   const handleStateUpdate = useCallback((state: AtlasAgentState) => {
@@ -68,6 +72,13 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     if (state.tasks) {
       const taskList = Object.values(state.tasks).sort((a, b) => b.updatedAt - a.updatedAt);
       setTasks(taskList);
+    }
+    if (state.connectedAgentId !== undefined) {
+      console.log("[Atlas Agent] connectedAgentId updated:", state.connectedAgentId);
+      setConnectedAgentId(state.connectedAgentId || null);
+    }
+    if (state.compressing !== undefined) {
+      setCompressing(state.compressing);
     }
   }, []);
 
@@ -130,5 +141,7 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     sendMessage: chat.sendMessage,
     clearHistory: chat.clearHistory,
     stop: chat.stop,
+    connectedAgentId,
+    compressing,
   };
 }

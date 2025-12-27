@@ -2,7 +2,7 @@
 export const APP_NAME =
   process.env.NODE_ENV === "development" ? "heyatlas.app" : "heyatlas.app";
 export const APP_DESCRIPTION =
-  "Your AI voice companion with a cloud computer for digital tasks";
+  "Your personal AI companion that thinks, listens and can act on systems";
 export const COMPANY_NAME = "heyatlas.app";
 export const COMPANY_TAGLINE = "Talking AI Agents";
 

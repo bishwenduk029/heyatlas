@@ -16,6 +16,60 @@
     font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
     letter-spacing: var(--tracking-normal);
   }
+
+  /* Modern Scrollbar Styles */
+  /* Hide scrollbar utility class */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Webkit-based browsers (Chrome, Safari, Edge, Opera) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.556 0 0 / 0.5);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.556 0 0 / 0.8);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Dark mode scrollbar */
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(0.708 0 0 / 0.4);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.708 0 0 / 0.7);
+  }
+
+  /* Firefox (Standard Property) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.556 0 0 / 0.5) transparent;
+  }
+
+  .dark * {
+    scrollbar-color: oklch(0.708 0 0 / 0.4) transparent;
+  }
 }
 
 @layer components {

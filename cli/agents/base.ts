@@ -1,4 +1,10 @@
-import type { CLIAgent, AgentOutput, StreamEvent, RunOptions, InteractiveSession } from "./types";
+import type {
+  CLIAgent,
+  AgentOutput,
+  StreamEvent,
+  RunOptions,
+  InteractiveSession,
+} from "./types";
 import { AgentError, checkExecutable } from "./types";
 import { appendFileSync } from "fs";
 import { ptyManager } from "./pty-manager";
@@ -17,7 +23,9 @@ interface TaskStatusOutput {
 /** Extract task status JSON from agent output */
 function extractTaskStatus(output: string): TaskStatusOutput | null {
   // Look for JSON block with taskStatus
-  const jsonMatch = output.match(/```json\s*(\{[\s\S]*?"taskStatus"[\s\S]*?\})\s*```/);
+  const jsonMatch = output.match(
+    /```json\s*(\{[\s\S]*?"taskStatus"[\s\S]*?\})\s*```/,
+  );
   if (jsonMatch) {
     try {
       return JSON.parse(jsonMatch[1]);
@@ -44,7 +52,10 @@ export abstract class BaseCLIAgent implements CLIAgent {
   timeoutMs: number = DEFAULT_TIMEOUT_MS;
 
   abstract buildCommand(task: string): string[];
-  abstract createStreamHandler?(): { parse(chunk: string): StreamEvent[]; flush(): StreamEvent[] };
+  abstract createStreamHandler?(): {
+    parse(chunk: string): StreamEvent[];
+    flush(): StreamEvent[];
+  };
 
   async isAvailable(): Promise<boolean> {
     return checkExecutable(this.executable);
@@ -55,8 +66,10 @@ export abstract class BaseCLIAgent implements CLIAgent {
    * Used in non-interactive mode to get status for voice feedback.
    */
   buildTaskWithPrompt(task: string, context?: any[]): string {
-    const contextStr = context?.length ? `\n\n<task_context>\n${JSON.stringify(context, null, 2)}\n</task_context>` : "";
-    
+    const contextStr = context?.length
+      ? `\n\n<task_context>\n${JSON.stringify(context, null, 2)}\n</task_context>`
+      : "";
+
     return `${task}${contextStr}
 - Keep summary concise for voice feedback`;
   }
@@ -77,7 +90,10 @@ export abstract class BaseCLIAgent implements CLIAgent {
     const { env, tunnel, taskContext, onOutput, onStreamEvent } = options;
     const taskId = task.id; // Use task.id directly
     // Wrap task with full context and prompt for structured status output
-    const promptedTask = this.buildTaskWithPrompt(task.description, taskContext);
+    const promptedTask = this.buildTaskWithPrompt(
+      task.description,
+      taskContext,
+    );
     const args = this.buildCommand(promptedTask);
     const startTime = Date.now();
 
@@ -113,7 +129,9 @@ export abstract class BaseCLIAgent implements CLIAgent {
       const timeout = setTimeout(async () => {
         ptyManager.killByTaskId(taskId || "");
         if (tunnel && taskId) {
-          await tunnel.updateTask(taskId, { state: "failed", result: "Task timed out" }).catch(() => {});
+          await tunnel
+            .updateTask(taskId, { state: "failed", result: "Task timed out" })
+            .catch(() => {});
         }
         reject(new AgentError(`Agent '${this.name}' timed out`, this.name));
       }, this.timeoutMs);
@@ -130,8 +148,10 @@ export abstract class BaseCLIAgent implements CLIAgent {
                 onStreamEvent?.(event);
                 // Store user/assistant messages and completion events
                 if (tunnel && taskId) {
-                  const isUserOrAssistant = event.type === "message" && 
-                      (event.data.role === "user" || event.data.role === "assistant");
+                  const isUserOrAssistant =
+                    event.type === "message" &&
+                    (event.data.role === "user" ||
+                      event.data.role === "assistant");
                   const isCompletion = event.type === "completion";
                   if (isUserOrAssistant || isCompletion) {
                     tunnel.appendContext(taskId, [event], "completed");
@@ -148,12 +168,12 @@ export abstract class BaseCLIAgent implements CLIAgent {
           } else {
             errorChunks.push(chunk);
           }
-          appendLog(chunk);
+          // appendLog(chunk);
           onOutput?.(chunk, stream);
         },
         onExit: async (exitCode) => {
           clearTimeout(timeout);
-          
+
           const durationMs = Date.now() - startTime;
           const stdout = outputChunks.join("");
           const stderr = errorChunks.join("");
@@ -161,10 +181,12 @@ export abstract class BaseCLIAgent implements CLIAgent {
           if (exitCode !== 0) {
             // Mark task as failed
             if (tunnel && taskId) {
-              await tunnel.updateTask(taskId, { 
-                state: "failed", 
-                result: stderr || `Exit code ${exitCode}` 
-              }).catch(() => {});
+              await tunnel
+                .updateTask(taskId, {
+                  state: "failed",
+                  result: stderr || `Exit code ${exitCode}`,
+                })
+                .catch(() => {});
             }
             reject(
               new AgentError(
@@ -180,7 +202,7 @@ export abstract class BaseCLIAgent implements CLIAgent {
       });
     });
   }
-  
+
   /**
    * Run in interactive mode. Override in subclasses that support it.
    */

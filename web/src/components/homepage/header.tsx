@@ -32,15 +32,11 @@ interface NavItem {
 const navigationItems: NavItem[] = [
   {
     title: "Voice Assistant",
-    href: "/voice",
+    href: "/chat",
   },
   {
     title: "Pricing",
     href: "/pricing",
-  },
-  {
-    title: "Settings",
-    href: "/settings",
   },
   // {
   //   title: "About",
@@ -59,7 +55,7 @@ const navigationItems: NavItem[] = [
 const mobileNavItems: NavItem[] = [
   {
     title: "Voice Assistant",
-    href: "/voice",
+    href: "/chat",
   },
   {
     title: "Features",
@@ -68,10 +64,6 @@ const mobileNavItems: NavItem[] = [
   {
     title: "Pricing",
     href: "/pricing",
-  },
-  {
-    title: "Settings",
-    href: "/settings",
   },
 ];
 
@@ -207,7 +199,7 @@ function AuthButtons({
         <Link href="/login">Sign In</Link>
       </Button>
       <Button asChild size="sm">
-        <Link href="/voice">Get Started</Link>
+        <Link href="/chat">Get Started</Link>
       </Button>
     </div>
   );
@@ -264,7 +256,7 @@ function MobileAuthButtons({
         <Link href="/login">Sign In</Link>
       </Button>
       <Button asChild variant="outline" className="w-full">
-        <Link href="/voice">Get Started</Link>
+        <Link href="/chat">Get Started</Link>
       </Button>
     </div>
   );
@@ -279,13 +271,6 @@ function MobileNavigation({
 }) {
   const { data: session, isPending } = useSession();
 
-  const filteredMobileNavItems = mobileNavItems.filter((item) => {
-    if (item.href === "/settings") {
-      return session?.user;
-    }
-    return true;
-  });
-
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-80 p-0">
@@ -297,7 +282,7 @@ function MobileNavigation({
 
         <div className="flex flex-col p-6">
           <nav className="space-y-4">
-            {filteredMobileNavItems.map((item, index) => (
+            {mobileNavItems.map((item, index) => (
               <Link
                 key={index}
                 href={item.href!}
@@ -331,13 +316,6 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const filteredNavigationItems = navigationItems.filter((item) => {
-    if (item.href === "/settings") {
-      return session?.user;
-    }
-    return true;
-  });
-
   return (
     <>
       <header
@@ -358,7 +336,7 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden items-center gap-1 md:flex">
-              {filteredNavigationItems.map((item, index) => (
+              {navigationItems.map((item, index) => (
                 <div key={index}>
                   {item.items ? (
                     <NavigationDropdown item={item} />

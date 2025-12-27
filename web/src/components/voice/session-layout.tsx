@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useRoomContext, useVoiceAssistant } from "@livekit/components-react";
 import type { ReceivedChatMessage } from "@livekit/components-react";
 import { RpcError, RpcInvocationData } from "livekit-client";
@@ -15,6 +16,8 @@ import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
 import { cn } from "@/lib/utils";
+import Loading from "@/app/loading";
+import { Loader } from "lucide-react";
 
 interface Message {
   id: string;
@@ -38,6 +41,8 @@ interface SessionLayoutProps {
   isChatLoading?: boolean;
   isChatConnected?: boolean;
   tasks?: AtlasTask[];
+  connectedAgentId?: string | null;
+  compressing?: boolean;
 }
 
 export function SessionLayout({
@@ -56,34 +61,68 @@ export function SessionLayout({
   isChatLoading,
   isChatConnected,
   tasks = [],
+  connectedAgentId,
+  compressing,
 }: SessionLayoutProps) {
   const room = useRoomContext();
   const { state: agentState } = useVoiceAssistant();
-  
+  const searchParams = useSearchParams();
+
   // Voice view mode: "voice" or "tasks"
-  const [voiceViewMode, setVoiceViewMode] = useState<"voice" | "tasks">("voice");
+  const [voiceViewMode, setVoiceViewMode] = useState<"voice" | "tasks">(
+    "voice",
+  );
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  
+  const [paramsHandled, setParamsHandled] = useState(false);
+
   // Get live task from tasks array (not a stale snapshot)
-  const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) || null : null;
-  
+  const selectedTask = selectedTaskId
+    ? tasks.find((t) => t.id === selectedTaskId) || null
+    : null;
+
   const { messages: voiceMessages } = useChatAndTranscription();
+  console.log(voiceMessages);
   const chatScrollRef = useRef<HTMLDivElement>(null);
-  
-  const [mcpForms, setMcpForms] = useState<Array<{
-    resource: { uri: string; mimeType: string; text: string };
-    timestamp: number;
-    submittedValue?: string;
-  }>>([]);
+
+  const [mcpForms, setMcpForms] = useState<
+    Array<{
+      resource: { uri: string; mimeType: string; text: string };
+      timestamp: number;
+      submittedValue?: string;
+    }>
+  >([]);
+
+  // Handle URL search params for initial mode
+  useEffect(() => {
+    if (paramsHandled) return;
+
+    const mode = searchParams.get("mode");
+
+    if (mode === "voice") {
+      // Trigger mode toggle to switch from chat to voice
+      // This will handle both setting voiceSessionStarted and switching isChatMode
+      onToggleMode();
+    }
+
+    setParamsHandled(true);
+  }, [searchParams, paramsHandled, onToggleMode]);
+
+  // Get initial view mode from URL params
+  const initialViewMode =
+    (searchParams.get("view") as "chat" | "tasks") || "chat";
 
   // Auto-scroll voice chat
   useEffect(() => {
-    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight });
+    chatScrollRef.current?.scrollTo({
+      top: chatScrollRef.current.scrollHeight,
+    });
   }, [voiceMessages, mcpForms]);
 
   // Auto-open artifact when a new task is created (in-progress state)
   useEffect(() => {
-    const activeTask = tasks.find(t => t.state === "in-progress" || t.state === "pending");
+    const activeTask = tasks.find(
+      (t) => t.state === "in-progress" || t.state === "pending",
+    );
     if (activeTask && !selectedTaskId) {
       setSelectedTaskId(activeTask.id);
     }
@@ -102,7 +141,10 @@ export function SessionLayout({
       try {
         const payload = JSON.parse(data.payload);
         if (payload.type === "ui_resource" && payload.resource) {
-          setMcpForms((prev) => [...prev, { resource: payload.resource, timestamp: Date.now() }]);
+          setMcpForms((prev) => [
+            ...prev,
+            { resource: payload.resource, timestamp: Date.now() },
+          ]);
         }
         return JSON.stringify({ success: true });
       } catch {
@@ -115,7 +157,9 @@ export function SessionLayout({
   }, [room]);
 
   const handleFormSubmit = async (index: number, value: string) => {
-    setMcpForms((prev) => prev.map((f, i) => (i === index ? { ...f, submittedValue: value } : f)));
+    setMcpForms((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, submittedValue: value } : f)),
+    );
     await room.localParticipant.sendText(value, { topic: "lk.chat" });
   };
 
@@ -123,7 +167,7 @@ export function SessionLayout({
   const getVoiceMessagesForChat = (): Message[] => {
     return voiceMessages.map((msg) => ({
       id: msg.id,
-      role: msg.from?.identity === "atlas-agent" ? "assistant" : "user",
+      role: msg.from?.name === "User" ? "user" : "assistant",
       content: msg.message,
       timestamp: msg.timestamp,
     }));
@@ -131,42 +175,59 @@ export function SessionLayout({
 
   // Render the main chat/voice content
   const renderMainContent = (compact = false) => (
-    <div className="flex w-full flex-col gap-3 h-full relative">
+    <div className="relative flex h-full w-full flex-col gap-3">
       {/* Voice status indicator with animated gradient */}
       {voiceSessionStarted && !isChatMode && !selectedTask && (
-        <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
-          <div 
+        <div className="pointer-events-none absolute top-0 right-0 left-0 z-10">
+          <div
             className={cn(
               "h-40 w-full transition-all duration-500",
-              agentState && "animate-pulse"
+              agentState && "animate-pulse",
             )}
             style={{
-              background: agentState === "listening" 
-                ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(59, 130, 246, 0.2) 0%, rgba(6, 182, 212, 0.1) 25%, rgba(6, 182, 212, 0.05) 50%, transparent 80%)"
-                : agentState === "speaking"
-                ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.1) 25%, rgba(16, 185, 129, 0.05) 50%, transparent 80%)"
-                : agentState === "thinking"
-                ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(168, 85, 247, 0.2) 0%, rgba(236, 72, 153, 0.1) 25%, rgba(236, 72, 153, 0.05) 50%, transparent 80%)"
-                : "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(156, 163, 175, 0.15) 0%, rgba(156, 163, 175, 0.08) 25%, rgba(156, 163, 175, 0.03) 50%, transparent 80%)"
+              background:
+                agentState === "listening"
+                  ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(59, 130, 246, 0.2) 0%, rgba(6, 182, 212, 0.1) 25%, rgba(6, 182, 212, 0.05) 50%, transparent 80%)"
+                  : agentState === "speaking"
+                    ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.1) 25%, rgba(16, 185, 129, 0.05) 50%, transparent 80%)"
+                    : agentState === "thinking"
+                      ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(168, 85, 247, 0.2) 0%, rgba(236, 72, 153, 0.1) 25%, rgba(236, 72, 153, 0.05) 50%, transparent 80%)"
+                      : "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(156, 163, 175, 0.15) 0%, rgba(156, 163, 175, 0.08) 25%, rgba(156, 163, 175, 0.03) 50%, transparent 80%)",
             }}
           />
-          <div className="flex flex-col items-center -mt-28 pointer-events-auto">
-            <div className="px-4 py-2 bg-background/70 backdrop-blur-md rounded-full border border-border/50 shadow-lg">
-              <p className={cn(
-                "text-xs font-medium",
-                agentState ? "text-primary" : "text-muted-foreground animate-pulse"
-              )}>
-                {agentState === "listening" ? "🎤 Listening..." : 
-                 agentState === "speaking" ? "🔊 Atlas is speaking" : 
-                 agentState === "thinking" ? "💭 Thinking..." : 
-                 "🔄 Connecting..."}
+          <div className="pointer-events-auto -mt-28 flex flex-col items-center">
+            <div className="bg-background/70 border-border/50 rounded-full border px-4 py-2 shadow-lg backdrop-blur-md">
+              <p
+                className={cn(
+                  "text-xs font-medium",
+                  agentState
+                    ? "text-primary"
+                    : "text-muted-foreground animate-pulse",
+                )}
+              >
+                <span className="flex items-center gap-1.5">
+                  {agentState === "listening" ? (
+                    "🎤 Listening..."
+                  ) : agentState === "speaking" ? (
+                    "🔊 Atlas is speaking"
+                  ) : agentState === "thinking" ? (
+                    "💭 Thinking..."
+                  ) : (
+                    <>
+                      <span className="scale-75 animate-spin">
+                        <Loader />
+                      </span>{" "}
+                      Connecting...
+                    </>
+                  )}
+                </span>
               </p>
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col">
         <ChatInterface
           messages={isChatMode ? messages : getVoiceMessagesForChat()}
           onSendMessage={onSendMessage}
@@ -180,6 +241,10 @@ export function SessionLayout({
           compact={compact}
           isVoiceMode={!isChatMode && voiceSessionStarted}
           disabled={!isChatMode}
+          initialViewMode={initialViewMode}
+          connectedAgentId={connectedAgentId}
+          compressing={compressing}
+          selectedTask={!!selectedTask}
         />
       </div>
     </div>
@@ -190,25 +255,25 @@ export function SessionLayout({
     // Split view: chat/voice on left, task viewer on right
     if (selectedTask) {
       return (
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 flex gap-4 overflow-hidden px-2 md:px-6 pb-2">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-1 gap-4 overflow-hidden px-2 pb-2 md:px-6">
             {/* Desktop: Left column - Chat/Voice (narrower) */}
-            <div className="hidden md:flex w-2/5 flex-col h-full">
+            <div className="hidden h-full w-2/5 flex-col md:flex">
               {renderMainContent(true)}
             </div>
-            
+
             {/* Desktop: Right column - Task Artifact (wider) */}
             {/* Mobile: Full width Task Artifact with input below */}
-            <div className="flex flex-1 flex-col h-full">
+            <div className="flex h-full flex-1 flex-col">
               <TaskArtifact
                 task={selectedTask}
                 onClose={() => setSelectedTaskId(null)}
               />
-              
+
               {/* Mobile only: Input at bottom */}
-              <div className="md:hidden mt-3 shrink-0">
+              <div className="mt-3 shrink-0 md:hidden">
                 {isChatMode ? (
-                  <div className="rounded-lg border bg-card p-2 shadow-sm">
+                  <div className="bg-card rounded-lg border p-2 shadow-sm">
                     <ChatInput
                       onSend={onSendMessage}
                       onStop={onStopChat}
@@ -222,12 +287,14 @@ export function SessionLayout({
                     />
                   </div>
                 ) : (
-                  <div className="rounded-lg border bg-card p-3 shadow-sm">
+                  <div className="bg-card rounded-lg border p-3 shadow-sm">
                     <AgentControlBar
                       onStartSession={onStartVoiceSession}
                       onDisconnect={onDisconnectVoice}
                       sessionStarted={voiceSessionStarted}
-                      agentState={room?.state === "connected" ? agentState : undefined}
+                      agentState={
+                        room?.state === "connected" ? agentState : undefined
+                      }
                       onToggleChat={onToggleMode}
                       isChatMode={false}
                       onToggleTasks={() => setSelectedTaskId(null)}
@@ -245,9 +312,9 @@ export function SessionLayout({
 
     // Single column (no task selected)
     return (
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 flex justify-center pb-2">
-          <div className="w-full max-w-5xl mx-auto px-4 h-full">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex flex-1 justify-center pb-2">
+          <div className="mx-auto h-full w-full px-4">
             {renderMainContent()}
           </div>
         </div>
@@ -257,10 +324,10 @@ export function SessionLayout({
 
   // Sandbox mode: two columns (chat + desktop viewer)
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex-1 flex gap-4 overflow-hidden px-2 md:px-6 pb-2">
+    <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 gap-4 overflow-hidden px-2 pb-2 md:px-6">
         {/* Left: Chat (desktop only) */}
-        <div className="hidden md:flex w-3/5 flex-col gap-3 h-full">
+        <div className="hidden h-full w-3/5 flex-col gap-3 md:flex">
           <ChatInterface
             messages={isChatMode ? messages : getVoiceMessagesForChat()}
             onSendMessage={onSendMessage}
@@ -272,11 +339,14 @@ export function SessionLayout({
             tasks={tasks}
             isVoiceMode={!isChatMode && voiceSessionStarted}
             disabled={!isChatMode}
+            initialViewMode={initialViewMode}
+            connectedAgentId={connectedAgentId}
+            compressing={compressing}
           />
         </div>
 
         {/* Right: Desktop Viewer */}
-        <div className="flex flex-1 flex-col overflow-hidden rounded-lg border bg-card shadow-sm h-full">
+        <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm">
           <DesktopViewer
             vncUrl={vncUrl}
             logUrl={logUrl}
@@ -288,12 +358,17 @@ export function SessionLayout({
                   onSendMessage={onSendMessage}
                   onStop={onStopChat}
                   isLoading={isChatLoading}
-                  isConnected={isChatMode ? isChatConnected : voiceSessionStarted}
+                  isConnected={
+                    isChatMode ? isChatConnected : voiceSessionStarted
+                  }
                   onToggleVoice={onToggleMode}
                   showVoiceToggle
                   tasks={tasks}
                   isVoiceMode={!isChatMode && voiceSessionStarted}
                   disabled={!isChatMode}
+                  initialViewMode={initialViewMode}
+                  connectedAgentId={connectedAgentId}
+                  compressing={compressing}
                 />
               </div>
             }

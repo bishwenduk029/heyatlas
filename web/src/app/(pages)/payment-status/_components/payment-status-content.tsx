@@ -15,7 +15,6 @@ import {
   Home,
   CreditCard,
   Mail,
-  Settings,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
@@ -319,7 +318,7 @@ export function PaymentStatusContent() {
                     href={config.secondaryAction.href}
                     className="flex items-center justify-center gap-2"
                   >
-                    {status === "success" && <Settings className="h-4 w-4" />}
+                    {status === "success" && <CreditCard className="h-4 w-4" />}
                     {status === "failed" && <Mail className="h-4 w-4" />}
                     {status === "pending" && <CreditCard className="h-4 w-4" />}
                     {status === "cancelled" && <Home className="h-4 w-4" />}

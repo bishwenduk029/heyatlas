@@ -1,23 +1,58 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import {
-  ArrowRight,
-  Zap,
   CheckCircle,
   Shield,
+  Zap,
   Sparkles,
 } from "lucide-react";
 import { AnimatedHeroTitle } from "@/components/homepage/animated-hero-title";
 import { APP_DESCRIPTION } from "@/lib/config/constants";
-import Link from "next/link";
+import { ChatInput } from "@/components/voice/chat-input";
+import { useSession } from "@/lib/auth/client";
 
 export function Hero() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [inputValue, setInputValue] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSend = (message: string) => {
+    // Store message before redirect
+    localStorage.setItem("heyatlas_pending_message", message);
+
+    // Route based on auth status (like chat page does)
+    if (session?.user && session?.session) {
+      router.push("/chat");
+    } else {
+      router.push("/login?redirect=/chat");
+    }
+  };
+
+  const handleToggleVoice = () => {
+    // Route based on auth status
+    if (session?.user && session?.session) {
+      router.push("/chat?mode=voice");
+    } else {
+      router.push("/login?redirect=/chat");
+    }
+  };
+
+  const handleToggleTasks = () => {
+    // Route based on auth status
+    if (session?.user && session?.session) {
+      router.push("/chat?view=tasks");
+    } else {
+      router.push("/login?redirect=/chat");
+    }
+  };
+
   return (
     <section className="bg-background flex items-center justify-center">
-      
+
       <div className="relative z-10 mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div className="flex flex-col items-center justify-center gap-12 text-center">
           {/* Center Content */}
@@ -35,7 +70,7 @@ export function Hero() {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <Sparkles className="text-primary mr-2 h-3 w-3" />
-              <span className="text-muted-foreground">AI Agent</span>
+              <span className="text-muted-foreground">Your Personal AI Companion</span>
             </motion.div>
 
             {/* Main Heading */}
@@ -51,40 +86,37 @@ export function Hero() {
             <div className="flex flex-wrap justify-center gap-6 text-sm">
               <div className="text-muted-foreground flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
-                <span>Voice-First Interface</span>
+                <span>Personal Connection</span>
               </div>
               <div className="text-muted-foreground flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                <span>Private & Secure</span>
+                <span>Connects to Your Agents</span>
               </div>
               <div className="text-muted-foreground flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                <span>24/7 AI Assistant</span>
+                <span>Voice + Text Chat</span>
               </div>
             </div>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col justify-center gap-4 sm:flex-row">
-              <Button
-                size="lg"
-                className="group h-12 px-8 text-base font-medium"
-                asChild
-              >
-                <Link href="/voice">
-                  Get Started
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="lg"
-                className="group border-border hover:bg-accent h-12 px-8 text-base font-medium"
-                asChild
-              >
-                <Link href="/pricing">See Pricing</Link>
-              </Button>
-            </div>
+            {/* Chat Input */}
+            <motion.div
+              className="mx-auto max-w-2xl w-full"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <ChatInput
+                onSend={handleSend}
+                onStop={() => {}}
+                onToggleVoice={handleToggleVoice}
+                onToggleTasks={handleToggleTasks}
+                isLoading={isSubmitting}
+                disabled={isSubmitting}
+                showVoiceToggle={true}
+                isTasksView={false}
+                isVoiceMode={false}
+              />
+            </motion.div>
 
             {/* Social Proof */}
             <motion.div

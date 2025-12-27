@@ -53,12 +53,7 @@ class VoiceAssistant(Agent):
         self.tunnel = AtlasTunnel(base_url=atlas_url, api_key=nirmanus_key)
 
         # Background audio for thinking sounds
-        self.background_audio = BackgroundAudioPlayer(
-            thinking_sound=[
-                AudioConfig("audio/thinking_1.mp3", volume=0.6),
-                AudioConfig("audio/thinking_2.mp3", volume=0.6),
-            ],
-        )
+        self.background_audio = BackgroundAudioPlayer()
 
         # Auth headers for Atlas voice agent (server-to-server auth)
         auth_headers = {
@@ -90,6 +85,7 @@ class VoiceAssistant(Agent):
         try:
             await self.tunnel.connect(self.user_id)
             self.tunnel.on_message(self._on_task_update)
+            self.tunnel.on_voice_response(self._voice_response_callback)
             logger.info(f"[Atlas] Connected to agent room: {self.user_id}")
         except Exception as e:
             logger.warning(f"[Atlas] Could not connect tunnel: {e}")
@@ -104,6 +100,19 @@ class VoiceAssistant(Agent):
             handle = await self.agent_session.generate_reply(
                 instructions=f"Update user about the task: {content}",
                 allow_interruptions=True,
+            )
+            if handle.interrupted:
+                self.task_queue.put_nowait(content)
+
+    async def _voice_response_callback(self, content: str):
+        """Handle task update from Atlas (e.g., from CLI or sandbox agent)."""
+        logger.info(f"[Atlas] Task update: {content[:50]}...")
+
+        if self.agent_session.agent_state in ("speaking", "thinking"):
+            self.task_queue.put_nowait(content)
+        else:
+            handle = await self.agent_session.say(
+                content, allow_interruptions=True, add_to_chat_ctx=False
             )
             if handle.interrupted:
                 self.task_queue.put_nowait(content)

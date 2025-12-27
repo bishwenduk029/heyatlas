@@ -18,7 +18,11 @@ interface InterfaceWithAgentProps {
   mode: "local" | "sandbox";
 }
 
-export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentProps) {
+export function InterfaceWithAgent({
+  userId,
+  token,
+  mode,
+}: InterfaceWithAgentProps) {
   const room = useMemo(() => new Room(), []);
   const [voiceSessionStarted, setVoiceSessionStarted] = useState(false);
   const [isChatMode, setIsChatMode] = useState(true); // Default to chat mode
@@ -73,7 +77,9 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
     };
 
     const onMediaDevicesError = (error: Error) => {
-      toast.error("Media device error", { description: `${error.name}: ${error.message}` });
+      toast.error("Media device error", {
+        description: `${error.name}: ${error.message}`,
+      });
     };
 
     room.on(RoomEvent.MediaDevicesError, onMediaDevicesError);
@@ -92,13 +98,17 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
     let aborted = false;
 
     Promise.all([
-      room.localParticipant.setMicrophoneEnabled(true, undefined, { preConnectBuffer: true }),
+      room.localParticipant.setMicrophoneEnabled(true, undefined, {
+        preConnectBuffer: true,
+      }),
       existingOrRefreshConnectionDetails().then((details) =>
-        room.connect(details.serverUrl, details.participantToken)
+        room.connect(details.serverUrl, details.participantToken),
       ),
     ]).catch((error) => {
       if (aborted) return;
-      toast.error("Connection error", { description: `${error.name}: ${error.message}` });
+      toast.error("Connection error", {
+        description: `${error.name}: ${error.message}`,
+      });
     });
 
     return () => {
@@ -116,15 +126,68 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
         parts: [{ type: "text", text }],
       });
     },
-    [atlasAgent]
+    [atlasAgent],
   );
+
+  // Handle pending message from localStorage
+  useEffect(() => {
+    if (!atlasAgent.isConnected) return;
+
+    const pendingMessage = localStorage.getItem("heyatlas_pending_message");
+    if (pendingMessage) {
+      // Small delay to ensure UI is ready
+      setTimeout(() => {
+        handleSendMessage(pendingMessage);
+        localStorage.removeItem("heyatlas_pending_message");
+      }, 500);
+    }
+  }, [atlasAgent.isConnected, handleSendMessage]);
+
+  // Debug logging for voice session
+  useEffect(() => {
+    console.log("Voice session state:", {
+      voiceSessionStarted,
+      isChatMode,
+      roomState: room.state,
+    });
+  }, [voiceSessionStarted, isChatMode, room]);
+
+  // Connect to LiveKit when voice session starts
+  useEffect(() => {
+    if (!voiceSessionStarted || room.state !== "disconnected") {
+      console.log("Not connecting to LiveKit:", { voiceSessionStarted });
+      return;
+    }
+
+    console.log("Connecting to LiveKit...");
+    let aborted = false;
+
+    Promise.all([
+      room.localParticipant.setMicrophoneEnabled(true, undefined, {
+        preConnectBuffer: true,
+      }),
+      existingOrRefreshConnectionDetails().then((details) =>
+        room.connect(details.serverUrl, details.participantToken),
+      ),
+    ]).catch((error) => {
+      if (aborted) return;
+      toast.error("Connection error", {
+        description: `${error.name}: ${error.message}`,
+      });
+    });
+
+    return () => {
+      aborted = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceSessionStarted]);
 
   return (
     <RoomContext.Provider value={room}>
       <MCPUIHandler />
-      <main className="h-screen bg-background flex flex-col">
+      <main className="bg-background flex h-screen flex-col">
         <Header />
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="my-2 flex min-h-0 flex-1 flex-col">
           <RoomAudioRenderer />
           <SessionLayout
             mode={mode}
@@ -142,6 +205,8 @@ export function InterfaceWithAgent({ userId, token, mode }: InterfaceWithAgentPr
             isChatLoading={atlasAgent.isLoading}
             isChatConnected={atlasAgent.isConnected}
             tasks={atlasAgent.tasks}
+            connectedAgentId={atlasAgent.connectedAgentId}
+            compressing={atlasAgent.compressing}
           />
         </div>
         <Footer />

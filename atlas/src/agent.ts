@@ -9,6 +9,7 @@ import { callable, type Connection, type ConnectionContext } from "agents";
 import { AIChatAgent } from "agents/ai-chat-agent";
 import {
   streamText,
+  generateText,
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
@@ -31,8 +32,6 @@ const AGENT_SMITH_CONFIG = {
     "bash -lc 'node /home/user/agents/agent-smith.cjs >> /tmp/agent-smith.log 2>&1'",
 };
 
-
-
 export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   initialState: AgentState = {
     credentials: null,
@@ -44,6 +43,9 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     connectedAgentId: null,
     interactiveMode: false,
     interactiveTaskId: null,
+    systemPrompt: null,
+    userSection: null,
+    compressing: false,
   };
   private sandboxInstance: Sandbox | null = null;
 
@@ -52,9 +54,10 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   }
 
   private async ensureSandbox() {
-    
     if (!this.env.E2B_API_KEY || !this.state.credentials) {
-      console.log("[Atlas] Sandbox creation skipped: Missing key or credentials");
+      console.log(
+        "[Atlas] Sandbox creation skipped: Missing key or credentials",
+      );
       return;
     }
 
@@ -160,10 +163,26 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     }
   }
 
+  private async buildMCPServers() {
+    const searchMcpServerResponse = await this.addMcpServer("Web Search", this.env.PARALLELS_WEB_SEARCH_API || "", undefined, undefined, {
+      transport: {
+        type: "streamable-http",
+        headers: {
+          authorization: `Bearer ${this.env.PARALLELS_WEB_SEARCH_API_KEY || ""}`,
+        },
+      },
+    });
+    if (searchMcpServerResponse.state !== "ready") {
+      console.warn(`[Atlas] MCP Server requires authentication:`, searchMcpServerResponse.authUrl);
+    }
+  }
+
   private get llm() {
-    const apiKey = this.state.credentials?.providerApiKey || this.env.HEYATLAS_PROVIDER_API_KEY;
-    let baseURL = this.state.credentials?.providerApiUrl || this.env.HEYATLAS_PROVIDER_API_URL;
-    
+    const apiKey = this.state.credentials?.providerApiKey;
+    let baseURL =
+      this.state.credentials?.providerApiUrl ||
+      this.env.HEYATLAS_PROVIDER_API_URL;
+
     // Ensure baseURL ends with /v1 for OpenAI-compatible API
     if (baseURL && !baseURL.endsWith("/v1")) {
       baseURL = baseURL.replace(/\/$/, "") + "/v1";
@@ -182,17 +201,19 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       tier: this.state.tier,
       broadcast: (msg: string) => this.broadcast(msg),
       sandbox: this.state.sandbox,
-      askLocalComputerAgent: (description, existingTaskId) => this.askLocalComputerAgent(description, existingTaskId),
+      askLocalComputerAgent: (description, existingTaskId) =>
+        this.askLocalComputerAgent(description, existingTaskId),
       getTask: (taskId) => this.getTask(taskId),
       listTasks: () => this.listTasks(),
-      connectedAgentId: this.state.connectedAgentId || undefined,
+      updateUserContext: (userSection: string) =>
+        this.updateUserSection(userSection),
     });
   }
 
   // --- Task Management ---
 
   askLocalComputerAgent(task: string, existingTaskId?: string): string {
-    if(existingTaskId) {
+    if (existingTaskId) {
       this.updateTask(existingTaskId, task);
       return `Updated existing task ${existingTaskId} with new instructions.`;
     }
@@ -203,9 +224,11 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
 
   createTask(description: string): Task {
     const currentTasks = this.state.tasks || {};
-    
-    console.log(`[Atlas] createTask: interactive=${this.state.interactiveMode}, existingTaskId=${this.state.interactiveTaskId?.slice(0,8) || "none"}`);
-    
+
+    console.log(
+      `[Atlas] createTask: interactive=${this.state.interactiveMode}, existingTaskId=${this.state.interactiveTaskId?.slice(0, 8) || "none"}`,
+    );
+
     // Create new task with "new" state - CLI will pick this up
     const id = crypto.randomUUID();
     const task: Task = {
@@ -216,7 +239,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    
+
     this.setState({
       ...this.state,
       tasks: { ...currentTasks, [id]: task },
@@ -250,7 +273,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     // Direct match
     if (tasks[taskId]) return tasks[taskId];
     // Partial match (first 8 chars)
-    const match = Object.values(tasks).find(t => t.id.startsWith(taskId));
+    const match = Object.values(tasks).find((t) => t.id.startsWith(taskId));
     return match || null;
   }
 
@@ -258,7 +281,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     return Object.values(this.state.tasks || {});
   }
 
-  @callable({description: "Update task by ID"})
+  @callable({ description: "Update task by ID" })
   async updateTaskFromClient(task: Task): Promise<void> {
     const currentTasks = this.state.tasks || {};
     if (!currentTasks[task.id]) return;
@@ -269,24 +292,29 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     });
   }
 
+  private updateUserSection(userSection: string): void {
+    this.setState({ ...this.state, userSection });
+  }
+
   // --- AIChatAgent Implementation ---
 
   async onChatMessage(
     onFinish: StreamTextOnFinishCallback<ToolSet>,
   ): Promise<Response> {
     const systemPrompt = await this.getSystemPrompt();
-    const allTools = this.tools;
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const result = streamText({
           model: this.model,
           system: systemPrompt,
-          messages: convertToModelMessages(this.messages),
-          tools: allTools,
+          messages: await this.prepareModelMessages(),
+          tools: { ...this.tools,  ...this.mcp.getAITools() },
           onFinish: async (event) => {
             // Call original onFinish
-            await (onFinish as StreamTextOnFinishCallback<typeof allTools>)(event);
+            await (onFinish as StreamTextOnFinishCallback<typeof this.tools>)(
+              event,
+            );
           },
           stopWhen: stepCountIs(10),
         });
@@ -310,11 +338,67 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   }
 
   private addMessage(role: "user" | "assistant", content: string) {
-    this.messages.push({ id: crypto.randomUUID(), role, parts: [{ type: "text", text: content }] });
+    this.messages.push({
+      id: crypto.randomUUID(),
+      role,
+      parts: [{ type: "text", text: content }],
+    });
   }
 
   private async getSystemPrompt() {
-    return getSystemPrompt(this.state.tier);
+    let systemPrompt = this.state.systemPrompt;
+
+    if (!systemPrompt) {
+      systemPrompt = getSystemPrompt(this.state.tier);
+      this.setState({ ...this.state, systemPrompt });
+    }
+
+    if (this.state.userSection) {
+      systemPrompt = `${systemPrompt}\n\n<userContext>\n${this.state.userSection}\n</userContext>`;
+    }
+
+    return systemPrompt;
+  }
+
+  private async prepareModelMessages() {
+    if (this.messages.length <= 50) {
+      return convertToModelMessages(this.messages);
+    }
+    this.setState({ ...this.state, compressing: true });
+
+    const keepCount = 15;
+    const summarizeCount = this.messages.length - keepCount;
+    const messagesToSummarize = this.messages.slice(0, summarizeCount);
+    const remainingMessages = this.messages.slice(summarizeCount);
+
+    const summaryPrompt = `You are Atlas an AI assistant. Summarize the following conversation from your perspective (first person), starting with "I had a conversation where...". Preserve all important context, decisions made, and relevant information that would help you continue the conversation naturally without loosing any context.
+
+Conversation to summarize:
+${messagesToSummarize.map((m) => `[${m.role.toUpperCase()}]: ${m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")}`).join("\n\n")}
+
+Write your first-person summary:`;
+    const { text } = await generateText({
+      model: this.model,
+      messages: [{ role: "user", content: summaryPrompt }],
+      toolChoice: "none",
+    });
+
+    const summaryMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant" as const,
+      parts: [{ type: "text" as const, text }],
+    };
+
+    // Clear all messages from DB first (persistMessages only upserts, doesn't delete)
+    // In future we can maintain an achive table to push summarized messages into it. The archive table can also have a semantic indexing
+    this.sql`delete from cf_ai_chat_agent_messages`;
+
+    // Persist new messages (persistMessages will reload this.messages from DB)
+    await this.persistMessages([summaryMessage, ...remainingMessages]);
+
+    this.setState({ ...this.state, compressing: false });
+
+    return convertToModelMessages(this.messages);
   }
 
   // --- Public Methods ---
@@ -323,8 +407,8 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     if (tier) this.setTier(tier);
     console.log("[Atlas] Chat prompt received", prompt);
     this.addMessage("user", prompt);
-    
-    let responseText = '';
+
+    let responseText = "";
     await this.onChatMessage(async (event) => {
       if (event.text) {
         responseText = event.text;
@@ -332,13 +416,13 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
         await this.persistMessages(this.messages);
       }
     });
-    
+
     return responseText;
   }
 
   async streamChat(prompt: string): Promise<Response> {
     this.addMessage("user", prompt);
-    
+
     return this.onChatMessage(async (event) => {
       if (event.text) {
         this.addMessage("assistant", event.text);
@@ -355,11 +439,11 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     if (tier) this.setTier(tier);
 
     const requestId = `chatcmpl-${crypto.randomUUID()}`;
-    const voiceMessages = messages.map(msg => ({
-        id: crypto.randomUUID(),
-        role: msg.role as "user" | "assistant",
-        parts: [{ type: "text" as const, text: msg.content }]
-      }));
+    const voiceMessages = [messages[messages.length - 1]].map((msg) => ({
+      id: crypto.randomUUID(),
+      role: msg.role as "user" | "assistant",
+      parts: [{ type: "text" as const, text: msg.content }],
+    }));
 
     // Add the voice messages to our conversation
     for (const msg of voiceMessages) {
@@ -370,8 +454,8 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     const { textStream } = streamText({
       model: this.model,
       system: await this.getSystemPrompt(),
-      messages: convertToModelMessages(this.messages),
-      tools: this.tools,
+      messages: await this.prepareModelMessages(),
+      tools: { ...this.tools,  ...this.mcp.getAITools() },
       onFinish: async (event) => {
         if (event.text) {
           this.addMessage("assistant", event.text);
@@ -389,7 +473,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   // --- Lifecycle ---
 
   async onConnect(conn: Connection, ctx: ConnectionContext) {
-    
     const h = ctx.request.headers;
     const tier = (
       ["genin", "chunin", "jonin"].includes(h.get("X-Atlas-Tier") || "")
@@ -418,15 +501,22 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     // Capture connected agent ID and mode from headers if present (sent by CLI)
     const connectedAgentId = h.get("X-Agent-Id");
     const interactiveMode = h.get("X-Interactive-Mode") === "true";
+    console.log(
+      `[Atlas] onConnect - connectedAgentId header: ${connectedAgentId}, existing state: ${this.state.connectedAgentId}`,
+    );
     if (connectedAgentId) {
-      this.setState({ 
-        ...this.state, 
+      this.setState({
+        ...this.state,
         connectedAgentId,
         interactiveMode,
         // Reset interactive task when switching modes or starting fresh interactive session
-        interactiveTaskId: interactiveMode ? this.state.interactiveTaskId : null,
+        interactiveTaskId: interactiveMode
+          ? this.state.interactiveTaskId
+          : null,
       });
-      console.log(`[Atlas] Connected agent: ${connectedAgentId}${interactiveMode ? " (interactive)" : ""}`);
+      console.log(
+        `[Atlas] Connected agent: ${connectedAgentId}${interactiveMode ? " (interactive)" : ""}`,
+      );
     } else if (this.state.interactiveMode) {
       // Reset interactive mode if no agent ID header (non-CLI connection)
       this.setState({
@@ -434,10 +524,17 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
         interactiveMode: false,
         interactiveTaskId: null,
       });
+    } else if (!connectedAgentId && this.state.connectedAgentId) {
+      // If web client connects but CLI is still connected, preserve connectedAgentId
+      console.log(
+        `[Atlas] Web client connected while CLI agent still connected: ${this.state.connectedAgentId}`,
+      );
     }
 
     const cfg = getTierConfig(tier);
-    if (cfg.hasCloudDesktop) this.ensureSandbox().catch(() => {});
+    if (cfg.hasCloudDesktop) this.ensureSandbox().catch(() => { });
+
+    await this.buildMCPServers();
 
     conn.send(JSON.stringify({ type: "connected", userId: this.userId }));
   }
@@ -449,11 +546,13 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     const sourceType = source === "server" ? "server" : "client";
     const taskCount = Object.keys(state.tasks || {}).length;
     console.log(`[Atlas] onStateUpdate [${sourceType}]: tasks=${taskCount}`);
-    
+
     // Log task states for debugging
     if (state.tasks) {
       for (const [taskId, task] of Object.entries(state.tasks)) {
-        console.log(`  - Task ${taskId.slice(0, 8)}: ${task.state}, context=${task.context?.length || 0}`);
+        console.log(
+          `  - Task ${taskId.slice(0, 8)}: ${task.state}, context=${task.context?.length || 0}`,
+        );
       }
     }
   }
@@ -463,8 +562,18 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   /**
    * Set credentials from auth data
    */
-  setCredentials(auth: { userId: string; email: string; apiKey: string; apiUrl: string; tier: string }) {
-    const tier = (["genin", "chunin", "jonin"].includes(auth.tier) ? auth.tier : this.state.tier) as Tier;
+  setCredentials(auth: {
+    userId: string;
+    email: string;
+    apiKey: string;
+    apiUrl: string;
+    tier: string;
+  }) {
+    const tier = (
+      ["genin", "chunin", "jonin"].includes(auth.tier)
+        ? auth.tier
+        : this.state.tier
+    ) as Tier;
 
     if (auth.apiKey && auth.apiUrl) {
       this.setState({
@@ -494,7 +603,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
 
     const cfg = getTierConfig(this.state.tier);
     if (this.state.credentials && cfg.hasCloudDesktop) {
-      this.ensureSandbox().catch(() => {});
+      this.ensureSandbox().catch(() => { });
     }
 
     return this.chatCompletions(messages, stream, tier);
@@ -523,7 +632,16 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       JSON.stringify({
         type: "voice_update",
         summary,
-      })
+      }),
+    );
+  }
+
+  speak_with_human(response: string): void {
+    this.broadcast(
+      JSON.stringify({
+        type: "speak",
+        response,
+      }),
     );
   }
 

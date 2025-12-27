@@ -1,6 +1,6 @@
 /**
  * Warp command - Connect local agent to Atlas
- * 
+ *
  * Single responsibility: Connect to Atlas and route tasks to agents.
  * Task state management is handled by agents (base.ts, droid.ts).
  */
@@ -32,7 +32,9 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
     process.exit(1);
   }
 
-  console.log(`🤖 Agent locked: ${agentType}${options.interactive ? " (interactive)" : ""}`);
+  console.log(
+    `🤖 Agent locked: ${agentType}${options.interactive ? " (interactive)" : ""}`,
+  );
 
   const tunnel = new AtlasTunnel({
     host: process.env.ATLAS_AGENT_HOST || "agent.heyatlas.app",
@@ -54,16 +56,17 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
 
   // Route tasks to agent - state management handled by agent
   tunnel.onNewTask(async (task: Task) => {
-
     // Non-interactive: run agent with full task context
     try {
-      await agentInstance.run(task, { 
+      await agentInstance.run(task, {
         tunnel,
         taskContext: task.context,
       });
       console.log(`✅ Task completed`);
     } catch (error) {
-      console.error(`❌ Task failed: ${error instanceof Error ? error.message : error}`);
+      console.error(
+        `❌ Task failed: ${error instanceof Error ? error.message : error}`,
+      );
     }
   });
 
@@ -71,11 +74,16 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
   console.log(`🔗 Tunnel established`);
 
   // Open browser
-  const voiceUrl = `${process.env.HEYATLAS_API || "https://www.heyatlas.app"}/voice`;
+  const voiceUrl = `${process.env.HEYATLAS_API || "https://www.heyatlas.app"}/chat`;
   if (options.openBrowser !== false) {
     try {
       const { execSync } = await import("child_process");
-      const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start \"\"" : "xdg-open";
+      const cmd =
+        process.platform === "darwin"
+          ? "open"
+          : process.platform === "win32"
+            ? 'start ""'
+            : "xdg-open";
       execSync(`${cmd} "${voiceUrl}"`, { stdio: "ignore" });
     } catch {}
   }
@@ -93,13 +101,4 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
   });
 
   await new Promise(() => {});
-}
-
-/** Extract first task message for display (full context passed separately) */
-function extractTaskContent(task: Task): string | null {
-  if (task.context?.length) {
-    const first = task.context[0] as any;
-    return first?.content || first?.data?.text || first?.data?.content || null;
-  }
-  return task.result || null;
 }

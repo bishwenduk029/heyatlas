@@ -17,7 +17,7 @@ export default async function VoicePage() {
 
   if (!session?.user) {
     // Redirect to login with return URL
-    redirect("/login?redirect=/voice");
+    redirect("/login?redirect=/chat");
   }
 
   return <VoiceApp userId={session.user.id} mode="local" />;

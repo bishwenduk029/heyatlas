@@ -26,6 +26,10 @@ interface ChatInterfaceProps {
   compact?: boolean;
   isVoiceMode?: boolean;
   disabled?: boolean;
+  initialViewMode?: "chat" | "tasks";
+  connectedAgentId?: string | null;
+  compressing?: boolean;
+  selectedTask?: boolean;
 }
 
 export function ChatInterface({
@@ -41,18 +45,22 @@ export function ChatInterface({
   compact = false,
   isVoiceMode = false,
   disabled = false,
+  initialViewMode = "chat",
+  connectedAgentId,
+  compressing,
+  selectedTask = false,
 }: ChatInterfaceProps) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
-  const [viewMode, setViewMode] = useState<"chat" | "tasks">("chat");
+  const [viewMode, setViewMode] = useState<"chat" | "tasks">(initialViewMode);
 
   const handleSend = async (text: string) => {
     onSendMessage(text);
   };
 
   return (
-    <div className="flex flex-col h-full bg-background w-full">
-      <div className="flex-1 min-h-0">
+    <div className="bg-background flex h-full w-full flex-col">
+      <div className="min-h-0 flex-1">
         {viewMode === "chat" ? (
           <MessageList
             messages={messages}
@@ -61,6 +69,7 @@ export function ChatInterface({
             tasks={tasks}
             onTaskSelect={onTaskSelect}
             compact={compact}
+            selectedTask={selectedTask}
           />
         ) : (
           <div className="h-full w-full overflow-y-auto pt-4">
@@ -69,18 +78,22 @@ export function ChatInterface({
         )}
       </div>
 
-      <div className="shrink-0 w-full bg-background border-t pt-2 pb-4 px-2">
-        <div className="w-full max-w-5xl mx-auto">
+      <div className="bg-background w-full shrink-0">
+        <div className={selectedTask ? "w-full" : "mx-auto md:w-1/2"}>
           <ChatInput
             onSend={handleSend}
             onStop={onStop}
             onToggleVoice={onToggleVoice}
-            onToggleTasks={() => setViewMode(v => v === "chat" ? "tasks" : "chat")}
+            onToggleTasks={() =>
+              setViewMode((v) => (v === "chat" ? "tasks" : "chat"))
+            }
             isLoading={isLoading}
             disabled={disabled || !isConnected}
             showVoiceToggle={showVoiceToggle}
             isTasksView={viewMode === "tasks"}
             isVoiceMode={isVoiceMode}
+            connectedAgentId={connectedAgentId}
+            compressing={compressing}
           />
         </div>
       </div>

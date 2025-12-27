@@ -2,13 +2,23 @@
   "name": "heyatlas",
   "version": "0.1.0",
   "description": "Tunnel local AI agents to the cloud for voice-powered interactions",
+  "author": "Bishwendu Kundu <bishwenduk029@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/yourusername/heyatlas",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/heyatlas.git",
+    "directory": "cli"
+  },
   "bin": {
     "heyatlas": "./dist/cli.js"
   },
   "main": "./dist/cli.js",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "start": "bun run index.ts",
@@ -30,7 +40,10 @@
     "cli",
     "voice",
     "agent",
-    "tunnel"
+    "tunnel",
+    "heyatlas"
   ],
-  "license": "MIT"
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

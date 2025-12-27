@@ -10,6 +10,7 @@ import logging
 from typing import Callable, Optional
 
 import websockets
+from livekit.agents import voice
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
@@ -25,6 +26,7 @@ class AtlasTunnel:
         self._ws: Optional[WebSocketClientProtocol] = None
         self._listen_task: Optional[asyncio.Task] = None
         self._callback: Optional[Callable] = None
+        self._voice_callback: Optional[Callable] = None
 
     @property
     def is_connected(self) -> bool:
@@ -64,6 +66,9 @@ class AtlasTunnel:
         """Register callback for incoming task-update messages."""
         self._callback = callback
 
+    def on_voice_response(self, voice_callback: Callable):
+        self._voice_callback = voice_callback
+
     async def _listen(self):
         """Listen for messages from Atlas agent."""
         try:
@@ -93,6 +98,11 @@ class AtlasTunnel:
             if summary:
                 logger.info(f"[Tunnel] Voice update: {summary[:50]}...")
                 await self._invoke_callback(summary)
+
+        if msg_type == "speak":
+            response = data.get("response", "")
+            if response:
+                await self._voice_callback(response)
 
     async def _invoke_callback(self, summary: str):
         """Invoke the registered callback with the task summary."""

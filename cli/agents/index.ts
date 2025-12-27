@@ -3,30 +3,18 @@ export * from "./base";
 export * from "./config";
 export { ptyManager, type OutputCallback } from "./pty-manager";
 export { ClaudeAgent } from "./claude";
-export { CodexAgent } from "./codex";
 export { DroidAgent } from "./droid";
-export { GeminiAgent } from "./gemini";
-export { GooseAgent } from "./goose";
 export { OpencodeAgent } from "./opencode";
-export { CrushAgent } from "./crush";
 
 import type { CLIAgent } from "./types";
 import type { AgentType } from "./config";
 import { ClaudeAgent } from "./claude";
-import { CodexAgent } from "./codex";
 import { DroidAgent } from "./droid";
-import { GeminiAgent } from "./gemini";
-import { GooseAgent } from "./goose";
 import { OpencodeAgent } from "./opencode";
-import { CrushAgent } from "./crush";
 
 const agentRegistry: Record<AgentType, () => CLIAgent> = {
   claude: () => new ClaudeAgent(),
-  codex: () => new CodexAgent(),
-  crush: () => new CrushAgent(),
   droid: () => new DroidAgent(),
-  gemini: () => new GeminiAgent(),
-  goose: () => new GooseAgent(),
   opencode: () => new OpencodeAgent(),
 };
 
