@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "agents/ai-react";
 import type { UIMessage } from "@ai-sdk/react";
 import env from "@/env";
+
+/** Maximum ephemeral events to keep per task (prevents memory bloat) */
+const MAX_EPHEMERAL_EVENTS_PER_TASK = 50;
 
 /**
  * Task from Atlas agent state.
@@ -27,6 +30,14 @@ export interface StreamEvent {
   type: string;
   timestamp: number;
   data: Record<string, unknown>;
+}
+
+/** Broadcast message for ephemeral task events */
+export interface TaskEventBroadcast {
+  type: "task_event";
+  taskId: string;
+  event: StreamEvent;
+  timestamp: number;
 }
 
 /** Agent state synced from Atlas via CF_AGENT_STATE */
@@ -59,6 +70,10 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   const [tasks, setTasks] = useState<AtlasTask[]>([]);
   const [connectedAgentId, setConnectedAgentId] = useState<string | null>("Droid"); // TODO: Remove default for prod
   const [compressing, setCompressing] = useState(false);
+  
+  // Ephemeral events: tool calls, thinking, status updates (not stored in task.context)
+  const [ephemeralEvents, setEphemeralEvents] = useState<Map<string, StreamEvent[]>>(new Map());
+  const ephemeralEventsRef = useRef(ephemeralEvents);
 
   // All data comes from state updates - single source of truth
   const handleStateUpdate = useCallback((state: AtlasAgentState) => {
@@ -84,6 +99,26 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
 
   const handleOpen = useCallback(() => setIsConnected(true), []);
   const handleClose = useCallback(() => setIsConnected(false), []);
+  
+  // Handle ephemeral task events from broadcast messages
+  const handleBroadcastMessage = useCallback((event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === "task_event") {
+        const { taskId, event: streamEvent } = data as TaskEventBroadcast;
+        setEphemeralEvents(prev => {
+          const newMap = new Map(prev);
+          const events = newMap.get(taskId) || [];
+          // Keep last N events per task to prevent memory bloat
+          const updated = [...events, streamEvent].slice(-MAX_EPHEMERAL_EVENTS_PER_TASK);
+          newMap.set(taskId, updated);
+          return newMap;
+        });
+      }
+    } catch {
+      // Not JSON or not our message type - ignore
+    }
+  }, []);
 
   // Connect to Atlas agent - state sync handles everything
   const agentConnection = useAgent<AtlasAgentState>({
@@ -95,6 +130,39 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     onOpen: handleOpen,
     onClose: handleClose,
   });
+
+  // Listen for broadcast messages (ephemeral task events)
+  useEffect(() => {
+    if (!agentConnection) return;
+    
+    const ws = agentConnection as unknown as WebSocket;
+    if (ws.addEventListener) {
+      ws.addEventListener("message", handleBroadcastMessage);
+      return () => ws.removeEventListener("message", handleBroadcastMessage);
+    }
+  }, [agentConnection, handleBroadcastMessage]);
+  
+  // Keep ref in sync for cleanup
+  useEffect(() => {
+    ephemeralEventsRef.current = ephemeralEvents;
+  }, [ephemeralEvents]);
+  
+  // Clear ephemeral events when task completes
+  useEffect(() => {
+    const completedTaskIds = tasks
+      .filter(t => t.state === "completed" || t.state === "failed")
+      .map(t => t.id);
+    
+    if (completedTaskIds.length > 0) {
+      setEphemeralEvents(prev => {
+        const newMap = new Map(prev);
+        for (const taskId of completedTaskIds) {
+          newMap.delete(taskId);
+        }
+        return newMap.size !== prev.size ? newMap : prev;
+      });
+    }
+  }, [tasks]);
 
   // Chat functionality
   const chat = useAgentChat<unknown, UIMessage>({
@@ -122,6 +190,10 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   const getTask = useCallback((taskId: string): AtlasTask | undefined => {
     return tasks.find(t => t.id === taskId || t.id.startsWith(taskId));
   }, [tasks]);
+  
+  const getTaskEphemeralEvents = useCallback((taskId: string): StreamEvent[] => {
+    return ephemeralEvents.get(taskId) || [];
+  }, [ephemeralEvents]);
 
   const activeTasks = useMemo(() => 
     tasks.filter(t => t.state === "in-progress" || t.state === "pending"),
@@ -137,6 +209,8 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     tasks,
     activeTasks,
     getTask,
+    getTaskEphemeralEvents,
+    ephemeralEvents,
     messages,
     sendMessage: chat.sendMessage,
     clearHistory: chat.clearHistory,

@@ -5,7 +5,8 @@ export type AgentType =
   | "droid"
   | "gemini"
   | "goose"
-  | "opencode";
+  | "opencode"
+  | "toad";
 
 export interface AgentConfig {
   executable: string;
@@ -55,6 +56,10 @@ export const AGENT_CONFIGS: Record<AgentType, AgentConfig> = {
   crush: {
     executable: "crush",
     buildArgs: (task) => ["crush", "-m", task],
+  },
+  toad: {
+    executable: "toad",
+    buildArgs: (task) => ["toad", "--headless", "--prompt", task],
   },
 };
 

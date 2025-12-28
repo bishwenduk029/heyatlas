@@ -5,17 +5,20 @@ export { ptyManager, type OutputCallback } from "./pty-manager";
 export { ClaudeAgent } from "./claude";
 export { DroidAgent } from "./droid";
 export { OpencodeAgent } from "./opencode";
+export { ToadAgent } from "./toad";
 
 import type { CLIAgent } from "./types";
 import type { AgentType } from "./config";
 import { ClaudeAgent } from "./claude";
 import { DroidAgent } from "./droid";
 import { OpencodeAgent } from "./opencode";
+import { ToadAgent } from "./toad";
 
 const agentRegistry: Record<AgentType, () => CLIAgent> = {
   claude: () => new ClaudeAgent(),
   droid: () => new DroidAgent(),
   opencode: () => new OpencodeAgent(),
+  toad: () => new ToadAgent(),
 };
 
 export function createAgent(type: AgentType): CLIAgent {

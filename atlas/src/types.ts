@@ -111,3 +111,18 @@ export interface ToolDefinition {
     };
   };
 }
+
+/** Event from CLI agents streamed via AtlasTunnel */
+export interface StreamEvent {
+  type: string;
+  timestamp: number;
+  data: Record<string, unknown>;
+}
+
+/** Broadcast message for ephemeral task events */
+export interface TaskEventBroadcast {
+  type: "task_event";
+  taskId: string;
+  event: StreamEvent;
+  timestamp: number;
+}

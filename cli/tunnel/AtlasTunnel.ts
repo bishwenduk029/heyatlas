@@ -231,6 +231,21 @@ export class AtlasTunnel {
     }
   }
 
+  /**
+   * Broadcast ephemeral task event to UI without storing in task.context.
+   * Used for tool calls, thinking indicators, status updates, etc.
+   */
+  async broadcastTaskEvent(taskId: string, event: StreamEvent): Promise<void> {
+    if (!this.client || !this._isConnected) return;
+
+    try {
+      await this.client.call("broadcast_task_event", [taskId, event]);
+    } catch (error) {
+      // Non-critical: ephemeral events can be lost without breaking functionality
+      console.debug(`Broadcast failed for task ${taskId.slice(0, 8)}:`, error);
+    }
+  }
+
   async disconnect(): Promise<void> {
     this._isConnected = false;
     this.currentUserId = null;

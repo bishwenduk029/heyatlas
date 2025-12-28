@@ -14,6 +14,25 @@ export interface StreamEvent {
   data: Record<string, unknown>;
 }
 
+/** Event types that should be stored in task.context (persistent) */
+export type StoredEventType = "message" | "completion";
+
+/** Event types that should only be broadcast (ephemeral, for real-time UI) */
+export type BroadcastEventType = "tool_call" | "tool_update" | "thinking" | "plan" | "status" | "permission";
+
+/**
+ * Check if an event should be stored in task.context.
+ * Stored events: user/assistant messages, completion events.
+ * All other events are broadcast-only (ephemeral).
+ */
+export function isStoredEvent(event: StreamEvent): boolean {
+  if (event.type === "message") {
+    const role = event.data?.role;
+    return role === "user" || role === "assistant";
+  }
+  return event.type === "completion";
+}
+
 export interface StreamHandler {
   parse(chunk: string): StreamEvent[];
   flush(): StreamEvent[];

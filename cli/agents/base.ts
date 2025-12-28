@@ -5,7 +5,7 @@ import type {
   RunOptions,
   InteractiveSession,
 } from "./types";
-import { AgentError, checkExecutable } from "./types";
+import { AgentError, checkExecutable, isStoredEvent } from "./types";
 import { appendFileSync } from "fs";
 import { ptyManager } from "./pty-manager";
 import type { AtlasTunnel, Task } from "../tunnel";
@@ -146,19 +146,18 @@ export abstract class BaseCLIAgent implements CLIAgent {
               const events = streamHandler.parse(chunk);
               for (const event of events) {
                 onStreamEvent?.(event);
-                // Store user/assistant messages and completion events
+                
                 if (tunnel && taskId) {
-                  const isUserOrAssistant =
-                    event.type === "message" &&
-                    (event.data.role === "user" ||
-                      event.data.role === "assistant");
-                  const isCompletion = event.type === "completion";
-                  if (isUserOrAssistant || isCompletion) {
-                    tunnel.appendContext(taskId, [event], "completed");
+                  // Route events: stored (persistent) vs broadcast (ephemeral)
+                  if (isStoredEvent(event)) {
+                    tunnel.appendContext(taskId, [event]);
+                  } else {
+                    tunnel.broadcastTaskEvent(taskId, event);
                   }
+                  
                   // Trigger voice update when completion event occurs
-                  if (isCompletion && event.data.summary) {
-                    tunnel.updateHuman(event.data.summary).catch((err) => {
+                  if (event.type === "completion" && event.data.summary) {
+                    tunnel.updateHuman(event.data.summary as string).catch((err) => {
                       console.error("Failed to send voice update:", err);
                     });
                   }

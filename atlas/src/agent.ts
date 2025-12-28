@@ -636,6 +636,22 @@ Write your first-person summary:`;
     );
   }
 
+  /**
+   * Broadcast ephemeral task event to UI without storing in task.context.
+   * Used for tool calls, thinking indicators, status updates, etc.
+   */
+  @callable({ description: "Broadcast ephemeral task event to UI" })
+  broadcast_task_event(taskId: string, event: { type: string; timestamp: number; data: Record<string, unknown> }): void {
+    this.broadcast(
+      JSON.stringify({
+        type: "task_event",
+        taskId,
+        event,
+        timestamp: Date.now(),
+      }),
+    );
+  }
+
   speak_with_human(response: string): void {
     this.broadcast(
       JSON.stringify({
