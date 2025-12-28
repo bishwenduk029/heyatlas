@@ -52,8 +52,8 @@ export function RevealButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-10 items-center space-x-2 overflow-hidden whitespace-nowrap rounded-full cursor-pointer transition-colors px-2.5 py-2",
-        className
+        "flex h-10 cursor-pointer items-center space-x-2 overflow-hidden rounded-full px-2.5 py-2 whitespace-nowrap transition-colors",
+        className,
       )}
       aria-label={ariaLabel || label}
     >
@@ -61,7 +61,7 @@ export function RevealButton({
       <motion.span
         variants={LABEL_VARIANTS}
         transition={LABEL_TRANSITION}
-        className="text-sm font-medium"
+        className="pr-1 text-sm font-medium"
       >
         {label}
       </motion.span>

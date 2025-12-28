@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useRoomContext, useVoiceAssistant } from "@livekit/components-react";
-import type { ReceivedChatMessage } from "@livekit/components-react";
-import { RpcError, RpcInvocationData } from "livekit-client";
-import { ChatEntry } from "./chat-entry";
-import { MCPFormEntry } from "./mcp-form-entry";
+import {
+  useRoomContext,
+  useVoiceAssistant,
+  useLocalParticipant,
+} from "@livekit/components-react";
+import { RpcError, RpcInvocationData, Track } from "livekit-client";
 import { AgentControlBar } from "./agent-control-bar";
 import { DesktopViewer } from "./desktop-viewer";
 import { ChatInterface } from "./chat-interface";
@@ -15,9 +16,6 @@ import { TaskArtifact } from "./task-artifact";
 import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
-import { cn } from "@/lib/utils";
-import Loading from "@/app/loading";
-import { Loader } from "lucide-react";
 
 interface Message {
   id: string;
@@ -66,7 +64,37 @@ export function SessionLayout({
 }: SessionLayoutProps) {
   const room = useRoomContext();
   const { state: agentState } = useVoiceAssistant();
+  const { localParticipant } = useLocalParticipant();
   const searchParams = useSearchParams();
+
+  // Get mic enabled state
+  const isMicEnabled = useMemo(() => {
+    if (!localParticipant) return true;
+    const micTrack = localParticipant.getTrackPublication(
+      Track.Source.Microphone,
+    );
+    return micTrack?.isMuted === false;
+  }, [localParticipant]);
+
+  // Get media stream for visualizer
+  const mediaStream = useMemo(() => {
+    if (!localParticipant) return null;
+    const micTrack = localParticipant.getTrackPublication(
+      Track.Source.Microphone,
+    );
+    if (!micTrack?.track) return null;
+
+    const mediaStreamTrack = micTrack.track.mediaStreamTrack;
+    if (!mediaStreamTrack) return null;
+
+    return new MediaStream([mediaStreamTrack]);
+  }, [localParticipant]);
+
+  // Toggle microphone handler
+  const handleToggleMute = async () => {
+    if (!localParticipant) return;
+    await localParticipant.setMicrophoneEnabled(!isMicEnabled);
+  };
 
   // Voice view mode: "voice" or "tasks"
   const [voiceViewMode, setVoiceViewMode] = useState<"voice" | "tasks">(
@@ -175,78 +203,29 @@ export function SessionLayout({
 
   // Render the main chat/voice content
   const renderMainContent = (compact = false) => (
-    <div className="relative flex h-full w-full flex-col gap-3">
-      {/* Voice status indicator with animated gradient */}
-      {voiceSessionStarted && !isChatMode && !selectedTask && (
-        <div className="pointer-events-none absolute top-0 right-0 left-0 z-10">
-          <div
-            className={cn(
-              "h-40 w-full transition-all duration-500",
-              agentState && "animate-pulse",
-            )}
-            style={{
-              background:
-                agentState === "listening"
-                  ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(59, 130, 246, 0.2) 0%, rgba(6, 182, 212, 0.1) 25%, rgba(6, 182, 212, 0.05) 50%, transparent 80%)"
-                  : agentState === "speaking"
-                    ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.1) 25%, rgba(16, 185, 129, 0.05) 50%, transparent 80%)"
-                    : agentState === "thinking"
-                      ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(168, 85, 247, 0.2) 0%, rgba(236, 72, 153, 0.1) 25%, rgba(236, 72, 153, 0.05) 50%, transparent 80%)"
-                      : "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(156, 163, 175, 0.15) 0%, rgba(156, 163, 175, 0.08) 25%, rgba(156, 163, 175, 0.03) 50%, transparent 80%)",
-            }}
-          />
-          <div className="pointer-events-auto -mt-28 flex flex-col items-center">
-            <div className="bg-background/70 border-border/50 rounded-full border px-4 py-2 shadow-lg backdrop-blur-md">
-              <p
-                className={cn(
-                  "text-xs font-medium",
-                  agentState
-                    ? "text-primary"
-                    : "text-muted-foreground animate-pulse",
-                )}
-              >
-                <span className="flex items-center gap-1.5">
-                  {agentState === "listening" ? (
-                    "🎤 Listening..."
-                  ) : agentState === "speaking" ? (
-                    "🔊 Atlas is speaking"
-                  ) : agentState === "thinking" ? (
-                    "💭 Thinking..."
-                  ) : (
-                    <>
-                      <span className="scale-75 animate-spin">
-                        <Loader />
-                      </span>{" "}
-                      Connecting...
-                    </>
-                  )}
-                </span>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex min-h-0 flex-1 flex-col">
-        <ChatInterface
-          messages={isChatMode ? messages : getVoiceMessagesForChat()}
-          onSendMessage={onSendMessage}
-          onStop={onStopChat}
-          isLoading={isChatLoading}
-          isConnected={isChatMode ? isChatConnected : voiceSessionStarted}
-          onToggleVoice={onToggleMode}
-          showVoiceToggle
-          tasks={tasks}
-          onTaskSelect={(task) => setSelectedTaskId(task.id)}
-          compact={compact}
-          isVoiceMode={!isChatMode && voiceSessionStarted}
-          disabled={!isChatMode}
-          initialViewMode={initialViewMode}
-          connectedAgentId={connectedAgentId}
-          compressing={compressing}
-          selectedTask={!!selectedTask}
-        />
-      </div>
+    <div className="flex h-full w-full flex-col">
+      <ChatInterface
+        messages={isChatMode ? messages : getVoiceMessagesForChat()}
+        onSendMessage={onSendMessage}
+        onStop={onStopChat}
+        isLoading={isChatLoading}
+        isConnected={isChatMode ? isChatConnected : voiceSessionStarted}
+        onToggleVoice={onToggleMode}
+        onToggleMute={handleToggleMute}
+        showVoiceToggle
+        tasks={tasks}
+        onTaskSelect={(task) => setSelectedTaskId(task.id)}
+        compact={compact}
+        isVoiceMode={!isChatMode && voiceSessionStarted}
+        isMicEnabled={isMicEnabled}
+        agentState={agentState}
+        mediaStream={mediaStream}
+        disabled={!isChatMode}
+        initialViewMode={initialViewMode}
+        connectedAgentId={connectedAgentId}
+        compressing={compressing}
+        selectedTask={!!selectedTask}
+      />
     </div>
   );
 
@@ -335,9 +314,13 @@ export function SessionLayout({
             isLoading={isChatLoading}
             isConnected={isChatMode ? isChatConnected : voiceSessionStarted}
             onToggleVoice={onToggleMode}
+            onToggleMute={handleToggleMute}
             showVoiceToggle
             tasks={tasks}
             isVoiceMode={!isChatMode && voiceSessionStarted}
+            isMicEnabled={isMicEnabled}
+            agentState={agentState}
+            mediaStream={mediaStream}
             disabled={!isChatMode}
             initialViewMode={initialViewMode}
             connectedAgentId={connectedAgentId}
@@ -362,9 +345,13 @@ export function SessionLayout({
                     isChatMode ? isChatConnected : voiceSessionStarted
                   }
                   onToggleVoice={onToggleMode}
+                  onToggleMute={handleToggleMute}
                   showVoiceToggle
                   tasks={tasks}
                   isVoiceMode={!isChatMode && voiceSessionStarted}
+                  isMicEnabled={isMicEnabled}
+                  agentState={agentState}
+                  mediaStream={mediaStream}
                   disabled={!isChatMode}
                   initialViewMode={initialViewMode}
                   connectedAgentId={connectedAgentId}

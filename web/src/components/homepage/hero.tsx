@@ -3,12 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import {
-  CheckCircle,
-  Shield,
-  Zap,
-  Sparkles,
-} from "lucide-react";
+import { CheckCircle, Shield, Zap, Sparkles } from "lucide-react";
 import { AnimatedHeroTitle } from "@/components/homepage/animated-hero-title";
 import { APP_DESCRIPTION } from "@/lib/config/constants";
 import { ChatInput } from "@/components/voice/chat-input";
@@ -52,7 +47,6 @@ export function Hero() {
 
   return (
     <section className="bg-background flex items-center justify-center">
-
       <div className="relative z-10 mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div className="flex flex-col items-center justify-center gap-12 text-center">
           {/* Center Content */}
@@ -70,7 +64,9 @@ export function Hero() {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <Sparkles className="text-primary mr-2 h-3 w-3" />
-              <span className="text-muted-foreground">Your Personal AI Companion</span>
+              <span className="text-muted-foreground">
+                Your Personal AI Companion
+              </span>
             </motion.div>
 
             {/* Main Heading */}
@@ -86,7 +82,7 @@ export function Hero() {
             <div className="flex flex-wrap justify-center gap-6 text-sm">
               <div className="text-muted-foreground flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
-                <span>Personal Connection</span>
+                <span>Personal Intelligence</span>
               </div>
               <div className="text-muted-foreground flex items-center gap-2">
                 <Shield className="h-4 w-4" />
@@ -94,13 +90,13 @@ export function Hero() {
               </div>
               <div className="text-muted-foreground flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                <span>Voice + Text Chat</span>
+                <span>Voice(WebRTC) + Text Chat</span>
               </div>
             </div>
 
             {/* Chat Input */}
             <motion.div
-              className="mx-auto max-w-2xl w-full"
+              className="mx-auto w-full max-w-2xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}

@@ -3,8 +3,8 @@
 export function Footer() {
   return (
     <footer className="bg-background px-6 py-3">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <p>© 2024 Nirmanus</p>
+      <div className="text-muted-foreground flex items-center justify-between text-xs">
+        <p>© 2025 HeyAtlas</p>
         <div className="flex gap-4">
           <a href="#" className="hover:text-foreground transition-colors">
             Privacy

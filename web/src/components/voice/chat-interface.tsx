@@ -20,11 +20,15 @@ interface ChatInterfaceProps {
   isLoading?: boolean;
   isConnected?: boolean;
   onToggleVoice?: () => void;
+  onToggleMute?: () => void;
   showVoiceToggle?: boolean;
   tasks?: AtlasTask[];
   onTaskSelect?: (task: AtlasTask) => void;
   compact?: boolean;
   isVoiceMode?: boolean;
+  isMicEnabled?: boolean;
+  agentState?: string;
+  mediaStream?: MediaStream | null;
   disabled?: boolean;
   initialViewMode?: "chat" | "tasks";
   connectedAgentId?: string | null;
@@ -39,11 +43,15 @@ export function ChatInterface({
   isLoading = false,
   isConnected = false,
   onToggleVoice,
+  onToggleMute,
   showVoiceToggle = false,
   tasks = [],
   onTaskSelect,
   compact = false,
   isVoiceMode = false,
+  isMicEnabled = true,
+  agentState,
+  mediaStream,
   disabled = false,
   initialViewMode = "chat",
   connectedAgentId,
@@ -60,7 +68,7 @@ export function ChatInterface({
 
   return (
     <div className="bg-background flex h-full w-full flex-col">
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
         {viewMode === "chat" ? (
           <MessageList
             messages={messages}
@@ -72,9 +80,7 @@ export function ChatInterface({
             selectedTask={selectedTask}
           />
         ) : (
-          <div className="h-full w-full overflow-y-auto pt-4">
-            <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
-          </div>
+          <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
         )}
       </div>
 
@@ -84,6 +90,7 @@ export function ChatInterface({
             onSend={handleSend}
             onStop={onStop}
             onToggleVoice={onToggleVoice}
+            onToggleMute={onToggleMute}
             onToggleTasks={() =>
               setViewMode((v) => (v === "chat" ? "tasks" : "chat"))
             }
@@ -92,6 +99,9 @@ export function ChatInterface({
             showVoiceToggle={showVoiceToggle}
             isTasksView={viewMode === "tasks"}
             isVoiceMode={isVoiceMode}
+            isMicEnabled={isMicEnabled}
+            agentState={agentState}
+            mediaStream={mediaStream}
             connectedAgentId={connectedAgentId}
             compressing={compressing}
           />
