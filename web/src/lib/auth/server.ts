@@ -70,8 +70,6 @@ export const auth = betterAuth({
     "https://heyatlas-me.vercel.app",
     "https://heyatlas.app",
     "https://www.heyatlas.app",
-    "https://heycomputer.me",
-    "https://www.heycomputer.me",
     ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
   ],
   logger: {
@@ -174,7 +172,7 @@ export const auth = betterAuth({
             //   slug: "premium-plan", // Friendly slug for checkout
             // },
           ],
-          successUrl: "/voice", // Your success page URL
+          successUrl: "/chat", // Your success page URL
           authenticatedUsersOnly: true, // Require login for checkout
         }),
         portal(),

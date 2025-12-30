@@ -45,8 +45,9 @@ class BifrostService {
             name: email || `user-${userId}`,
             provider_configs: [
               {
-                provider: "Basten",
-                weight: 0.33,
+                id: 29,
+                provider: "Baseten",
+                weight: 1,
                 allowed_models: [],
               },
             ],
