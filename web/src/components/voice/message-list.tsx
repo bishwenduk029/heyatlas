@@ -78,14 +78,14 @@ export function MessageList({
             {messages.map((msg, index) => (
               <div
                 key={msg.id}
-                className="flex items-start gap-4 p-4 border-b border-border/10 last:border-0 hover:bg-muted/30 transition-colors"
+                className="flex items-start gap-4 p-4 border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
               >
                 <Avatar 
                   className={cn(
                     "h-10 w-10 shrink-0 shadow-sm",
                     msg.role === "user" 
                       ? "bg-[#5865f2]" 
-                      : "bg-[#23a55a]"
+                      : "bg-white ring-1 ring-border"
                   )}
                 >
                   {msg.role === "user" ? (
@@ -97,13 +97,13 @@ export function MessageList({
                     </>
                   ) : (
                     <>
-                      <AvatarImage src="/logo.svg" alt="Atlas" />
-                      <AvatarFallback className="bg-muted">
+                      <AvatarImage src="/logo.svg" alt="Atlas" className="p-1.5" />
+                      <AvatarFallback className="bg-white">
                         <Image
                           src="/logo.svg"
                           alt="Atlas"
-                          width={20}
-                          height={20}
+                          width={24}
+                          height={24}
                         />
                       </AvatarFallback>
                     </>
