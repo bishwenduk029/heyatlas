@@ -205,6 +205,7 @@ export function InterfaceWithAgent({
             isChatLoading={atlasAgent.isLoading}
             isChatConnected={atlasAgent.isConnected}
             tasks={atlasAgent.tasks}
+            getTaskEphemeralEvents={atlasAgent.getTaskEphemeralEvents}
             connectedAgentId={atlasAgent.connectedAgentId}
             compressing={atlasAgent.compressing}
           />

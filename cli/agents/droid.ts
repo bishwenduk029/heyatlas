@@ -96,8 +96,6 @@ export class DroidAgent extends BaseCLIAgent {
       onOutput: (chunk) => {
         const events = streamHandler.parse(chunk);
         for (const event of events) {
-          console.log(`📡 ${event.type}${currentTaskId ? ` [${currentTaskId.slice(0,8)}]` : ""}`);
-          
           // Queue event for batched context update
           if (currentTaskId) {
             pendingEvents.push(event);
@@ -165,7 +163,6 @@ export class DroidAgent extends BaseCLIAgent {
           params: { text: message },
           id: taskId || `msg-${Date.now()}`,
         };
-        console.log(`📤 Sending: ${JSON.stringify(rpcMsg).slice(0, 120)}...`);
         proc.stdin?.write(JSON.stringify(rpcMsg) + "\n");
       },
       

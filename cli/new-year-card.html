@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy New Year 2025! 🎉</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            z-index: 10;
+            animation: cardFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes cardFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        h1 {
+            font-size: 3em;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #ffe66d);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            animation: gradientShift 3s ease-in-out infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .year {
+            font-size: 4em;
+            font-weight: bold;
+            color: #ff6b6b;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+            animation: yearBounce 1s ease-in-out infinite;
+        }
+
+        @keyframes yearBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .message {
+            font-size: 1.2em;
+            color: #333;
+            margin: 30px 0;
+            line-height: 1.6;
+        }
+
+        /* Dancing divs - Fireworks */
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: fireworkLaunch 2s ease-out infinite;
+        }
+
+        @keyframes fireworkLaunch {
+            0% {
+                transform: translateY(100vh) scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: translateY(-20vh) scale(1.5);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-100vh) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .spark {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            animation: sparkle 1.5s ease-out infinite;
+        }
+
+        @keyframes sparkle {
+            0% {
+                transform: scale(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Confetti pieces */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            animation: confettiFall 3s linear infinite;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0.3;
+            }
+        }
+
+        /* Dancing characters */
+        .dancer {
+            position: absolute;
+            font-size: 2em;
+            animation: dance 2s ease-in-out infinite;
+        }
+
+        @keyframes dance {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-20px) rotate(-10deg);
+            }
+            50% {
+                transform: translateY(-10px) rotate(10deg);
+            }
+            75% {
+                transform: translateY(-30px) rotate(-5deg);
+            }
+        }
+
+        /* Stars */
+        .star {
+            position: absolute;
+            font-size: 1.5em;
+            animation: twinkle 1s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.3);
+            }
+        }
+
+        /* Floating balloons */
+        .balloon {
+            position: absolute;
+            width: 40px;
+            height: 50px;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: balloonFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes balloonFloat {
+            0%, 100% {
+                transform: translateY(0) rotate(-5deg);
+            }
+            33% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+            66% {
+                transform: translateY(-10px) rotate(-3deg);
+            }
+        }
+
+        /* Generate random colors */
+        .confetti:nth-child(odd) { background: linear-gradient(45deg, #ff6b6b, #feca57); }
+        .confetti:nth-child(even) { background: linear-gradient(45deg, #48dbfb, #0abde3); }
+        .firework:nth-child(4n+1) { background: #ff6b6b; }
+        .firework:nth-child(4n+2) { background: #4ecdc4; }
+        .firework:nth-child(4n+3) { background: #ffe66d; }
+        .firework:nth-child(4n) { background: #a8e6cf; }
+        .spark:nth-child(3n+1) { background: #ff6b6b; }
+        .spark:nth-child(3n+2) { background: #4ecdc4; }
+        .spark:nth-child(3n) { background: #ffe66d; }
+        .balloon:nth-child(2n+1) { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .balloon:nth-child(2n) { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🎊 Happy New Year 🎊</h1>
+        <div class="year">2025</div>
+        <div class="message">
+            May this year bring you joy, laughter, and endless opportunities!<br>
+            Let's make 2025 the best year yet! 🌟
+        </div>
+    </div>
+
+    <script>
+        // Create dancing elements
+        function createElement(className, content, count, startDelay = 0) {
+            for (let i = 0; i < count; i++) {
+                const element = document.createElement('div');
+                element.className = className;
+                if (content) element.textContent = content;
+                
+                // Random positioning
+                element.style.left = Math.random() * 100 + '%';
+                element.style.top = Math.random() * 100 + '%';
+                
+                // Random animation delay
+                element.style.animationDelay = (startDelay + Math.random() * 3) + 's';
+                
+                // Random animation duration
+                element.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+                
+                document.body.appendChild(element);
+            }
+        }
+
+        // Create various dancing elements
+        createElement('dancer', '🎉', 5, 0);
+        createElement('dancer', '🎊', 4, 0.5);
+        createElement('dancer', '✨', 6, 1);
+        createElement('dancer', '🌟', 4, 1.5);
+        createElement('firework', '', 15, 0);
+        createElement('spark', '', 20, 0);
+        createElement('confetti', '', 12, 0);
+        createElement('star', '⭐', 8, 0);
+        createElement('balloon', '', 6, 0);
+
+        // Add click interaction to the card
+        document.querySelector('.card').addEventListener('click', function() {
+            // Create burst of new elements on click
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    const burst = document.createElement('div');
+                    burst.className = ['dancer', 'spark', 'star'][Math.floor(Math.random() * 3)];
+                    burst.textContent = ['🎉', '🎊', '✨', '🌟'][Math.floor(Math.random() * 4)];
+                    burst.style.left = (Math.random() * 100) + '%';
+                    burst.style.top = (Math.random() * 100) + '%';
+                    burst.style.animationDuration = '1s';
+                    document.body.appendChild(burst);
+                    
+                    // Remove after animation
+                    setTimeout(() => burst.remove(), 3000);
+                }, i * 100);
+            }
+        });
+
+        // Add mouse move interaction
+        document.addEventListener('mousemove', function(e) {
+            if (Math.random() > 0.95) {
+                const trail = document.createElement('div');
+                trail.className = 'spark';
+                trail.style.left = e.clientX + 'px';
+                trail.style.top = e.clientY + 'px';
+                trail.style.animationDuration = '0.5s';
+                document.body.appendChild(trail);
+                setTimeout(() => trail.remove(), 500);
+            }
+        });
+    </script>
+</body>
+</html>

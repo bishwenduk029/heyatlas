@@ -6,6 +6,7 @@ export { ClaudeAgent } from "./claude";
 export { DroidAgent } from "./droid";
 export { OpencodeAgent } from "./opencode";
 export { ToadAgent } from "./toad";
+export { ACPAgent, isACPAgent, getACPCommand, type ACPAgentType, type ACPEventCallback, type ACPRunOptions } from "./acp";
 
 import type { CLIAgent } from "./types";
 import type { AgentType } from "./config";

@@ -15,7 +15,7 @@ import { TaskList } from "./task-list";
 import { TaskArtifact } from "./task-artifact";
 import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
-import type { AtlasTask } from "./hooks/use-atlas-agent";
+import type { AtlasTask, StreamEvent } from "./hooks/use-atlas-agent";
 
 interface Message {
   id: string;
@@ -39,6 +39,7 @@ interface SessionLayoutProps {
   isChatLoading?: boolean;
   isChatConnected?: boolean;
   tasks?: AtlasTask[];
+  getTaskEphemeralEvents?: (taskId: string) => StreamEvent[];
   connectedAgentId?: string | null;
   compressing?: boolean;
 }
@@ -59,6 +60,7 @@ export function SessionLayout({
   isChatLoading,
   isChatConnected,
   tasks = [],
+  getTaskEphemeralEvents,
   connectedAgentId,
   compressing,
 }: SessionLayoutProps) {
@@ -246,6 +248,7 @@ export function SessionLayout({
             <div className="flex h-full flex-1 flex-col">
               <TaskArtifact
                 task={selectedTask}
+                ephemeralEvents={getTaskEphemeralEvents?.(selectedTask.id) || []}
                 onClose={() => setSelectedTaskId(null)}
               />
 

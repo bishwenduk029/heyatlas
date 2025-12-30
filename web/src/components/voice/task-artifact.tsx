@@ -11,10 +11,11 @@ import {
 } from "@/components/ai-elements/artifact";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
-import type { AtlasTask } from "./hooks/use-atlas-agent";
+import type { AtlasTask, StreamEvent } from "./hooks/use-atlas-agent";
 
 interface TaskArtifactProps {
   task: AtlasTask;
+  ephemeralEvents?: StreamEvent[];
   onClose: () => void;
 }
 
@@ -32,22 +33,28 @@ function getTaskStatus(state: AtlasTask["state"]) {
   }
 }
 
-export function TaskArtifact({ task, onClose }: TaskArtifactProps) {
+export function TaskArtifact({ task, ephemeralEvents = [], onClose }: TaskArtifactProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const { id: taskId, agentId: agentName, state: taskState, context: events = [], result } = task;
+  const { id: taskId, agentId: agentName, state: taskState, context: storedEvents = [], result } = task;
   const status = getTaskStatus(taskState);
   const isComplete = taskState === "completed" || taskState === "pending-user-feedback";
   const isFailed = taskState === "failed";
   const isRunning = taskState === "in-progress" || taskState === "pending";
 
+  // Merge stored + ephemeral events, sorted by timestamp
+  const allEvents = [...storedEvents, ...ephemeralEvents].sort((a: any, b: any) => 
+    (a.timestamp || 0) - (b.timestamp || 0)
+  );
+
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
-  }, [events]);
+  }, [allEvents.length]);
 
-  const lastEvent = events[events.length - 1] as any;
-  const lastText = lastEvent?.data?.text || lastEvent?.data?.finalText || result || (isRunning ? "Processing..." : "");
+  const lastEvent = allEvents[allEvents.length - 1] as any;
+  const lastRaw = lastEvent?.data?.text || lastEvent?.data?.content || lastEvent?.data?.finalText || result;
+  const lastText = typeof lastRaw === 'string' ? lastRaw : (isRunning ? "Processing..." : "");
 
   return (
     <Artifact className="h-full w-full">
@@ -73,7 +80,7 @@ export function TaskArtifact({ task, onClose }: TaskArtifactProps) {
       </ArtifactHeader>
       <ArtifactContent className="p-0 flex flex-col overflow-hidden">
         <div ref={contentRef} className="font-mono text-sm flex-1 overflow-auto whitespace-pre-wrap break-words p-4">
-          {events.length === 0 ? (
+          {allEvents.length === 0 ? (
             <span className={cn(
               "text-muted-foreground",
               isRunning && "animate-pulse"
@@ -83,30 +90,70 @@ export function TaskArtifact({ task, onClose }: TaskArtifactProps) {
                "Waiting for output..."}
             </span>
           ) : (
-            events.map((event, i) => {
-              const evt = event as any;
-              const data = evt.data || evt;
-              const text = data.text || data.finalText;
-              if (!text) return null;
+            // Accumulate consecutive message chunks by role
+            (() => {
+              const blocks: { role: string; text: string; type: string }[] = [];
               
-              const isUser = data.role === "user";
-              const isCompletion = evt.type === "completion" || data.type === "completion";
+              for (const event of allEvents) {
+                const evt = event as any;
+                const data = evt.data || evt;
+                let rawText = data.text || data.content || data.finalText;
+                if (rawText && typeof rawText === 'object' && rawText.text) {
+                  rawText = rawText.text;
+                }
+                const text = typeof rawText === 'string' ? rawText : '';
+                if (!text) continue;
+                
+                const role = data.role || 'assistant';
+                const type = evt.type || 'message';
+                const lastBlock = blocks[blocks.length - 1];
+                
+                // Combine consecutive messages from same role
+                if (lastBlock && lastBlock.role === role && type === 'message') {
+                  lastBlock.text += text;
+                } else {
+                  blocks.push({ role, text, type });
+                }
+              }
               
-              return (
-                <div key={i} className={cn(
-                  "mb-2",
-                  isUser ? "text-blue-400" : 
-                  isCompletion ? "text-purple-400" : "text-green-400"
-                )}>
-                  {isUser ? `> ${text}` : text}
-                </div>
-              );
-            })
+              return blocks.map((block, i) => {
+                const trimmed = block.text.trim();
+                if (!trimmed) return null;
+                
+                const isUser = block.role === 'user';
+                const isCompletion = block.type === 'completion';
+                const isFirst = i === 0;
+                
+                return (
+                  <div key={i}>
+                    {/* Divider line between messages */}
+                    {!isFirst && (
+                      <div className="border-t border-border/50 my-3" />
+                    )}
+                    <div className={cn(
+                      "py-1",
+                      isUser 
+                        ? "text-primary font-medium" 
+                        : isCompletion 
+                          ? "text-muted-foreground italic" 
+                          : "text-foreground"
+                    )}>
+                      {isUser && (
+                        <span className="text-muted-foreground mr-2">{">"}</span>
+                      )}
+                      {trimmed}
+                    </div>
+                  </div>
+                );
+              });
+            })()
           )}
         </div>
         {isRunning && lastText && (
-          <div className="text-green-400 mt-2 animate-pulse p-4">
-            <Shimmer>{lastText}</Shimmer>
+          <div className="border-t border-border/50 mt-2 p-4">
+            <div className="text-muted-foreground animate-pulse">
+              <Shimmer>{lastText}</Shimmer>
+            </div>
           </div>
         )}
       </ArtifactContent>

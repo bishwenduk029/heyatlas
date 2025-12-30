@@ -30,10 +30,10 @@ interface NavItem {
 }
 
 const navigationItems: NavItem[] = [
-  // {
-  //   title: "Voice Assistant",
-  //   href: "/chat",
-  // },
+  {
+    title: "Chat",
+    href: "/chat",
+  },
   // {
   //   title: "Pricing",
   //   href: "/pricing",

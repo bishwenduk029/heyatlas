@@ -148,18 +148,21 @@ export abstract class BaseCLIAgent implements CLIAgent {
                 onStreamEvent?.(event);
                 
                 if (tunnel && taskId) {
-                  // Route events: stored (persistent) vs broadcast (ephemeral)
-                  if (isStoredEvent(event)) {
+                  // Handle completion event specially - just mark task completed, don't store (duplicates message)
+                  if (event.type === "completion") {
+                    tunnel.updateTask(taskId, { state: "completed" }).catch(() => {});
+                    // Trigger voice update
+                    if (event.data.summary) {
+                      tunnel.updateHuman(event.data.summary as string).catch((err) => {
+                        console.error("Failed to send voice update:", err);
+                      });
+                    }
+                  } else if (isStoredEvent(event)) {
+                    // Store message events (user/assistant)
                     tunnel.appendContext(taskId, [event]);
                   } else {
+                    // Broadcast ephemeral events (tool_call, thinking, etc.)
                     tunnel.broadcastTaskEvent(taskId, event);
-                  }
-                  
-                  // Trigger voice update when completion event occurs
-                  if (event.type === "completion" && event.data.summary) {
-                    tunnel.updateHuman(event.data.summary as string).catch((err) => {
-                      console.error("Failed to send voice update:", err);
-                    });
                   }
                 }
               }

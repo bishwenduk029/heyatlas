@@ -46,7 +46,7 @@ class VoiceAssistant(Agent):
         self.task_queue: Queue[str] = Queue()
         self.virtual_key = virtual_key
 
-        atlas_url = os.getenv("ATLAS_AGENT_URL", "http://localhost:8787")
+        atlas_url = os.getenv("ATLAS_AGENT_URL", "http://agent.heyatlas.app")
         nirmanus_key = os.getenv("NIRMANUS_API_KEY", "")
 
         # Tunnel for receiving task updates from Atlas (uses server API key)

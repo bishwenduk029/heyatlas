@@ -8,9 +8,20 @@ export interface AgentOutput {
   durationMs: number;
 }
 
+export type StreamEventType = 
+  | "message" 
+  | "completion" 
+  | "tool_call" 
+  | "tool_update" 
+  | "thinking" 
+  | "plan" 
+  | "status" 
+  | "permission"
+  | "rpc";
+
 export interface StreamEvent {
-  type: string;
-  timestamp: number;
+  type: StreamEventType | string;
+  timestamp?: number;
   data: Record<string, unknown>;
 }
 

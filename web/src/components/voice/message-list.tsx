@@ -13,6 +13,8 @@ import {
 } from "@/components/ai-elements/conversation";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
 import Image from "next/image";
+import { useEffect, useRef } from "react";
+import type { StickToBottomContext } from "use-stick-to-bottom";
 
 interface Message {
   id: string;
@@ -42,9 +44,24 @@ export function MessageList({
 }: MessageListProps) {
   // Create a map of taskId -> task for quick lookup
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
+  
+  // Ref to control scroll behavior
+  const scrollContextRef = useRef<StickToBottomContext | null>(null);
+  
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollContextRef.current && messages.length > 0) {
+      // Scroll to bottom whenever messages change
+      scrollContextRef.current.scrollToBottom();
+    }
+  }, [messages.length]); // Trigger on message count change
 
   return (
-    <Conversation className="my-2 h-[calc(100vh-250px)] w-full transition-all duration-300 ease-in-out">
+    <Conversation 
+      className="my-2 h-[calc(100vh-250px)] w-full transition-all duration-300 ease-in-out"
+      initial="instant"
+      contextRef={scrollContextRef}
+    >
       <ConversationContent
         className={
           selectedTask
@@ -58,68 +75,68 @@ export function MessageList({
           </ConversationEmptyState>
         ) : (
           <>
-            {messages.map((msg) => (
+            {messages.map((msg, index) => (
               <div
                 key={msg.id}
-                className={cn(
-                  "flex flex-col gap-2",
-                  msg.role === "user" ? "items-end" : "items-start",
-                )}
+                className="flex items-start gap-3 rounded-lg p-3 -mx-3 transition-colors hover:bg-muted/50"
               >
-                <div
+                <Avatar 
                   className={cn(
-                    "flex max-w-[85%] items-start gap-3",
-                    msg.role === "user" && "flex-row-reverse",
+                    "h-8 w-8 shrink-0 shadow-sm ring-2",
+                    msg.role === "user" 
+                      ? "ring-[#5865f2]" 
+                      : "ring-[#23a55a]"
                   )}
                 >
-                  <Avatar className="mt-1 h-8 w-8 shrink-0 border shadow-sm">
-                    {msg.role === "user" ? (
-                      <>
-                        <AvatarImage src={userImage} />
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          <User className="h-4 w-4" />
-                        </AvatarFallback>
-                      </>
-                    ) : (
-                      <>
-                        <AvatarImage src="/logo.svg" alt="Atlas" />
-                        <AvatarFallback className="bg-muted">
-                          <Image
-                            src="/logo.svg"
-                            alt="Atlas"
-                            width={16}
-                            height={16}
-                          />
-                        </AvatarFallback>
-                      </>
+                  {msg.role === "user" ? (
+                    <>
+                      <AvatarImage src={userImage} />
+                      <AvatarFallback className="bg-transparent text-foreground">
+                        <User className="h-5 w-5" />
+                      </AvatarFallback>
+                    </>
+                  ) : (
+                    <>
+                      <AvatarImage src="/logo.svg" alt="Atlas" />
+                      <AvatarFallback className="bg-muted">
+                        <Image
+                          src="/logo.svg"
+                          alt="Atlas"
+                          width={16}
+                          height={16}
+                        />
+                      </AvatarFallback>
+                    </>
+                  )}
+                </Avatar>
+                <div className="flex flex-1 flex-col gap-1">
+                  <span 
+                    className={cn(
+                      "text-sm font-semibold",
+                      msg.role === "user" 
+                        ? "text-[#5865f2]" 
+                        : "text-[#23a55a]"
                     )}
-                  </Avatar>
-                  <div className="flex max-w-[85%] flex-col gap-2">
-                    <div
-                      className={cn(
-                        "rounded-2xl border px-4 py-3 text-sm whitespace-pre-wrap shadow-sm",
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground border-primary rounded-tr-none"
-                          : "bg-muted/50 text-foreground rounded-tl-none",
-                      )}
-                    >
-                      {msg.content.trim()}
-                    </div>
-                    {/* Show task artifact card if message is linked to a task */}
-                    {msg.taskId &&
-                      taskMap.has(msg.taskId) &&
-                      onTaskSelect &&
-                      (() => {
-                        const task = taskMap.get(msg.taskId);
-                        if (!task) return null;
-                        return (
-                          <TaskArtifactCard
-                            task={task}
-                            onClick={() => onTaskSelect(task)}
-                          />
-                        );
-                      })()}
+                  >
+                    {msg.role === "user" ? "You" : "Atlas"}
+                  </span>
+                  <div className="text-sm whitespace-pre-wrap text-foreground">
+                    {msg.content.trim()}
                   </div>
+                  {/* Show task artifact card if message is linked to a task */}
+                  {msg.taskId &&
+                    taskMap.has(msg.taskId) &&
+                    onTaskSelect &&
+                    (() => {
+                      const task = taskMap.get(msg.taskId);
+                      if (!task) return null;
+                      return (
+                        <TaskArtifactCard
+                          task={task}
+                          onClick={() => onTaskSelect(task)}
+                        />
+                      );
+                    })()}
                 </div>
               </div>
             ))}

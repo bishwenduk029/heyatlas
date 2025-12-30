@@ -17,7 +17,7 @@ export interface AtlasTask {
   id: string;
   agentId: string;
   description: string;
-  state: "pending" | "in-progress" | "completed" | "failed" | "pending-user-feedback";
+  state: "new" | "continue" | "pending" | "in-progress" | "completed" | "failed" | "pending-user-feedback" | "paused";
   context: StreamEvent[];
   result?: string;
   summary?: string;
@@ -85,7 +85,11 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
       });
     }
     if (state.tasks) {
+      // Debug: log task context lengths
       const taskList = Object.values(state.tasks).sort((a, b) => b.updatedAt - a.updatedAt);
+      for (const t of taskList) {
+        console.log(`[Atlas Agent] Task ${t.id.slice(0, 8)}: state=${t.state}, context=${t.context?.length || 0}, context[0]=`, t.context?.[0]);
+      }
       setTasks(taskList);
     }
     if (state.connectedAgentId !== undefined) {
@@ -104,8 +108,10 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   const handleBroadcastMessage = useCallback((event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
+      console.log("[Atlas Agent] Broadcast received:", data.type, data);
       if (data.type === "task_event") {
         const { taskId, event: streamEvent } = data as TaskEventBroadcast;
+        console.log("[Atlas Agent] Task event:", taskId.slice(0, 8), streamEvent.type);
         setEphemeralEvents(prev => {
           const newMap = new Map(prev);
           const events = newMap.get(taskId) || [];
@@ -133,12 +139,21 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
 
   // Listen for broadcast messages (ephemeral task events)
   useEffect(() => {
-    if (!agentConnection) return;
+    if (!agentConnection) {
+      console.log("[Atlas Agent] No connection for broadcast listener");
+      return;
+    }
     
     const ws = agentConnection as unknown as WebSocket;
     if (ws.addEventListener) {
+      console.log("[Atlas Agent] Attaching broadcast listener");
       ws.addEventListener("message", handleBroadcastMessage);
-      return () => ws.removeEventListener("message", handleBroadcastMessage);
+      return () => {
+        console.log("[Atlas Agent] Removing broadcast listener");
+        ws.removeEventListener("message", handleBroadcastMessage);
+      };
+    } else {
+      console.log("[Atlas Agent] WebSocket does not support addEventListener");
     }
   }, [agentConnection, handleBroadcastMessage]);
   

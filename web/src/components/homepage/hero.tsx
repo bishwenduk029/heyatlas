@@ -50,31 +50,23 @@ export function Hero() {
       <div className="relative z-10 mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div className="flex flex-col items-center justify-center gap-12 text-center">
           {/* Center Content */}
-          <motion.div
-            className="max-w-3xl space-y-8"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-          >
+          <div className="max-w-3xl space-y-8">
             {/* Status Badge */}
-            <motion.div
-              className="border-border bg-background/50 inline-flex items-center rounded-full border px-3 py-1 text-sm backdrop-blur-sm"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
+            <div className="border-border bg-background/50 inline-flex items-center rounded-full border px-3 py-1 text-sm backdrop-blur-sm">
               <Sparkles className="text-primary mr-2 h-3 w-3" />
-              <span className="text-muted-foreground">
-                Your Personal AI Companion
-              </span>
-            </motion.div>
+              <span className="text-muted-foreground">Open Source</span>
+            </div>
 
             {/* Main Heading */}
             <div className="space-y-4">
               <AnimatedHeroTitle />
 
               <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
-                {APP_DESCRIPTION}
+                Your personal <span className="text-primary font-bold">A</span>I
+                companion that <span className="text-primary font-bold">T</span>
+                hinks, <span className="text-primary font-bold">L</span>istens
+                and can <span className="text-primary font-bold">A</span>ct on{" "}
+                <span className="text-primary font-bold">S</span>ystems
               </p>
             </div>
 
@@ -95,12 +87,7 @@ export function Hero() {
             </div>
 
             {/* Chat Input */}
-            <motion.div
-              className="mx-auto w-full max-w-2xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
+            <div className="mx-auto w-full max-w-2xl">
               <ChatInput
                 onSend={handleSend}
                 onStop={() => {}}
@@ -112,15 +99,10 @@ export function Hero() {
                 isTasksView={false}
                 isVoiceMode={false}
               />
-            </motion.div>
+            </div>
 
             {/* Social Proof */}
-            <motion.div
-              className="text-muted-foreground flex items-center justify-center gap-4 text-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-            >
+            <div className="text-muted-foreground flex items-center justify-center gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
                 <span className="font-medium">Free Plan Available</span>
@@ -130,8 +112,8 @@ export function Hero() {
                 <Shield className="h-4 w-4 text-blue-500" />
                 <span>No Credit Card Required</span>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

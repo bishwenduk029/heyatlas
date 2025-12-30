@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy New Year 2025! 🎉</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .card-container {
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .greeting {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            margin-bottom: 1rem;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        .year {
+            font-size: 5rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            background-size: 400% 400%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient 3s ease infinite, bounce 1s ease-in-out infinite;
+            text-shadow: none;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #fff;
+            margin-top: 1rem;
+            opacity: 0.9;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        /* Dancing Divs */
+        .dancer {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            animation-duration: 2s;
+            animation-iteration-count: infinite;
+        }
+
+        .dancer1 {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            top: 10%;
+            left: 10%;
+            animation: bounceRotate 1.5s ease-in-out infinite;
+        }
+
+        .dancer2 {
+            background: linear-gradient(45deg, #48dbfb, #0abde3);
+            top: 20%;
+            right: 15%;
+            animation: spinScale 2s ease-in-out infinite;
+        }
+
+        .dancer3 {
+            background: linear-gradient(45deg, #ff9ff3, #ee5a24);
+            bottom: 15%;
+            left: 20%;
+            animation: shake 0.8s ease-in-out infinite;
+        }
+
+        .dancer4 {
+            background: linear-gradient(45deg, #54a0ff, #5f27cd);
+            bottom: 25%;
+            right: 10%;
+            animation: flipBounce 1.8s ease-in-out infinite;
+        }
+
+        .dancer5 {
+            background: linear-gradient(45deg, #00d2d3, #54a0ff);
+            top: 50%;
+            left: 5%;
+            animation: wobble 2.5s ease-in-out infinite;
+        }
+
+        .dancer6 {
+            background: linear-gradient(45deg, #ff9ff3, #feca57);
+            top: 60%;
+            right: 5%;
+            animation: pulseRotate 1.2s ease-in-out infinite;
+        }
+
+        .dancer7 {
+            background: linear-gradient(45deg, #48dbfb, #ff6b6b);
+            top: 40%;
+            left: 50%;
+            animation: crazyDance 3s ease-in-out infinite;
+        }
+
+        .dancer8 {
+            background: linear-gradient(45deg, #feca57, #5f27cd);
+            bottom: 40%;
+            right: 50%;
+            animation: discoFever 2.2s ease-in-out infinite;
+        }
+
+        /* Small decorative dots */
+        .dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+
+        .dot1 { top: 20%; left: 30%; animation: float 3s ease-in-out infinite; }
+        .dot2 { top: 70%; left: 70%; animation: float 2.5s ease-in-out infinite 0.5s; }
+        .dot3 { top: 15%; left: 80%; animation: float 2.8s ease-in-out infinite 1s; }
+        .dot4 { top: 80%; left: 20%; animation: float 3.2s ease-in-out infinite 1.5s; }
+        .dot5 { top: 50%; left: 10%; animation: float 2.7s ease-in-out infinite 0.3s; }
+        .dot6 { top: 30%; left: 60%; animation: float 3.5s ease-in-out infinite 0.8s; }
+
+        /* Animations */
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(255, 255, 255, 0.8); }
+            to { text-shadow: 0 0 30px rgba(255, 255, 255, 1), 0 0 40px rgba(255, 255, 255, 0.8); }
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounceRotate {
+            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+            25% { transform: translateY(-30px) rotate(90deg) scale(1.2); }
+            50% { transform: translateY(-15px) rotate(180deg) scale(0.8); }
+            75% { transform: translateY(-25px) rotate(270deg) scale(1.1); }
+        }
+
+        @keyframes spinScale {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(180deg) scale(1.5); }
+            50% { transform: rotate(360deg) scale(0.7); }
+            75% { transform: rotate(540deg) scale(1.3); }
+            100% { transform: rotate(720deg) scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px) rotate(-5deg); }
+            20%, 40%, 60%, 80% { transform: translateX(10px) rotate(5deg); }
+        }
+
+        @keyframes flipBounce {
+            0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
+            25% { transform: translateY(-20px) rotateX(180deg) rotateY(90deg); }
+            50% { transform: translateY(0) rotateX(360deg) rotateY(180deg); }
+            75% { transform: translateY(-15px) rotateX(540deg) rotateY(270deg); }
+        }
+
+        @keyframes wobble {
+            0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
+            25% { transform: translateX(-20px) translateY(-10px) rotate(10deg); }
+            50% { transform: translateX(20px) translateY(5px) rotate(-10deg); }
+            75% { transform: translateX(-10px) translateY(-5px) rotate(5deg); }
+        }
+
+        @keyframes pulseRotate {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+            25% { transform: scale(1.5) rotate(90deg); opacity: 1; }
+            50% { transform: scale(0.8) rotate(180deg); opacity: 0.6; }
+            75% { transform: scale(1.2) rotate(270deg); opacity: 0.9; }
+        }
+
+        @keyframes crazyDance {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            20% { transform: translate(20px, -20px) rotate(72deg) scale(1.3); }
+            40% { transform: translate(-20px, 20px) rotate(144deg) scale(0.7); }
+            60% { transform: translate(15px, 15px) rotate(216deg) scale(1.1); }
+            80% { transform: translate(-15px, -10px) rotate(288deg) scale(0.9); }
+            100% { transform: translate(0, 0) rotate(360deg) scale(1); }
+        }
+
+        @keyframes discoFever {
+            0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            12.5% { transform: translate(15px, -15px) rotate(45deg) scale(1.2); }
+            25% { transform: translate(-15px, -15px) rotate(90deg) scale(0.8); }
+            37.5% { transform: translate(-15px, 15px) rotate(135deg) scale(1.1); }
+            50% { transform: translate(0, 0) rotate(180deg) scale(1); }
+            62.5% { transform: translate(15px, 15px) rotate(225deg) scale(0.9); }
+            75% { transform: translate(15px, -15px) rotate(270deg) scale(1.3); }
+            87.5% { transform: translate(-15px, 0) rotate(315deg) scale(0.7); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); opacity: 0.8; }
+            50% { transform: translateY(-20px); opacity: 1; }
+        }
+
+        /* Fireworks effect */
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+        }
+
+        .firework1 {
+            top: 25%;
+            left: 25%;
+            animation: firework1 4s ease-in-out infinite;
+        }
+
+        .firework2 {
+            top: 25%;
+            right: 25%;
+            animation: firework2 4s ease-in-out infinite 1s;
+        }
+
+        .firework3 {
+            bottom: 25%;
+            left: 25%;
+            animation: firework3 4s ease-in-out infinite 2s;
+        }
+
+        .firework4 {
+            bottom: 25%;
+            right: 25%;
+            animation: firework4 4s ease-in-out infinite 3s;
+        }
+
+        @keyframes firework1 {
+            0%, 80%, 100% { opacity: 0; transform: scale(1); }
+            85% { opacity: 1; transform: scale(1); }
+            90% { opacity: 0; transform: scale(20); }
+        }
+
+        @keyframes firework2 {
+            0%, 80%, 100% { opacity: 0; transform: scale(1); }
+            85% { opacity: 1; transform: scale(1); }
+            90% { opacity: 0; transform: scale(25); }
+        }
+
+        @keyframes firework3 {
+            0%, 80%, 100% { opacity: 0; transform: scale(1); }
+            85% { opacity: 1; transform: scale(1); }
+            90% { opacity: 0; transform: scale(18); }
+        }
+
+        @keyframes firework4 {
+            0%, 80%, 100% { opacity: 0; transform: scale(1); }
+            85% { opacity: 1; transform: scale(1); }
+            90% { opacity: 0; transform: scale(22); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .greeting { font-size: 2.5rem; }
+            .year { font-size: 3.5rem; }
+            .subtitle { font-size: 1.2rem; }
+            .dancer { width: 40px; height: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Dancing Elements -->
+    <div class="dancer dancer1"></div>
+    <div class="dancer dancer2"></div>
+    <div class="dancer dancer3"></div>
+    <div class="dancer dancer4"></div>
+    <div class="dancer dancer5"></div>
+    <div class="dancer dancer6"></div>
+    <div class="dancer dancer7"></div>
+    <div class="dancer dancer8"></div>
+
+    <!-- Floating dots -->
+    <div class="dot dot1"></div>
+    <div class="dot dot2"></div>
+    <div class="dot dot3"></div>
+    <div class="dot dot4"></div>
+    <div class="dot dot5"></div>
+    <div class="dot dot6"></div>
+
+    <!-- Fireworks -->
+    <div class="firework firework1"></div>
+    <div class="firework firework2"></div>
+    <div class="firework firework3"></div>
+    <div class="firework firework4"></div>
+
+    <!-- Main Card Content -->
+    <div class="card-container">
+        <h1 class="greeting">Happy New Year!</h1>
+        <h2 class="year">2025</h2>
+        <p class="subtitle">🎊 Wishing you joy, success, and amazing adventures! 🎊</p>
+    </div>
+</body>
+</html>

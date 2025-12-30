@@ -89,7 +89,7 @@ export class AtlasTunnel {
     this.currentUserId = userId;
     this.agentId = agentId;
 
-    const host = DEFAULT_HOST;
+    const host = this.options.host || DEFAULT_HOST;
     const headers: Record<string, string> = {
       "X-Agent-Id": agentId,
     };
@@ -140,15 +140,20 @@ export class AtlasTunnel {
   ): void {
     // Always store the latest state from server
     if (source === "server") {
+      // Check if incoming state has our updates
       this.currentState = state;
     }
 
     if (!state.tasks) return;
 
     for (const task of Object.values(state.tasks)) {
-      // Only process tasks with "new" or "continue" state
+      // Only process tasks with "new" or "continue" state, and only once
       if (task.state === "new" || task.state === "continue") {
-        this.taskCallback?.(task);
+        const taskKey = `${task.id}:${task.state}`;
+        if (!this.seenTaskIds.has(taskKey)) {
+          this.seenTaskIds.add(taskKey);
+          this.taskCallback?.(task);
+        }
       }
     }
   }
@@ -181,7 +186,7 @@ export class AtlasTunnel {
         tasks: { ...this.currentState.tasks, [taskId]: updatedTask },
       };
     } catch (error) {
-      console.error(`Failed to update task:`, error);
+      console.error(`[UpdateTask] Failed:`, error);
     }
   }
 
@@ -198,9 +203,10 @@ export class AtlasTunnel {
       !this._isConnected ||
       !this.currentState ||
       events.length === 0
-    )
+    ) {
       return;
-
+    }
+    
     const task = this.currentState.tasks?.[taskId];
     if (!task) return;
 
@@ -236,13 +242,16 @@ export class AtlasTunnel {
    * Used for tool calls, thinking indicators, status updates, etc.
    */
   async broadcastTaskEvent(taskId: string, event: StreamEvent): Promise<void> {
-    if (!this.client || !this._isConnected) return;
+    if (!this.client || !this._isConnected) {
+
+      return;
+    }
 
     try {
       await this.client.call("broadcast_task_event", [taskId, event]);
     } catch (error) {
       // Non-critical: ephemeral events can be lost without breaking functionality
-      console.debug(`Broadcast failed for task ${taskId.slice(0, 8)}:`, error);
+      // Non-critical: ephemeral events can be lost
     }
   }
 

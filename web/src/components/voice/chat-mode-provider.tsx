@@ -44,6 +44,8 @@ export function ChatModeProvider({ userId, token, mode, onToggleMode }: ChatMode
       onStopChat={atlasAgent.stop}
       isChatLoading={atlasAgent.isLoading}
       isChatConnected={atlasAgent.isConnected}
+      tasks={atlasAgent.tasks}
+      getTaskEphemeralEvents={atlasAgent.getTaskEphemeralEvents}
     />
   );
 }

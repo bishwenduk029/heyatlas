@@ -17,8 +17,7 @@ import { RevealButton } from "@/components/ui/reveal-button";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BarVisualizer } from "@/components/ui/bar-visualizer";
 import type { AgentState } from "@/components/ui/bar-visualizer";
-import { Track } from "livekit-client";
-import { useLocalParticipant } from "@livekit/components-react";
+
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -58,17 +57,6 @@ export function ChatInput({
   compressing = false,
 }: ChatInputProps) {
   const [input, setInput] = useState("");
-  
-  // LiveKit local participant for mute control
-  const { localParticipant } = useLocalParticipant();
-  
-  const isMicrophoneEnabled =
-    localParticipant?.getTrackPublication(Track.Source.Microphone)?.isMuted === false;
-
-  const toggleMicrophone = async () => {
-    if (!localParticipant) return;
-    await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
-  };
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -130,7 +118,7 @@ export function ChatInput({
       )}
       <form
         onSubmit={handleSubmit}
-        className="bg-background focus-within:border-primary/30 relative overflow-hidden rounded-xl border-2 shadow-md transition-all"
+        className="bg-muted/30 focus-within:border-primary/30 relative overflow-hidden rounded-xl border-2 shadow-md transition-all"
       >
         <TextareaAutosize
           value={input}
@@ -183,18 +171,18 @@ export function ChatInput({
                   <div className="flex items-center gap-2">
                     {/* Mute Button */}
                     <Button
-                      variant={isMicrophoneEnabled ? "default" : "secondary"}
+                      variant={isMicEnabled ? "default" : "secondary"}
                       size="icon"
-                      onClick={toggleMicrophone}
+                      onClick={onToggleMute}
                       className={cn(
                         "h-10 w-10 cursor-pointer rounded-full",
-                        isMicrophoneEnabled && visualizerState === "listening"
+                        isMicEnabled && visualizerState === "listening"
                           ? "bg-green-600 hover:bg-green-700 text-white"
                           : ""
                       )}
-                      title={isMicrophoneEnabled ? "Mute" : "Unmute"}
+                      title={isMicEnabled ? "Mute" : "Unmute"}
                     >
-                      {isMicrophoneEnabled ? (
+                      {isMicEnabled ? (
                         <Mic className="h-5 w-5" />
                       ) : (
                         <MicOff className="h-5 w-5" />

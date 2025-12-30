@@ -22,12 +22,11 @@ function getTaskDescription(task: AtlasTask): string {
 }
 
 function getLiveOutput(task: AtlasTask): string | null {
-  // For in-progress tasks, show the latest message text
-  if (task.state !== "in-progress" && task.state !== "pending") return null;
-  const last = task.context[task.context.length - 1] as any;
-  const data = last?.data || last;
-  const text = data?.text || data?.finalText;
-  return text && !data.role ? text : null;
+  // For in-progress/pending tasks, just show "Processing..."
+  if (task.state === "in-progress" || task.state === "pending" || task.state === "new") {
+    return "Processing...";
+  }
+  return null;
 }
 
 function getStatusStyle(state: AtlasTask["state"]) {

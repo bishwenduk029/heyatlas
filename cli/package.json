@@ -30,7 +30,9 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "agents": "^0.2.35"
+    "@agentclientprotocol/sdk": "^0.12.0",
+    "agents": "^0.2.35",
+    "zod": "^4.2.1"
   },
   "publishConfig": {
     "access": "public"

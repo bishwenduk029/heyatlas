@@ -249,9 +249,18 @@ export class ToadAgent extends BaseCLIAgent {
   override interactive = true;
   override timeoutMs = 30 * 60 * 1000; // 30 minutes for long-running sessions
 
+  /** The underlying agent that toad will manage (e.g., "droid", "claude") */
+  private targetAgent: string;
+
+  constructor(targetAgent: string = "droid") {
+    super();
+    this.targetAgent = targetAgent;
+    this.name = `toad:${targetAgent}`;
+  }
+
   override buildCommand(task: string): string[] {
-    // For one-shot mode, use toad with the task as prompt
-    return ["toad", "--headless", "--prompt", task];
+    // For one-shot mode, use toad with the specified agent
+    return ["toad", "--headless", "--agent", this.targetAgent, "--prompt", task];
   }
 
   override createStreamHandler(): StreamHandler {
@@ -276,14 +285,13 @@ export class ToadAgent extends BaseCLIAgent {
 
     const nextRequestId = () => `req-${++requestId}`;
 
-    const { proc } = ptyManager.spawn("toad", ["--headless"], {
+    const { proc } = ptyManager.spawn("toad", ["--headless", "--agent", this.targetAgent], {
       taskId: "toad-interactive",
       pipeStdin: true,
       onOutput: (chunk) => {
         const events = streamHandler.parse(chunk);
         
         for (const event of events) {
-          console.log(`📡 toad: ${event.type}${currentTaskId ? ` [${currentTaskId.slice(0, 8)}]` : ""}`);
           
           if (currentTaskId && tunnel.isConnected) {
             // Route based on event type: stored vs ephemeral
@@ -378,7 +386,6 @@ export class ToadAgent extends BaseCLIAgent {
           id: taskId || nextRequestId(),
         };
         
-        console.log(`📤 toad: ${JSON.stringify(promptMsg).slice(0, 120)}...`);
         proc.stdin?.write(JSON.stringify(promptMsg) + "\n");
       },
 

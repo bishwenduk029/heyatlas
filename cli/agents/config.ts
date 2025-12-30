@@ -1,12 +1,16 @@
+// ACP-compatible agents
 export type AgentType =
-  | "claude"
-  | "codex"
-  | "crush"
-  | "droid"
-  | "gemini"
-  | "goose"
   | "opencode"
-  | "toad";
+  | "claude"
+  | "goose"
+  | "gemini"
+  | "codex"
+  | "kimi"
+  | "vibe"
+  | "auggie"
+  | "stakpak"
+  | "openhands"
+  | "cagent";
 
 export interface AgentConfig {
   executable: string;

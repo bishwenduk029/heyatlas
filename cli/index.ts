@@ -1,19 +1,24 @@
 /**
- * heyatlas CLI - Tunnel local AI agents to the cloud
+ * heyatlas CLI - Tunnel local AI agents to the cloud via ACP
  */
 
 import { parseArgs } from "util";
 import { warp } from "./commands/warp";
 import type { AgentType } from "./agents";
 
+// ACP-compatible agents
 const SUPPORTED_AGENTS = [
   "opencode",
-  "droid",
-  "gemini",
-  "codex",
   "claude",
   "goose",
-  "crush",
+  "gemini",
+  "codex",
+  "kimi",
+  "vibe",
+  "auggie",
+  "stakpak",
+  "openhands",
+  "cagent",
 ];
 
 const { positionals, values } = parseArgs({
@@ -22,31 +27,33 @@ const { positionals, values } = parseArgs({
     help: { type: "boolean", short: "h" },
     version: { type: "boolean", short: "v" },
     "no-browser": { type: "boolean" },
-    interactive: { type: "boolean", short: "i" },
   },
   allowPositionals: true,
 });
 
 function printHelp() {
   console.log(`
-heyatlas - Tunnel local AI agents to the cloud
+heyatlas - Tunnel local AI agents to the cloud via ACP
 
 Usage:
-  heyatlas warp <agent>    Connect local agent to cloud
+  heyatlas warp <agent>    Connect agent to Atlas (via ACP protocol)
 
-Agents:
+ACP-Compatible Agents:
   ${SUPPORTED_AGENTS.join(", ")}
 
 Options:
   -h, --help        Show this help message
   -v, --version     Show version
-  -i, --interactive Multi-turn conversation mode (droid only)
   --no-browser      Don't open browser automatically
 
+Prerequisites:
+  - The agent must be installed and support ACP mode
+  - Agent-specific setup (API keys, etc.)
+
 Examples:
-  heyatlas warp droid              Single-task mode
-  heyatlas warp --interactive droid  Multi-turn conversation
-  heyatlas warp claude             Warp Claude Code
+  heyatlas warp opencode   Connect OpenCode via ACP
+  heyatlas warp goose      Connect Goose via ACP
+  heyatlas warp claude     Connect Claude Code via ACP
 `);
 }
 
@@ -80,7 +87,6 @@ async function main() {
 
     await warp(agent as AgentType, { 
       openBrowser: !values["no-browser"],
-      interactive: values.interactive,
     });
   } else {
     console.error(`Unknown command: ${command}`);
