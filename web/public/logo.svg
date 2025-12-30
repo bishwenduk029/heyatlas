@@ -4,7 +4,7 @@
     .logo-stroke { stroke: #252525; fill: none; }
     .logo-fill { fill: #252525; }
     .logo-visor { fill: #ffffff; }
-    
+
     /* Dark mode - light elements */
     @media (prefers-color-scheme: dark) {
       .logo-stroke { stroke: #fbfbfb; }
@@ -12,13 +12,13 @@
       .logo-visor { fill: #252525; }
     }
   </style>
-  
+
   <!-- Outer ring - helmet -->
   <circle class="logo-stroke" cx="50" cy="50" r="45" stroke-width="2" stroke-linecap="round"/>
-  
+
   <!-- Inner flowing line - thought flow -->
   <path class="logo-stroke" d="M50 20 C75 20 90 35 90 50 C90 65 75 80 50 80 C25 80 10 65 10 50 C10 35 25 20 50 20Z" stroke-width="1.5"/>
-  
+
   <!-- Two core dots - split intelligence nodes (morph to lines like blinking eyes) -->
   <ellipse class="logo-fill" cx="35" cy="50" rx="8" ry="8">
     <animate attributeName="ry" values="8;8;8;1;8;8;8;8" dur="2.5s" repeatCount="indefinite" />
@@ -26,7 +26,7 @@
   <ellipse class="logo-fill" cx="65" cy="50" rx="8" ry="8">
     <animate attributeName="ry" values="8;8;8;1;8;8;8;8" dur="2.5s" repeatCount="indefinite" />
   </ellipse>
-  
+
   <!-- Connection points - listening/acting -->
   <circle class="logo-fill" cx="50" cy="10" r="2"/>
   <circle class="logo-fill" cx="90" cy="50" r="2"/>

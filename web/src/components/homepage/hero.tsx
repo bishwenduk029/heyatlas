@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle, Shield, Zap, Sparkles } from "lucide-react";
+import { Sparkles, Bot, Cpu } from "lucide-react";
 import { AnimatedHeroTitle } from "@/components/homepage/animated-hero-title";
 import { APP_DESCRIPTION } from "@/lib/config/constants";
 import { ChatInput } from "@/components/voice/chat-input";
@@ -62,27 +62,48 @@ export function Hero() {
               <AnimatedHeroTitle />
 
               <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
-                Your personal <span className="text-primary font-bold">A</span>I
-                companion that <span className="text-primary font-bold">T</span>
+                Your personal{" "}
+                <span className="text-primary font-bold">AI </span>
+                companion who <span className="text-primary font-bold">T</span>
                 hinks, <span className="text-primary font-bold">L</span>istens
-                and can <span className="text-primary font-bold">A</span>ct on{" "}
-                <span className="text-primary font-bold">S</span>ystems
+                and <span className="text-primary font-bold">A</span>ct
+                <span className="text-primary font-bold">s</span>
               </p>
             </div>
 
             {/* Trust Indicators */}
-            <div className="flex flex-wrap justify-center gap-6 text-sm">
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
               <div className="text-muted-foreground flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                <span>Personal Intelligence</span>
+                <Bot className="h-4 w-4 shrink-0" />
+                <span className="whitespace-nowrap">Personal Intelligence</span>
+              </div>
+              <div className="text-muted-foreground hidden items-center gap-2 sm:flex">
+                <Cpu className="h-4 w-4 shrink-0" />
+                <span className="whitespace-nowrap">
+                  Connects to Your Agents
+                </span>
               </div>
               <div className="text-muted-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                <span>Connects to Your Agents</span>
-              </div>
-              <div className="text-muted-foreground flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                <span>Voice(WebRTC) + Text Chat</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4 shrink-0"
+                >
+                  <path d="M2 10v3" />
+                  <path d="M6 6v11" />
+                  <path d="M10 3v18" />
+                  <path d="M14 8v7" />
+                  <path d="M18 5v13" />
+                  <path d="M22 10v3" />
+                </svg>
+                <span className="whitespace-nowrap">Voice + Text Chat</span>
               </div>
             </div>
 
@@ -99,19 +120,6 @@ export function Hero() {
                 isTasksView={false}
                 isVoiceMode={false}
               />
-            </div>
-
-            {/* Social Proof */}
-            <div className="text-muted-foreground flex items-center justify-center gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                <span className="font-medium">Free Plan Available</span>
-              </div>
-              <div className="bg-border h-4 w-px" />
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-blue-500" />
-                <span>No Credit Card Required</span>
-              </div>
             </div>
           </div>
         </div>

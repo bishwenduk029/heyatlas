@@ -6,15 +6,10 @@ import { ChatInput } from "./chat-input";
 import { useState } from "react";
 import { TaskList } from "./task-list";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+import type { UIMessage } from "@ai-sdk/react";
 
 interface ChatInterfaceProps {
-  messages: Message[];
+  messages: UIMessage[];
   onSendMessage: (text: string) => void;
   onStop?: () => void;
   isLoading?: boolean;

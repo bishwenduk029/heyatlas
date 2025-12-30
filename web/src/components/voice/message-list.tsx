@@ -4,27 +4,28 @@ import { User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { ChatWelcome } from "./chat-welcome";
-import { TaskArtifactCard } from "./task-artifact-card";
 import {
   Conversation,
   ConversationContent,
   ConversationEmptyState,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
+import { MessageResponse } from "@/components/ai-elements/message";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
+import type { UIMessage } from "@ai-sdk/react";
 import Image from "next/image";
 import { useEffect, useRef } from "react";
 import type { StickToBottomContext } from "use-stick-to-bottom";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  taskId?: string; // Optional: link message to a task
-}
-
 interface MessageListProps {
-  messages: Message[];
+  messages: UIMessage[];
   userImage?: string;
   onQuickAction?: (text: string) => void;
   tasks?: AtlasTask[];
@@ -42,12 +43,9 @@ export function MessageList({
   compact = false,
   selectedTask = false,
 }: MessageListProps) {
-  // Create a map of taskId -> task for quick lookup
-  const taskMap = new Map(tasks.map((t) => [t.id, t]));
-  
   // Ref to control scroll behavior
   const scrollContextRef = useRef<StickToBottomContext | null>(null);
-  
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollContextRef.current && messages.length > 0) {
@@ -57,7 +55,7 @@ export function MessageList({
   }, [messages.length]); // Trigger on message count change
 
   return (
-    <Conversation 
+    <Conversation
       className="my-2 h-[calc(100vh-250px)] w-full transition-all duration-300 ease-in-out"
       initial="instant"
       contextRef={scrollContextRef}
@@ -75,17 +73,15 @@ export function MessageList({
           </ConversationEmptyState>
         ) : (
           <>
-            {messages.map((msg, index) => (
+            {messages.map((msg) => (
               <div
                 key={msg.id}
-                className="flex items-start gap-4 p-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                className="border-border hover:bg-muted/30 flex items-start gap-4 border-b p-4 transition-colors last:border-0"
               >
-                <Avatar 
+                <Avatar
                   className={cn(
                     "h-10 w-10 shrink-0 shadow-sm",
-                    msg.role === "user" 
-                      ? "bg-[#5865f2]" 
-                      : "bg-[#23a55a]"
+                    msg.role === "user" ? "bg-[#5865f2]" : "bg-[#23a55a]",
                   )}
                 >
                   {msg.role === "user" ? (
@@ -96,7 +92,7 @@ export function MessageList({
                       </AvatarFallback>
                     </>
                   ) : (
-                    <div className="bg-[#23a55a] flex h-full w-full items-center justify-center p-2">
+                    <div className="relative flex h-full w-full items-center justify-center bg-[#23a55a] p-2">
                       <Image
                         src="/logo.svg"
                         alt="Atlas"
@@ -107,39 +103,105 @@ export function MessageList({
                     </div>
                   )}
                 </Avatar>
-                <div className="flex flex-1 flex-col">
-                  <div className="flex items-baseline gap-2 mb-0.5">
-                    <span 
+                <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+                  <div className="mb-0.5 flex items-baseline gap-2">
+                    <span
                       className={cn(
                         "text-sm font-bold",
-                        msg.role === "user" 
-                          ? "text-[#5865f2]" 
-                          : "text-[#23a55a]"
+                        msg.role === "user"
+                          ? "text-[#5865f2]"
+                          : "text-[#23a55a]",
                       )}
                     >
                       {msg.role === "user" ? "You" : "Atlas"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground opacity-50 uppercase tracking-tighter">
-                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span className="text-muted-foreground text-[10px] tracking-tighter uppercase opacity-50">
+                      {new Date().toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   </div>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
-                    {msg.content.trim()}
-                  </div>
-                  {/* Show task artifact card if message is linked to a task */}
-                  {msg.taskId &&
-                    taskMap.has(msg.taskId) &&
-                    onTaskSelect &&
-                    (() => {
-                      const task = taskMap.get(msg.taskId);
-                      if (!task) return null;
+                  {msg.parts.map((part, i) => {
+                    const key = `${msg.id}-${i}`;
+                    
+                    // Handle text parts
+                    if (part.type === "text") {
                       return (
-                        <TaskArtifactCard
-                          task={task}
-                          onClick={() => onTaskSelect(task)}
+                        <MessageResponse
+                          key={key}
+                          className="text-foreground/90 prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
+                        >
+                          {part.text}
+                        </MessageResponse>
+                      );
+                    }
+                    
+                    // Handle tool invocation parts (dynamic tools)
+                    if (part.type === "dynamic-tool") {
+                      const isComplete = part.state === "output-available" || part.state === "output-error";
+                      return (
+                        <Tool key={key} defaultOpen={isComplete}>
+                          <ToolHeader
+                            type={`tool-${part.toolName}` as `tool-${string}`}
+                            state={part.state}
+                            title={part.toolName}
+                          />
+                          <ToolContent>
+                            <ToolInput input={part.input} />
+                            {isComplete && (
+                              <ToolOutput
+                                output={part.state === "output-available" ? part.output : undefined}
+                                errorText={part.state === "output-error" ? part.errorText : undefined}
+                              />
+                            )}
+                          </ToolContent>
+                        </Tool>
+                      );
+                    }
+                    
+                    // Handle specific tool parts (tool-{toolName} pattern)
+                    if (part.type.startsWith("tool-")) {
+                      const toolPart = part as {
+                        type: `tool-${string}`;
+                        toolCallId: string;
+                        state: "input-streaming" | "input-available" | "output-available" | "output-error";
+                        input?: Record<string, unknown>;
+                        output?: unknown;
+                        errorText?: string;
+                      };
+                      const isComplete = toolPart.state === "output-available" || toolPart.state === "output-error";
+                      return (
+                        <Tool key={key} defaultOpen={isComplete}>
+                          <ToolHeader
+                            type={toolPart.type}
+                            state={toolPart.state}
+                          />
+                          <ToolContent>
+                            <ToolInput input={toolPart.input} />
+                            {isComplete && (
+                              <ToolOutput
+                                output={toolPart.state === "output-available" ? toolPart.output : undefined}
+                                errorText={toolPart.state === "output-error" ? toolPart.errorText : undefined}
+                              />
+                            )}
+                          </ToolContent>
+                        </Tool>
+                      );
+                    }
+                    
+                    // Handle step-start parts (multi-step tool calls)
+                    if (part.type === "step-start" && i > 0) {
+                      return (
+                        <hr
+                          key={key}
+                          className="my-3 border-border/50"
                         />
                       );
-                    })()}
+                    }
+                    
+                    return null;
+                  })}
                 </div>
               </div>
             ))}

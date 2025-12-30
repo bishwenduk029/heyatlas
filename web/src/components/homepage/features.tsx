@@ -110,7 +110,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
 
 export function Features() {
   return (
-    <section className="bg-background py-24">
+    <section id="features" className="bg-background py-24 scroll-mt-20">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section Header */}
         <motion.div

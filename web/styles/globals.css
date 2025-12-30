@@ -7,6 +7,8 @@
 
 @import "./theme.css";
 
+@source "../node_modules/streamdown/dist/*.js";
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -163,7 +163,14 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     }
   }
 
+  private mcpInitialized = false;
+
   private async buildMCPServers() {
+    // Prevent re-initialization
+    if (this.mcpInitialized) {
+      return;
+    }
+
     const searchMcpServerResponse = await this.addMcpServer("Web Search", this.env.PARALLELS_WEB_SEARCH_API || "", undefined, undefined, {
       transport: {
         type: "streamable-http",
@@ -175,6 +182,8 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     if (searchMcpServerResponse.state !== "ready") {
       console.warn(`[Atlas] MCP Server requires authentication:`, searchMcpServerResponse.authUrl);
     }
+
+    this.mcpInitialized = true;
   }
 
   private get llm() {
@@ -456,6 +465,7 @@ Write your first-person summary:`;
       system: await this.getSystemPrompt(),
       messages: await this.prepareModelMessages(),
       tools: { ...this.tools,  ...this.mcp.getAITools() },
+      stopWhen: stepCountIs(10),
       onFinish: async (event) => {
         if (event.text) {
           this.addMessage("assistant", event.text);
@@ -605,6 +615,9 @@ Write your first-person summary:`;
     if (this.state.credentials && cfg.hasCloudDesktop) {
       this.ensureSandbox().catch(() => { });
     }
+
+    // Ensure MCP servers are initialized for HTTP requests (voice mode)
+    await this.buildMCPServers();
 
     return this.chatCompletions(messages, stream, tier);
   }
