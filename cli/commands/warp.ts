@@ -158,18 +158,6 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
       }
       messageBuffer = "";
 
-      // Store completion event (persistent, not just broadcast)
-      const summary = finalContent.length > 0 
-        ? finalContent.slice(0, 200) + (finalContent.length > 200 ? "..." : "")
-        : "Task completed successfully";
-      await tunnel.appendContext(task.id, [
-        {
-          type: "completion",
-          timestamp: Date.now(),
-          data: { summary },
-        },
-      ]);
-
       // Mark task complete
       console.log(`📤 Calling tunnel.updateTask({ state: "completed" })...`);
       await tunnel.updateTask(task.id, {
