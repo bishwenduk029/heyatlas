@@ -435,7 +435,6 @@ export class ACPAgent {
     }
 
     try {
-      console.log(`[ACP] Calling connection.prompt()...`);
       const result = await this.connection.prompt({
         sessionId: this.sessionId,
         prompt: [
@@ -445,16 +444,12 @@ export class ACPAgent {
           },
         ],
       });
-      console.log(`[ACP] connection.prompt() returned: stopReason=${result.stopReason}`);
 
       // Flush accumulated message buffer as complete message
-      console.log(`[ACP] Flushing message buffer...`);
       await this.clientHandler?.flushMessage();
-      console.log(`[ACP] Message buffer flushed`);
 
       return result.stopReason;
     } catch (error) {
-      console.error(`[ACP] Prompt error:`, error);
       // Still flush any partial message on error
       await this.clientHandler?.flushMessage();
       throw error;
