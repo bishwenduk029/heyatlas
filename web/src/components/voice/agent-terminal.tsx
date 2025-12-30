@@ -143,7 +143,6 @@ export function AgentTerminal({
         const ws = await TauriWebSocket.default.connect(wsUrl);
         wsRef.current = ws;
 
-        console.log("[Terminal] Tauri WebSocket connected");
         setStatus("connected");
 
         const removeListener = ws.addListener((msg) => {
@@ -173,7 +172,6 @@ export function AgentTerminal({
 
       ws.onopen = () => {
         if (!mounted) return;
-        console.log("[Terminal] WebSocket connected");
         setStatus("connected");
         if (reconnectTimerRef.current) {
           clearTimeout(reconnectTimerRef.current);
@@ -187,7 +185,6 @@ export function AgentTerminal({
 
       ws.onclose = () => {
         if (!mounted) return;
-        console.log("[Terminal] WebSocket disconnected");
         setStatus("disconnected");
         if (terminalRef.current) {
           terminalRef.current.write("\r\n\x1b[31m[DISCONNECTED]\x1b[0m Reconnecting...\r\n");

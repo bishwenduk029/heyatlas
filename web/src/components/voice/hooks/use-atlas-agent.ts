@@ -87,13 +87,9 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     if (state.tasks) {
       // Debug: log task context lengths
       const taskList = Object.values(state.tasks).sort((a, b) => b.updatedAt - a.updatedAt);
-      for (const t of taskList) {
-        console.log(`[Atlas Agent] Task ${t.id.slice(0, 8)}: state=${t.state}, context=${t.context?.length || 0}, context[0]=`, t.context?.[0]);
-      }
       setTasks(taskList);
     }
     if (state.connectedAgentId !== undefined) {
-      console.log("[Atlas Agent] connectedAgentId updated:", state.connectedAgentId);
       setConnectedAgentId(state.connectedAgentId || null);
     }
     if (state.compressing !== undefined) {
@@ -108,10 +104,8 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   const handleBroadcastMessage = useCallback((event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
-      console.log("[Atlas Agent] Broadcast received:", data.type, data);
       if (data.type === "task_event") {
         const { taskId, event: streamEvent } = data as TaskEventBroadcast;
-        console.log("[Atlas Agent] Task event:", taskId.slice(0, 8), streamEvent.type);
         setEphemeralEvents(prev => {
           const newMap = new Map(prev);
           const events = newMap.get(taskId) || [];
@@ -140,20 +134,16 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   // Listen for broadcast messages (ephemeral task events)
   useEffect(() => {
     if (!agentConnection) {
-      console.log("[Atlas Agent] No connection for broadcast listener");
       return;
     }
     
     const ws = agentConnection as unknown as WebSocket;
     if (ws.addEventListener) {
-      console.log("[Atlas Agent] Attaching broadcast listener");
       ws.addEventListener("message", handleBroadcastMessage);
       return () => {
-        console.log("[Atlas Agent] Removing broadcast listener");
         ws.removeEventListener("message", handleBroadcastMessage);
       };
     } else {
-      console.log("[Atlas Agent] WebSocket does not support addEventListener");
     }
   }, [agentConnection, handleBroadcastMessage]);
   
@@ -186,21 +176,8 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
 
   const isLoading = chat.status === "submitted" || chat.status === "streaming";
 
-  const getMessageText = (msg: UIMessage): string => {
-    if (!msg.parts) return "";
-    return msg.parts
-      .filter((p): p is { type: "text"; text: string } => p.type === "text")
-      .map((p) => p.text)
-      .join("");
-  };
-
-  const messages = (chat.messages || [])
-    .map((m) => ({
-      id: m.id,
-      role: m.role as "user" | "assistant",
-      content: getMessageText(m),
-    }))
-    .filter((m) => m.content);
+  // Return UIMessage directly to preserve parts for ai-elements components
+  const messages = chat.messages || [];
 
   const getTask = useCallback((taskId: string): AtlasTask | undefined => {
     return tasks.find(t => t.id === taskId || t.id.startsWith(taskId));

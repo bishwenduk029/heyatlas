@@ -16,12 +16,7 @@ import { TaskArtifact } from "./task-artifact";
 import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
 import type { AtlasTask, StreamEvent } from "./hooks/use-atlas-agent";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+import type { UIMessage } from "@ai-sdk/react";
 
 interface SessionLayoutProps {
   mode: "local" | "sandbox";
@@ -33,7 +28,7 @@ interface SessionLayoutProps {
   vncUrl?: string;
   logUrl?: string;
   userId?: string;
-  messages: Message[];
+  messages: UIMessage[];
   onSendMessage: (text: string) => void;
   onStopChat?: () => void;
   isChatLoading?: boolean;
@@ -111,7 +106,6 @@ export function SessionLayout({
     : null;
 
   const { messages: voiceMessages } = useChatAndTranscription();
-  console.log(voiceMessages);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const [mcpForms, setMcpForms] = useState<
@@ -193,13 +187,12 @@ export function SessionLayout({
     await room.localParticipant.sendText(value, { topic: "lk.chat" });
   };
 
-  // Convert voice messages to chat format
-  const getVoiceMessagesForChat = (): Message[] => {
+  // Convert voice messages to chat format (UIMessage with parts)
+  const getVoiceMessagesForChat = (): UIMessage[] => {
     return voiceMessages.map((msg) => ({
       id: msg.id,
       role: msg.from?.name === "User" ? "user" : "assistant",
-      content: msg.message,
-      timestamp: msg.timestamp,
+      parts: [{ type: "text" as const, text: msg.message }],
     }));
   };
 

@@ -143,23 +143,12 @@ export function InterfaceWithAgent({
     }
   }, [atlasAgent.isConnected, handleSendMessage]);
 
-  // Debug logging for voice session
-  useEffect(() => {
-    console.log("Voice session state:", {
-      voiceSessionStarted,
-      isChatMode,
-      roomState: room.state,
-    });
-  }, [voiceSessionStarted, isChatMode, room]);
-
   // Connect to LiveKit when voice session starts
   useEffect(() => {
     if (!voiceSessionStarted || room.state !== "disconnected") {
-      console.log("Not connecting to LiveKit:", { voiceSessionStarted });
       return;
     }
 
-    console.log("Connecting to LiveKit...");
     let aborted = false;
 
     Promise.all([
@@ -185,7 +174,7 @@ export function InterfaceWithAgent({
   return (
     <RoomContext.Provider value={room}>
       <MCPUIHandler />
-      <main className="bg-background flex h-screen flex-col">
+      <main className="bg-background flex h-screen supports-[height:100dvh]:h-[100dvh] flex-col">
         <Header />
         <div className="my-2 flex min-h-0 flex-1 flex-col">
           <RoomAudioRenderer />
