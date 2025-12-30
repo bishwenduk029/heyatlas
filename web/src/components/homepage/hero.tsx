@@ -47,7 +47,7 @@ export function Hero() {
 
   return (
     <section className="bg-background flex items-center justify-center">
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
+      <div className="relative z-10 mx-auto max-w-7xl px-6 py-8 lg:px-8 lg:py-16">
         <div className="flex flex-col items-center justify-center gap-12 text-center">
           {/* Center Content */}
           <div className="max-w-3xl space-y-8">
