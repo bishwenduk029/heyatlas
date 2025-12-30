@@ -78,21 +78,21 @@ export function MessageList({
             {messages.map((msg, index) => (
               <div
                 key={msg.id}
-                className="flex items-start gap-3 rounded-lg p-3 -mx-3 transition-colors hover:bg-muted/50"
+                className="flex items-start gap-4 p-4 border-b border-border/10 last:border-0 hover:bg-muted/30 transition-colors"
               >
                 <Avatar 
                   className={cn(
-                    "h-8 w-8 shrink-0 shadow-sm ring-2",
+                    "h-10 w-10 shrink-0 shadow-sm",
                     msg.role === "user" 
-                      ? "ring-[#5865f2]" 
-                      : "ring-[#23a55a]"
+                      ? "bg-[#5865f2]" 
+                      : "bg-[#23a55a]"
                   )}
                 >
                   {msg.role === "user" ? (
                     <>
                       <AvatarImage src={userImage} />
-                      <AvatarFallback className="bg-transparent text-foreground">
-                        <User className="h-5 w-5" />
+                      <AvatarFallback className="bg-transparent text-white">
+                        <User className="h-6 w-6" />
                       </AvatarFallback>
                     </>
                   ) : (
@@ -102,25 +102,30 @@ export function MessageList({
                         <Image
                           src="/logo.svg"
                           alt="Atlas"
-                          width={16}
-                          height={16}
+                          width={20}
+                          height={20}
                         />
                       </AvatarFallback>
                     </>
                   )}
                 </Avatar>
-                <div className="flex flex-1 flex-col gap-1">
-                  <span 
-                    className={cn(
-                      "text-sm font-semibold",
-                      msg.role === "user" 
-                        ? "text-[#5865f2]" 
-                        : "text-[#23a55a]"
-                    )}
-                  >
-                    {msg.role === "user" ? "You" : "Atlas"}
-                  </span>
-                  <div className="text-sm whitespace-pre-wrap text-foreground">
+                <div className="flex flex-1 flex-col">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span 
+                      className={cn(
+                        "text-sm font-bold",
+                        msg.role === "user" 
+                          ? "text-[#5865f2]" 
+                          : "text-[#23a55a]"
+                      )}
+                    >
+                      {msg.role === "user" ? "You" : "Atlas"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground opacity-50 uppercase tracking-tighter">
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
                     {msg.content.trim()}
                   </div>
                   {/* Show task artifact card if message is linked to a task */}
