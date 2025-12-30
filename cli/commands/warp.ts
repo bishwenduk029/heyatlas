@@ -68,9 +68,21 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
   const handleEvent = async (event: StreamEvent) => {
     if (!currentTaskId || !tunnel.isConnected) return;
 
-    // Buffer message chunks for final storage
-    if (event.type === "message" && event.data.delta) {
-      messageBuffer += String(event.data.content || "");
+    // Log events for debugging
+    if (event.type === "tool_call" || event.type === "tool_update") {
+      console.log(`[Event] ${event.type}: ${event.data.name || event.data.id || "unknown"}`);
+    }
+
+    // Handle message events - buffer for final storage
+    if (event.type === "message") {
+      const content = String(event.data.content || "");
+      if (event.data.delta) {
+        // Streaming chunk - accumulate
+        messageBuffer += content;
+      } else {
+        // Complete message from ACP (after flushMessage) - use directly
+        messageBuffer = content;
+      }
     }
 
     // Broadcast ALL events for real-time UI display (ephemeral)
@@ -124,12 +136,17 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
     ]);
 
     try {
-      // Send prompt (with context) to ACP agent
+      // Send prompt to ACP agent
+      console.log(`🔄 Sending prompt to ACP agent...`);
       const stopReason = await agent.prompt(prompt);
+      console.log(`✅ Prompt returned with stopReason: ${stopReason}`);
 
       // Store final assistant message (persistent)
       const finalContent = messageBuffer.trim();
+      console.log(`📝 Message buffer: "${finalContent.slice(0, 100)}..." (${finalContent.length} chars)`);
+      
       if (finalContent.length > 0) {
+        console.log(`📤 Storing assistant message...`);
         await tunnel.appendContext(task.id, [
           {
             type: "message",
@@ -137,21 +154,37 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
             data: { role: "assistant", content: finalContent },
           },
         ]);
+        console.log(`✅ Message stored`);
       }
       messageBuffer = "";
 
+      // Store completion event (persistent, not just broadcast)
+      const summary = finalContent.length > 0 
+        ? finalContent.slice(0, 200) + (finalContent.length > 200 ? "..." : "")
+        : "Task completed successfully";
+      await tunnel.appendContext(task.id, [
+        {
+          type: "completion",
+          timestamp: Date.now(),
+          data: { summary },
+        },
+      ]);
+
       // Mark task complete
+      console.log(`📤 Calling tunnel.updateTask({ state: "completed" })...`);
       await tunnel.updateTask(task.id, {
         state: "completed",
         result: stopReason,
       });
-      console.log(`✅ Task completed`);
+      console.log(`✅ Task marked completed in Atlas`);
     } catch (error) {
       console.error(`❌ Task failed: ${error}`);
+      console.log(`📤 Calling tunnel.updateTask({ state: "failed" })...`);
       await tunnel.updateTask(task.id, {
         state: "failed",
         result: String(error),
       });
+      console.log(`✅ Task marked failed in Atlas`);
     } finally {
       currentTaskId = null;
     }

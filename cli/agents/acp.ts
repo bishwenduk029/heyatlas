@@ -53,10 +53,17 @@ export interface ACPRunOptions {
 
 /**
  * ACP Client implementation that handles agent events
+ * Accumulates message chunks and only emits complete messages
  */
 class ACPClientHandler implements acp.Client {
   private onEvent: ACPEventCallback;
   private sessionId: string | null = null;
+  
+  // Accumulate message chunks - only emit when complete
+  private messageBuffer: string = "";
+  
+  // Track thinking state - only emit once when thinking starts
+  private isThinking: boolean = false;
 
   constructor(onEvent: ACPEventCallback) {
     this.onEvent = onEvent;
@@ -64,6 +71,35 @@ class ACPClientHandler implements acp.Client {
 
   setSessionId(sessionId: string) {
     this.sessionId = sessionId;
+  }
+
+  /**
+   * Flush accumulated message buffer as a complete message event
+   */
+  async flushMessage(): Promise<void> {
+    // Reset thinking state
+    this.isThinking = false;
+    
+    if (this.messageBuffer.trim()) {
+      // Clean up goose's XML tool call syntax from message content
+      // Goose outputs <minimax:tool_call>...</minimax:tool_call> in its messages
+      let cleanContent = this.messageBuffer.trim();
+      cleanContent = cleanContent.replace(/<minimax:tool_call>[\s\S]*?<\/minimax:tool_call>/g, '');
+      cleanContent = cleanContent.replace(/<invoke[\s\S]*?<\/invoke>/g, '');
+      cleanContent = cleanContent.trim();
+      
+      if (cleanContent) {
+        await this.onEvent({
+          type: "message",
+          data: {
+            role: "assistant",
+            content: cleanContent,
+            delta: false,
+          },
+        });
+      }
+    }
+    this.messageBuffer = "";
   }
 
   async requestPermission(
@@ -112,26 +148,22 @@ class ACPClientHandler implements acp.Client {
 
     switch (update.sessionUpdate) {
       case "agent_message_chunk":
+        // Accumulate chunks - will be flushed as complete message when turn ends
         if (update.content.type === "text") {
-          await this.onEvent({
-            type: "message",
-            data: {
-              role: "assistant",
-              content: update.content.text,
-              delta: true,
-            },
-          });
+          this.messageBuffer += update.content.text;
         }
         break;
 
       case "tool_call":
+        // Reset thinking state - agent moved from thinking to acting
+        this.isThinking = false;
         await this.onEvent({
           type: "tool_call",
           data: {
-            id: update.toolCallId,
-            name: update.title,
-            status: update.status,
-            kind: update.kind,
+            id: update.toolCallId || `tool-${Date.now()}`,
+            name: update.title || "tool",
+            status: update.status || "pending",
+            kind: update.kind || "execute",
           },
         });
         break;
@@ -140,8 +172,8 @@ class ACPClientHandler implements acp.Client {
         await this.onEvent({
           type: "tool_update",
           data: {
-            id: update.toolCallId,
-            status: update.status,
+            id: update.toolCallId || "",
+            status: update.status || "completed",
             content: update.content,
           },
         });
@@ -157,12 +189,16 @@ class ACPClientHandler implements acp.Client {
         break;
 
       case "agent_thought_chunk":
-        await this.onEvent({
-          type: "thinking",
-          data: {
-            content: update.content,
-          },
-        });
+        // Only emit thinking once when it starts (not every chunk)
+        if (!this.isThinking) {
+          this.isThinking = true;
+          await this.onEvent({
+            type: "thinking",
+            data: {
+              content: "Thinking...",
+            },
+          });
+        }
         break;
 
       case "user_message_chunk":
@@ -197,11 +233,26 @@ class ACPClientHandler implements acp.Client {
       data: {
         id: `write-${Date.now()}`,
         name: "writeFile",
-        status: "completed",
+        status: "in_progress",
         kind: "file_write",
         args: { path: params.path },
       },
     });
+
+    // Actually write the file!
+    try {
+      const fs = await import("node:fs/promises");
+      await fs.writeFile(params.path, params.content, "utf-8");
+      await this.onEvent({
+        type: "tool_update",
+        data: {
+          id: `write-${Date.now()}`,
+          status: "completed",
+        },
+      });
+    } catch (error) {
+      console.error(`[ACP] writeTextFile error:`, error);
+    }
     return {};
   }
 
@@ -384,6 +435,7 @@ export class ACPAgent {
     }
 
     try {
+      console.log(`[ACP] Calling connection.prompt()...`);
       const result = await this.connection.prompt({
         sessionId: this.sessionId,
         prompt: [
@@ -393,10 +445,18 @@ export class ACPAgent {
           },
         ],
       });
+      console.log(`[ACP] connection.prompt() returned: stopReason=${result.stopReason}`);
+
+      // Flush accumulated message buffer as complete message
+      console.log(`[ACP] Flushing message buffer...`);
+      await this.clientHandler?.flushMessage();
+      console.log(`[ACP] Message buffer flushed`);
 
       return result.stopReason;
     } catch (error) {
       console.error(`[ACP] Prompt error:`, error);
+      // Still flush any partial message on error
+      await this.clientHandler?.flushMessage();
       throw error;
     }
   }

@@ -170,7 +170,10 @@ export class AtlasTunnel {
     }
 
     const task = this.currentState.tasks?.[taskId];
-    if (!task) return;
+    if (!task) {
+      console.log(`[UpdateTask] Task ${taskId} not found in local state`);
+      return;
+    }
 
     const updatedTask: Task = {
       ...task,
@@ -178,15 +181,17 @@ export class AtlasTunnel {
       updatedAt: Date.now(),
     };
 
+    console.log(`[UpdateTask] Calling RPC updateTaskFromClient: taskId=${taskId}, state=${update.state}`);
     try {
       await this.client.call("updateTaskFromClient", [updatedTask]);
+      console.log(`[UpdateTask] RPC call succeeded`);
       // Update local state optimistically
       this.currentState = {
         ...this.currentState,
         tasks: { ...this.currentState.tasks, [taskId]: updatedTask },
       };
     } catch (error) {
-      console.error(`[UpdateTask] Failed:`, error);
+      console.error(`[UpdateTask] RPC call failed:`, error);
     }
   }
 

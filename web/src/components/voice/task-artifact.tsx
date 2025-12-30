@@ -9,8 +9,8 @@ import {
   ArtifactClose,
   ArtifactContent,
 } from "@/components/ai-elements/artifact";
-import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
+import { TaskEventViewer } from "./task-event-viewer";
 import type { AtlasTask, StreamEvent } from "./hooks/use-atlas-agent";
 
 interface TaskArtifactProps {
@@ -35,26 +35,16 @@ function getTaskStatus(state: AtlasTask["state"]) {
 
 export function TaskArtifact({ task, ephemeralEvents = [], onClose }: TaskArtifactProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const { id: taskId, agentId: agentName, state: taskState, context: storedEvents = [], result } = task;
+  const { id: taskId, agentId: agentName, state: taskState, context: storedEvents = [] } = task;
   const status = getTaskStatus(taskState);
-  const isComplete = taskState === "completed" || taskState === "pending-user-feedback";
-  const isFailed = taskState === "failed";
   const isRunning = taskState === "in-progress" || taskState === "pending";
 
-  // Merge stored + ephemeral events, sorted by timestamp
-  const allEvents = [...storedEvents, ...ephemeralEvents].sort((a: any, b: any) => 
-    (a.timestamp || 0) - (b.timestamp || 0)
-  );
-
+  // Auto-scroll to bottom on new events
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
-  }, [allEvents.length]);
-
-  const lastEvent = allEvents[allEvents.length - 1] as any;
-  const lastRaw = lastEvent?.data?.text || lastEvent?.data?.content || lastEvent?.data?.finalText || result;
-  const lastText = typeof lastRaw === 'string' ? lastRaw : (isRunning ? "Processing..." : "");
+  }, [storedEvents.length, ephemeralEvents.length]);
 
   return (
     <Artifact className="h-full w-full">
@@ -79,83 +69,13 @@ export function TaskArtifact({ task, ephemeralEvents = [], onClose }: TaskArtifa
         </div>
       </ArtifactHeader>
       <ArtifactContent className="p-0 flex flex-col overflow-hidden">
-        <div ref={contentRef} className="font-mono text-sm flex-1 overflow-auto whitespace-pre-wrap break-words p-4">
-          {allEvents.length === 0 ? (
-            <span className={cn(
-              "text-muted-foreground",
-              isRunning && "animate-pulse"
-            )}>
-              {isComplete ? (result || "Task completed.") :
-               isFailed ? (result || "Task failed.") :
-               "Waiting for output..."}
-            </span>
-          ) : (
-            // Accumulate consecutive message chunks by role
-            (() => {
-              const blocks: { role: string; text: string; type: string }[] = [];
-              
-              for (const event of allEvents) {
-                const evt = event as any;
-                const data = evt.data || evt;
-                let rawText = data.text || data.content || data.finalText;
-                if (rawText && typeof rawText === 'object' && rawText.text) {
-                  rawText = rawText.text;
-                }
-                const text = typeof rawText === 'string' ? rawText : '';
-                if (!text) continue;
-                
-                const role = data.role || 'assistant';
-                const type = evt.type || 'message';
-                const lastBlock = blocks[blocks.length - 1];
-                
-                // Combine consecutive messages from same role
-                if (lastBlock && lastBlock.role === role && type === 'message') {
-                  lastBlock.text += text;
-                } else {
-                  blocks.push({ role, text, type });
-                }
-              }
-              
-              return blocks.map((block, i) => {
-                const trimmed = block.text.trim();
-                if (!trimmed) return null;
-                
-                const isUser = block.role === 'user';
-                const isCompletion = block.type === 'completion';
-                const isFirst = i === 0;
-                
-                return (
-                  <div key={i}>
-                    {/* Divider line between messages */}
-                    {!isFirst && (
-                      <div className="border-t border-border/50 my-3" />
-                    )}
-                    <div className={cn(
-                      "py-1",
-                      isUser 
-                        ? "text-primary font-medium" 
-                        : isCompletion 
-                          ? "text-muted-foreground italic" 
-                          : "text-foreground"
-                    )}>
-                      {isUser && (
-                        <span className="text-muted-foreground mr-2">{">"}</span>
-                      )}
-                      {trimmed}
-                    </div>
-                  </div>
-                );
-              });
-            })()
-          )}
+        <div ref={contentRef} className="flex-1 overflow-auto p-4">
+          <TaskEventViewer
+            storedEvents={storedEvents}
+            ephemeralEvents={ephemeralEvents}
+            isRunning={isRunning}
+          />
         </div>
-        {isRunning && lastText && (
-          <div className="border-t border-border/50 mt-2 p-4">
-            <div className="text-muted-foreground animate-pulse">
-              <Shimmer>{lastText}</Shimmer>
-            </div>
-          </div>
-        )}
       </ArtifactContent>
     </Artifact>
   );
