@@ -45,27 +45,13 @@ class BifrostService {
             name: email || `user-${userId}`,
             provider_configs: [
               {
-                provider: "groq",
-                weight: 0.33,
-                allowed_models: [],
-              },
-              {
-                provider: "openrouter",
-                weight: 0.33,
-                allowed_models: [],
-              },
-              {
-                provider: "anthropic",
+                provider: "Basten",
                 weight: 0.33,
                 allowed_models: [],
               },
             ],
             mcp_configs: [],
-            key_ids: [
-              "79ba6a29-6d00-48a0-b0b1-38ce4d0d3811",
-              "275e18a8-af49-41b3-b5f8-1d4ec05e3c04",
-              "edd224e4-892f-49c0-a469-267e8c0a8b01",
-            ],
+            key_ids: ["c5c5f39a-571d-4af6-a0ab-2e9fbf77a295"],
             is_active: true,
             rate_limit: {
               token_max_limit: budgetLimit || 2000000,
