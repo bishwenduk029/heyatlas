@@ -85,7 +85,7 @@ export function MessageList({
                     "h-10 w-10 shrink-0 shadow-sm",
                     msg.role === "user" 
                       ? "bg-[#5865f2]" 
-                      : "bg-white ring-1 ring-border"
+                      : "bg-[#23a55a]"
                   )}
                 >
                   {msg.role === "user" ? (
@@ -97,13 +97,14 @@ export function MessageList({
                     </>
                   ) : (
                     <>
-                      <AvatarImage src="/logo.svg" alt="Atlas" className="p-1.5" />
-                      <AvatarFallback className="bg-white">
+                      <AvatarImage src="/logo.svg" alt="Atlas" className="p-2 brightness-0 invert" />
+                      <AvatarFallback className="bg-[#23a55a]">
                         <Image
                           src="/logo.svg"
                           alt="Atlas"
                           width={24}
                           height={24}
+                          className="brightness-0 invert"
                         />
                       </AvatarFallback>
                     </>
