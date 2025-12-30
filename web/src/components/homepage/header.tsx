@@ -34,6 +34,10 @@ const navigationItems: NavItem[] = [
     title: "Chat",
     href: "/chat",
   },
+  {
+    title: "Features",
+    href: "/#features",
+  },
   // {
   //   title: "Pricing",
   //   href: "/pricing",
@@ -54,16 +58,12 @@ const navigationItems: NavItem[] = [
 
 const mobileNavItems: NavItem[] = [
   {
-    title: "Voice Assistant",
+    title: "Chat",
     href: "/chat",
   },
   {
     title: "Features",
-    href: "/features",
-  },
-  {
-    title: "Pricing",
-    href: "/pricing",
+    href: "/#features",
   },
 ];
 
