@@ -78,7 +78,7 @@ export function MessageList({
             {messages.map((msg, index) => (
               <div
                 key={msg.id}
-                className="flex items-start gap-4 p-4 border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
+                className="flex items-start gap-4 p-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
               >
                 <Avatar 
                   className={cn(
@@ -96,18 +96,15 @@ export function MessageList({
                       </AvatarFallback>
                     </>
                   ) : (
-                    <>
-                      <AvatarImage src="/logo.svg" alt="Atlas" className="p-2 brightness-0 invert" />
-                      <AvatarFallback className="bg-[#23a55a]">
-                        <Image
-                          src="/logo.svg"
-                          alt="Atlas"
-                          width={24}
-                          height={24}
-                          className="brightness-0 invert"
-                        />
-                      </AvatarFallback>
-                    </>
+                    <div className="bg-[#23a55a] flex h-full w-full items-center justify-center p-2">
+                      <Image
+                        src="/logo.svg"
+                        alt="Atlas"
+                        width={24}
+                        height={24}
+                        className="brightness-0 invert"
+                      />
+                    </div>
                   )}
                 </Avatar>
                 <div className="flex flex-1 flex-col">
