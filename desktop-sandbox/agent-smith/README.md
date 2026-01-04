@@ -1,6 +1,7 @@
 <div align="center">
   <h1>⚡ agent-smith</h1>
-  <p>AI Agent powered by <a href="https://voltagent.dev">VoltAgent</a></p>
+  <p>Multi-Agent Workflow System powered by <a href="https://voltagent.dev">VoltAgent</a></p>
+  <p><em>Intelligent workflow orchestration for document processing, web research, and automation</em></p>
   
   <p>
     <a href="https://github.com/voltagent/voltagent"><img src="https://img.shields.io/badge/built%20with-VoltAgent-blue" alt="Built with VoltAgent" /></a>
@@ -24,12 +25,25 @@
 git clone <your-repo-url>
 cd agent-smith
 
-# Install dependencies
-npm install
+# Install Node.js dependencies
+pnpm install
 
 # Copy environment variables
 cp .env.example .env
+
+# Install Python MCP servers (for Office document support)
+pip install office-powerpoint-mcp-server office-word-mcp-server
+
+# Install Pandoc (for format conversion)
+# macOS
+brew install pandoc
+# Ubuntu/Debian
+sudo apt-get install pandoc
+# Windows
+choco install pandoc
 ```
+
+📖 **See [SETUP.md](./SETUP.md) for detailed setup instructions and troubleshooting**
 
 ### Configuration
 
@@ -48,31 +62,61 @@ OPENAI_API_KEY=your-api-key-here
 
 ```bash
 # Development mode (with hot reload)
-npm run dev
+pnpm dev
 
 # Production build
-npm run build
+pnpm build
 
 # Start production server
-npm start
+pnpm start
 ```
 
 ## 🎯 Features
 
-This VoltAgent application includes:
+### Multi-Agent Workflow System
 
-- **AI Agent**: Powered by OpenAI (GPT-4o-mini)
-- **Workflows**: Pre-configured expense approval workflow
-- **Memory**: Built-in conversation history
-- **Tools**: Extensible tool system
+Agent Smith is a sophisticated multi-agent system that solves complex computational problems through intelligent agent coordination:
+
+- **🎭 Workflow Orchestrator**: PlanAgent that analyzes tasks and delegates to specialized subagents
+- **📄 Document Processing**: Convert PDFs, Word docs, Excel to Markdown or other formats
+- **🌐 Web Research**: Automated browser-based research and data extraction
+- **📊 Presentation Creation**: Generate PowerPoint presentations from content
+- **📝 Document Writing**: Create formatted Word documents
+- **🔄 Format Conversion**: Transform between various document formats using Pandoc
+
+### Specialized Subagents
+
+1. **Markdown Converter** - Microsoft MarkItDown MCP for document-to-Markdown conversion
+2. **Browser Automation** - Vibium MCP for web automation (forms, navigation, research, data extraction)
+3. **Presentation Creator** - PowerPoint generation and editing
+4. **Document Writer** - Word document creation and formatting
+5. **Format Converter** - Pandoc-based universal format conversion
+
+### Example Workflows
+
+- **PDF → PowerPoint**: Extract content and create presentations
+- **Web Research → Document**: Research topics and generate reports
+- **Form Automation**: Fill and submit web forms programmatically
+- **Data Extraction → Report**: Scrape web data and generate documents
+- **Multi-step Web Workflows**: Login, navigate, extract, document
+- **Document Transformation**: Convert between formats intelligently
+
+📖 **See [WORKFLOW_ARCHITECTURE.md](./WORKFLOW_ARCHITECTURE.md) for detailed architecture and workflow patterns**
+
+### Core Features
+
+- **AI-Powered Planning**: Automatic workflow planning with task decomposition
+- **Memory & Context**: Built-in conversation history and context sharing
 - **Type Safety**: Full TypeScript support
+- **Extensible**: Easy to add new MCP servers and subagents
+- **Production-Ready**: Docker support and comprehensive error handling
 
 ## 🔍 VoltOps Platform
 
 ### Local Development
 The VoltOps Platform provides real-time observability for your agents during development:
 
-1. **Start your agent**: Run `npm run dev`
+1. **Start your agent**: Run `pnpm dev`
 2. **Open console**: Visit [console.voltagent.dev](https://console.voltagent.dev)
 3. **Auto-connect**: The console connects to your local agent at `http://localhost:3141`
 
@@ -113,39 +157,40 @@ agent-smith/
 └── tsconfig.json
 ```
 
-## 🧪 Testing Workflows
+## 🧪 Example Workflows
 
-The included expense approval workflow has test scenarios:
+### Workflow 1: PDF to PowerPoint
+```
+User: "Convert my research.pdf to a presentation"
 
-### Scenario 1: Auto-approved (< $500)
-```json
-{
-  "employeeId": "EMP-123",
-  "amount": 250,
-  "category": "office-supplies",
-  "description": "New laptop mouse and keyboard"
-}
+System:
+1. Delegates to markdown-converter: PDF → Markdown
+2. Delegates to presentation-creator: Markdown → PowerPoint
+3. Returns: professional_presentation.pptx
 ```
 
-### Scenario 2: Manager approval required ($500-$5000)
-```json
-{
-  "employeeId": "EMP-456",
-  "amount": 3500,
-  "category": "travel",
-  "description": "Conference registration and hotel"
-}
+### Workflow 2: Web Research to Document
+```
+User: "Create a report about quantum computing"
+
+System:
+1. Delegates to browser-researcher: Research topic
+2. Delegates to document-writer: Create formatted report
+3. Returns: quantum_computing_report.docx
 ```
 
-### Scenario 3: Director approval required (> $5000)
-```json
-{
-  "employeeId": "EMP-789",
-  "amount": 15000,
-  "category": "equipment",
-  "description": "New server hardware"
-}
+### Workflow 3: Complex Multi-Step
 ```
+User: "Research AI trends and create a presentation"
+
+System:
+1. Delegates to browser-researcher: Research current AI trends
+2. Analyzes and structures findings
+3. Delegates to presentation-creator: Generate slide deck
+4. Returns: ai_trends_2026.pptx with data-backed insights
+```
+
+📖 **See [WORKFLOW_ARCHITECTURE.md](./WORKFLOW_ARCHITECTURE.md) for more workflow patterns**
 
 ## 🐳 Docker Deployment
 
@@ -166,10 +211,10 @@ docker-compose up
 
 ### Available Scripts
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm start` - Run production build
-- `npm run volt` - VoltAgent CLI tools
+- `pnpm dev` - Start development server with hot reload
+- `pnpm build` - Build for production
+- `pnpm start` - Run production build
+- `pnpm volt` - VoltAgent CLI tools
 
 ### Adding Custom Tools
 
@@ -231,10 +276,23 @@ export const myWorkflow = createWorkflowChain({
 
 ## 📚 Resources
 
+### Project Documentation
+- **[WORKFLOW_ARCHITECTURE.md](./WORKFLOW_ARCHITECTURE.md)** - Complete architecture guide and workflow patterns
+- **[SETUP.md](./SETUP.md)** - Detailed setup instructions and troubleshooting
+
+### VoltAgent Resources
 - **Documentation**: [voltagent.dev/docs](https://voltagent.dev/docs/)
+- **Sub-agents Guide**: [voltagent.dev/docs/agents/sub-agents](https://voltagent.dev/docs/agents/sub-agents/)
+- **PlanAgent Guide**: [voltagent.dev/docs/agents/plan-agent](https://voltagent.dev/docs/agents/plan-agent/)
 - **Examples**: [github.com/VoltAgent/voltagent/tree/main/examples](https://github.com/VoltAgent/voltagent/tree/main/examples)
 - **Discord**: [Join our community](https://s.voltagent.dev/discord)
-- **Blog**: [voltagent.dev/](https://voltagent.dev/blog/)
+
+### MCP Server Resources
+- **MarkItDown**: [github.com/microsoft/markitdown](https://github.com/microsoft/markitdown)
+- **Vibium**: [github.com/VibiumDev/vibium](https://github.com/VibiumDev/vibium)
+- **PowerPoint MCP**: [github.com/GongRzhe/Office-PowerPoint-MCP-Server](https://github.com/GongRzhe/Office-PowerPoint-MCP-Server)
+- **Word MCP**: [github.com/GongRzhe/Office-Word-MCP-Server](https://github.com/GongRzhe/Office-Word-MCP-Server)
+- **Pandoc MCP**: [github.com/vivekVells/mcp-pandoc](https://github.com/vivekVells/mcp-pandoc)
 
 ## 🤝 Contributing
 

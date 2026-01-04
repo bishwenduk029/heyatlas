@@ -15,17 +15,17 @@
     "volt": "volt"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.88",
-    "@ai-sdk/openai-compatible": "^1.0.29",
-    "@voltagent/cli": "^0.1.10",
-    "@voltagent/core": "^1.0.0",
-    "@voltagent/logger": "^1.0.0",
-    "@voltagent/server-hono": "^1.0.0",
-    "@voltagent/serverless-hono": "^1.0.10",
-    "ai": "^5.0.114",
+    "@ai-sdk/openai": "^3.0.2",
+    "@ai-sdk/openai-compatible": "^2.0.2",
+    "@voltagent/cli": "^0.1.20",
+    "@voltagent/core": "^2.0.2",
+    "@voltagent/logger": "^2.0.2",
+    "@voltagent/server-hono": "^2.0.2",
+    "@voltagent/serverless-hono": "^2.0.2",
+    "ai": "^6.0.6",
     "dotenv": "^16.4.7",
-    "partyserver": "^0.0.75",
-    "zod": "^3.25.76"
+    "partyserver": "^0.1.0",
+    "zod": "^4.3.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
