@@ -60,7 +60,7 @@ export const PRODUCT_TIERS: PricingTier[] = [
       { name: "Full conversation memory", included: true },
       { name: "Terminal agent connections", included: true },
       { name: "Web search", included: true },
-      { name: "Priority support", included: true },
+      { name: "Sandbox desktop (VNC)", included: true },
     ],
     pricing: {
       creem: {
