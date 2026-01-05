@@ -86,36 +86,54 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
       // Stream prompt to ACP agent
       const result = agent.stream(prompt);
       const parts: UIMessagePart[] = [];
+      const toolCalls = new Map<string, UIMessagePart>();
 
-      // Stream for real-time UI updates
+      // Iterate toUIMessageStream once for BOTH real-time UI and building parts
       for await (const chunk of result.toUIMessageStream()) {
+        // Broadcast for real-time UI
         await tunnel.broadcastTaskEvent(task.id, {
           type: "ui_stream_chunk",
           timestamp: Date.now(),
           data: chunk as Record<string, unknown>,
         });
-      }
 
-      // Use streamText result for storage (promises resolve after stream ends)
-      const text = await result.text;
-      const toolCalls = await result.toolCalls;
-      const toolResults = await result.toolResults;
-      
-      if (text) {
-        parts.push({ type: "text", text });
-      }
+        // Build parts in stream order (text and tools interspersed)
+        switch (chunk.type) {
+          case "text-delta": {
+            const existingText = parts.find(p => p.type === "text");
+            if (existingText && "text" in existingText) {
+              existingText.text += chunk.delta || "";
+            } else {
+              parts.push({ type: "text", text: chunk.delta || "" });
+            }
+            break;
+          }
 
-      // Convert tool calls + results to UIMessage parts
-      for (const toolCall of toolCalls) {
-        const tr = toolResults.find(r => r.toolCallId === toolCall.toolCallId);
-        parts.push({
-          type: "dynamic-tool",
-          toolCallId: toolCall.toolCallId,
-          toolName: toolCall.toolName,
-          state: tr ? "output-available" as const : "input-available" as const,
-          input: toolCall.input,
-          output: tr?.output,
-        });
+          case "tool-input-available":
+            toolCalls.set(chunk.toolCallId, {
+              type: "dynamic-tool",
+              toolCallId: chunk.toolCallId,
+              toolName: chunk.toolName,
+              state: "input-available" as const,
+              input: chunk.input,
+            });
+            parts.push(toolCalls.get(chunk.toolCallId)!);
+            break;
+
+          case "tool-output-available":
+            const existing = toolCalls.get(chunk.toolCallId);
+            if (existing) {
+              const updated = {
+                ...existing,
+                state: "output-available" as const,
+                output: chunk.output,
+              };
+              toolCalls.set(chunk.toolCallId, updated);
+              const idx = parts.findIndex(p => p.type === "dynamic-tool" && p.toolCallId === chunk.toolCallId);
+              if (idx >= 0) parts[idx] = updated;
+            }
+            break;
+        }
       }
 
       // Store as UIMessage in task context
