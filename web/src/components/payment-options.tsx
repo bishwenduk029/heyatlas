@@ -14,7 +14,6 @@ import {
   Check,
   Loader2,
   LogIn,
-  Star,
   Clock,
 } from "lucide-react";
 import { PRODUCT_TIERS, type PricingTier } from "@/lib/config/products";
@@ -140,14 +139,6 @@ export function PricingSection({ className }: { className?: string }) {
                 tier.isComingSoon && "opacity-60 grayscale",
               )}
             >
-              {tier.isPopular && !tier.isComingSoon && (
-                <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
-                  <div className="from-primary to-primary/80 text-primary-foreground flex items-center gap-1.5 rounded-full bg-gradient-to-r px-4 py-1.5 text-xs font-semibold shadow-lg">
-                    <Star className="h-3 w-3 fill-current" />
-                    Most Popular
-                  </div>
-                </div>
-              )}
               {tier.isComingSoon && (
                 <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
                   <div className="bg-muted text-muted-foreground flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg">
