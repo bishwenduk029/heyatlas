@@ -1,120 +1,78 @@
 /**
- * Connect command - Connect local agent to Atlas via ACP
+ * Connect command - Connect local agent to Atlas via ACP AI Provider
  *
- * Uses the Agent Client Protocol (ACP) for unified communication
- * with all compatible agents (opencode, claude, goose, gemini, etc.)
+ * Simplified implementation using @mcpc-tech/acp-ai-provider.
+ * Streams UIMessage format via toUIMessageStream() for native AI SDK UI rendering.
  */
 
 import { login } from "../auth";
 import { AtlasTunnel, type Task } from "../tunnel";
 import {
-  ACPAgent,
+  ACPProviderAgent,
   isACPAgent,
   getACPCommand,
   type ACPAgentType,
-} from "../agents/acp";
-import type { StreamEvent } from "../agents/types";
+} from "../agents/acp-provider";
 import type { AgentType } from "../agents/config";
 
 interface ConnectOptions {
   openBrowser?: boolean;
 }
 
+// UIMessage part types for task context storage
+interface UIMessagePart {
+  type: string;
+  [key: string]: unknown;
+}
+
 export async function connect(agentType: AgentType, options: ConnectOptions = {}) {
   const credentials = await login();
 
-  // Check if agent supports ACP
   if (!isACPAgent(agentType)) {
-    console.error(`❌ Agent '${agentType}' is not ACP-compatible`);
-    console.error(
-      `   Supported agents: opencode, claude, goose, gemini, codex, etc.`,
-    );
+    console.error(`Error: Agent '${agentType}' is not ACP-compatible`);
+    console.error(`Supported agents: opencode, claude, goose, gemini, codex, etc.`);
     process.exit(1);
   }
 
-  // Create ACP agent
-  const agent = new ACPAgent(agentType as ACPAgentType);
+  // Create ACP provider agent
+  const agent = new ACPProviderAgent(agentType as ACPAgentType, {
+    cwd: process.cwd(),
+  });
 
   // Check availability
   const available = await agent.isAvailable();
   if (!available) {
     const cmd = getACPCommand(agentType as ACPAgentType);
-    console.error(`💀 Agent '${agentType}' is not installed or not in PATH`);
-    console.error(`   Command: ${cmd.join(" ")}`);
+    console.error(`Error: Agent '${agentType}' is not installed or not in PATH`);
+    console.error(`Command: ${cmd.join(" ")}`);
     process.exit(1);
   }
 
-  console.log(`🤖 Agent: ${agentType} (via ACP)`);
+  console.log(`Agent: ${agentType} (via ACP AI Provider)`);
+
+  // Initialize ACP provider
+  try {
+    await agent.init();
+    console.log(`ACP provider initialized`);
+  } catch (error) {
+    console.error(`Failed to initialize agent: ${error}`);
+    process.exit(1);
+  }
 
   // Create Atlas tunnel
   const tunnel = new AtlasTunnel({
     host: process.env.ATLAS_AGENT_HOST || "agent.heyatlas.app",
     token: credentials.accessToken,
-    interactive: true, // ACP is always interactive
+    interactive: true,
   });
-
-  // Track current task for event routing
-  let currentTaskId: string | null = null;
-  let messageBuffer = ""; // Buffer for streaming message chunks
-
-  // Event handler - broadcasts all events for real-time UI
-  // Storage happens only when prompt completes (see onNewTask handler)
-  const handleEvent = async (event: StreamEvent) => {
-    if (!currentTaskId || !tunnel.isConnected) return;
-
-    // Handle message events - buffer for final storage
-    if (event.type === "message") {
-      const content = String(event.data.content || "");
-      if (event.data.delta) {
-        // Streaming chunk - accumulate
-        messageBuffer += content;
-      } else {
-        // Complete message from ACP (after flushMessage) - use directly
-        messageBuffer = content;
-      }
-    }
-
-    // Broadcast ALL events for real-time UI display (ephemeral)
-    const eventWithTimestamp: StreamEvent = {
-      ...event,
-      timestamp: event.timestamp || Date.now(),
-    };
-    tunnel
-      .broadcastTaskEvent(currentTaskId, eventWithTimestamp)
-      .catch(() => {});
-  };
-
-  // Start ACP agent (session created per-task)
-  try {
-    await agent.start({
-      cwd: process.cwd(),
-      onEvent: handleEvent,
-      onError: (error) => {
-        console.error(`❌ Agent error: ${error.message}`);
-      },
-    });
-    console.log(`✅ ACP agent started`);
-  } catch (error) {
-    console.error(`❌ Failed to start agent: ${error}`);
-    process.exit(1);
-  }
 
   // Handle tasks from Atlas
   tunnel.onNewTask(async (task: Task) => {
-    currentTaskId = task.id;
-    messageBuffer = "";
-
-    // Build prompt with context for ACP agent
     const { prompt, latestUserMessage } = buildPromptWithContext(task);
     const isNewTask = task.state === "new";
-    console.log(
-      `📥 ${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`,
-    );
+    console.log(`${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`);
 
-    // Create new session for this task
-    const sessionId = await agent.createSession();
-
-    // Update task state and store latest user message
+    // Update task state
     await tunnel.updateTask(task.id, { state: "in-progress" });
     await tunnel.appendContext(task.id, [
       {
@@ -125,42 +83,95 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
     ]);
 
     try {
-      // Send prompt to ACP agent
-      const stopReason = await agent.prompt(prompt);
+      // Stream prompt to ACP agent using toUIMessageStream for AI SDK UI compatibility
+      const result = agent.stream(prompt);
+      const uiStream = result.toUIMessageStream();
+      const collectedParts: UIMessagePart[] = [];
+      let accumulatedText = "";
+      const toolCalls = new Map<string, UIMessagePart>();
 
-      // Store final assistant message (persistent)
-      const finalContent = messageBuffer.trim();
-      if (finalContent.length > 0) {
+      // Process the UI message stream and broadcast chunks
+      for await (const chunk of uiStream) {
+        // Broadcast each chunk for real-time UI updates
+        await tunnel.broadcastTaskEvent(task.id, {
+          type: "ui_stream_chunk",
+          timestamp: Date.now(),
+          data: chunk as Record<string, unknown>,
+        });
+
+        // Collect parts for final storage based on stream protocol types
+        switch (chunk.type) {
+          case "text-delta":
+            // Accumulate text deltas
+            accumulatedText += chunk.delta || "";
+            break;
+
+          case "tool-input-available":
+            // Tool call with complete input
+            toolCalls.set(chunk.toolCallId, {
+              type: "dynamic-tool",
+              toolCallId: chunk.toolCallId,
+              toolName: chunk.toolName,
+              state: "input-available",
+              input: chunk.input,
+            });
+            break;
+
+          case "tool-output-available":
+            // Tool result - update existing tool call
+            const existing = toolCalls.get(chunk.toolCallId);
+            if (existing) {
+              toolCalls.set(chunk.toolCallId, {
+                ...existing,
+                state: "output-available",
+                output: chunk.output,
+              });
+            }
+            break;
+        }
+      }
+
+      // Build final parts array
+      if (accumulatedText) {
+        collectedParts.push({ type: "text", text: accumulatedText });
+      }
+      for (const toolPart of toolCalls.values()) {
+        collectedParts.push(toolPart);
+      }
+
+      // Store collected parts as UIMessage format in task context
+      if (collectedParts.length > 0) {
         await tunnel.appendContext(task.id, [
           {
-            type: "message",
+            type: "ui_message",
             timestamp: Date.now(),
-            data: { role: "assistant", content: finalContent },
+            data: {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              parts: collectedParts,
+            },
           },
         ]);
       }
-      messageBuffer = "";
 
       // Mark task complete
       await tunnel.updateTask(task.id, {
         state: "completed",
-        result: stopReason,
+        result: "end_turn",
       });
-      console.log(`✅ Task completed`);
+      console.log(`Task completed`);
     } catch (error) {
-      console.error(`❌ Task failed: ${error}`);
+      console.error(`Task failed: ${error}`);
       await tunnel.updateTask(task.id, {
         state: "failed",
         result: String(error),
       });
-    } finally {
-      currentTaskId = null;
     }
   });
 
   // Connect to Atlas
   await tunnel.connect(credentials.userId, agentType);
-  console.log(`🔗 Tunnel established`);
+  console.log(`Tunnel established`);
 
   // Open browser
   const voiceUrl = `${process.env.HEYATLAS_API || "https://www.heyatlas.app"}/chat`;
@@ -177,14 +188,14 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
     } catch {}
   }
 
-  console.log(`\n✨ HeyAtlas connected to ${agentType}`);
-  console.log(`🌐 Talk here: ${voiceUrl}`);
-  console.log(`\n🛑 Press Ctrl+C to disconnect\n`);
+  console.log(`\nHeyAtlas connected to ${agentType}`);
+  console.log(`Talk here: ${voiceUrl}`);
+  console.log(`\nPress Ctrl+C to disconnect\n`);
 
   // Cleanup on exit
   process.on("SIGINT", async () => {
-    console.log("\n👋 Disconnecting...\n");
-    await agent.stop();
+    console.log("\nDisconnecting...\n");
+    agent.cleanup();
     await tunnel.disconnect();
     process.exit(0);
   });
@@ -194,7 +205,6 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
 
 /**
  * Build prompt with context for ACP agent
- * Returns full prompt (with context) and the latest user message (for storage)
  */
 function buildPromptWithContext(task: Task): {
   prompt: string;
@@ -202,14 +212,28 @@ function buildPromptWithContext(task: Task): {
 } {
   const context = task.context || [];
 
-  // Extract messages from context
+  // Extract messages from context (supports both old message format and new ui_message format)
   const messages: { role: string; content: string }[] = [];
   for (const event of context) {
-    const e = event as any;
-    if (e.type === "message" && e.data?.role && e.data?.content) {
-      messages.push({ role: e.data.role, content: e.data.content });
+    const e = event as unknown as Record<string, unknown>;
+    if (e.type === "ui_message" && e.data) {
+      // New UIMessage format - extract text from parts
+      const data = e.data as Record<string, unknown>;
+      const parts = data.parts as Array<Record<string, unknown>> | undefined;
+      if (parts) {
+        const textPart = parts.find(p => p.type === "text");
+        if (textPart && textPart.text) {
+          messages.push({ role: String(data.role || "assistant"), content: String(textPart.text) });
+        }
+      }
+    } else if (e.type === "message" && e.data) {
+      // Legacy message format
+      const data = e.data as Record<string, unknown>;
+      if (data.role && data.content) {
+        messages.push({ role: String(data.role), content: String(data.content) });
+      }
     } else if (e.role && e.content) {
-      messages.push({ role: e.role, content: e.content });
+      messages.push({ role: String(e.role), content: String(e.content) });
     }
   }
 

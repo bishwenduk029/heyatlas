@@ -1,10 +1,9 @@
 export * from "./types";
 export * from "./config";
 export { 
-  ACPAgent, 
+  ACPProviderAgent, 
   isACPAgent, 
   getACPCommand, 
   type ACPAgentType, 
-  type ACPEventCallback, 
-  type ACPRunOptions 
-} from "./acp";
+  type ACPProviderAgentOptions,
+} from "./acp-provider";

@@ -15,7 +15,7 @@ import { TaskList } from "./task-list";
 import { TaskArtifact } from "./task-artifact";
 import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
-import type { AtlasTask, StreamEvent } from "./hooks/use-atlas-agent";
+import type { AtlasTask } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
 
 interface SessionLayoutProps {
@@ -34,7 +34,7 @@ interface SessionLayoutProps {
   isChatLoading?: boolean;
   isChatConnected?: boolean;
   tasks?: AtlasTask[];
-  getTaskEphemeralEvents?: (taskId: string) => StreamEvent[];
+  getTaskUIMessage?: (taskId: string) => UIMessage | null;
   connectedAgentId?: string | null;
   compressing?: boolean;
 }
@@ -55,7 +55,7 @@ export function SessionLayout({
   isChatLoading,
   isChatConnected,
   tasks = [],
-  getTaskEphemeralEvents,
+  getTaskUIMessage,
   connectedAgentId,
   compressing,
 }: SessionLayoutProps) {
@@ -247,7 +247,7 @@ export function SessionLayout({
             <div className="flex h-full flex-1 flex-col">
               <TaskArtifact
                 task={selectedTask}
-                ephemeralEvents={getTaskEphemeralEvents?.(selectedTask.id) || []}
+                uiMessage={getTaskUIMessage?.(selectedTask.id)}
                 onClose={() => {
                   setUserDismissedTaskId(selectedTask.id);
                   setSelectedTaskId(null);

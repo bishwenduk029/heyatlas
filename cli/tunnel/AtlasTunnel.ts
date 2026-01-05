@@ -90,21 +90,25 @@ export class AtlasTunnel {
     this.agentId = agentId;
 
     const host = this.options.host || DEFAULT_HOST;
-    const headers: Record<string, string> = {
-      "X-Agent-Id": agentId,
-    };
-    if (this.options.interactive) {
-      headers["X-Interactive-Mode"] = "true";
-    }
 
     return new Promise((resolve, reject) => {
+      // Build query params including headers as query params (AgentClient doesn't support headers directly)
+      const query: Record<string, string> = {};
+      if (this.options.token) {
+        query.token = this.options.token;
+      }
+      // Pass agent headers as query params - the server extracts these
+      query["X-Agent-Id"] = agentId;
+      if (this.options.interactive) {
+        query["X-Interactive-Mode"] = "true";
+      }
+
       this.client = new AgentClient<AgentState>({
         agent: "atlas-agent",
         name: userId,
         host,
-        options: { headers },
         onStateUpdate: (state, source) => this.handleStateUpdate(state, source),
-        ...(this.options.token && { query: { token: this.options.token } }),
+        query,
       });
 
       const timeout = setTimeout(() => {

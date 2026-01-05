@@ -8,7 +8,6 @@ export {
   AtlasTunnel,
   type AtlasTunnelOptions,
   type Task,
-  type TaskUpdate,
   type TaskCallback,
   type AgentState,
 } from "./AtlasTunnel";

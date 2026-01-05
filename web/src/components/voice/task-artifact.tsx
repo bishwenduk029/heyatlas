@@ -10,12 +10,21 @@ import {
   ArtifactContent,
 } from "@/components/ai-elements/artifact";
 import { cn } from "@/lib/utils";
-import { TaskEventViewer } from "./task-event-viewer";
-import type { AtlasTask, StreamEvent } from "./hooks/use-atlas-agent";
+import { MessageResponse } from "@/components/ai-elements/message";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+import type { AtlasTask } from "./hooks/use-atlas-agent";
+import type { UIMessage } from "@ai-sdk/react";
 
 interface TaskArtifactProps {
   task: AtlasTask;
-  ephemeralEvents?: StreamEvent[];
+  uiMessage?: UIMessage | null;
   onClose: () => void;
 }
 
@@ -33,18 +42,18 @@ function getTaskStatus(state: AtlasTask["state"]) {
   }
 }
 
-export function TaskArtifact({ task, ephemeralEvents = [], onClose }: TaskArtifactProps) {
+export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const { id: taskId, agentId: agentName, state: taskState, context: storedEvents = [] } = task;
+  const { id: taskId, agentId: agentName, state: taskState } = task;
   const status = getTaskStatus(taskState);
   const isRunning = taskState === "in-progress" || taskState === "pending";
 
-  // Auto-scroll to bottom on new events
+  // Auto-scroll to bottom on new content
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
-  }, [storedEvents.length, ephemeralEvents.length]);
+  }, [uiMessage?.parts?.length]);
 
   return (
     <Artifact className="h-full w-full max-w-full">
@@ -69,12 +78,80 @@ export function TaskArtifact({ task, ephemeralEvents = [], onClose }: TaskArtifa
         </div>
       </ArtifactHeader>
       <ArtifactContent className="p-0 flex flex-col overflow-hidden">
-        <div ref={contentRef} className="flex-1 overflow-auto p-4 min-w-0">
-          <TaskEventViewer
-            storedEvents={storedEvents}
-            ephemeralEvents={ephemeralEvents}
-            isRunning={isRunning}
-          />
+        <div ref={contentRef} className="flex-1 overflow-auto p-4 min-w-0 space-y-3">
+          {uiMessage?.parts?.map((part, i) => {
+            const key = `${uiMessage.id}-${i}`;
+
+            // Handle text parts
+            if (part.type === "text") {
+              return (
+                <MessageResponse
+                  key={key}
+                  className="prose prose-sm dark:prose-invert max-w-none"
+                >
+                  {part.text}
+                </MessageResponse>
+              );
+            }
+
+            // Handle dynamic tool parts (from ACP provider)
+            if (part.type === "dynamic-tool") {
+              const isComplete = part.state === "output-available" || part.state === "output-error";
+              return (
+                <Tool key={key} defaultOpen={isComplete}>
+                  <ToolHeader
+                    type={`tool-${part.toolName}` as `tool-${string}`}
+                    state={part.state}
+                    title={part.toolName}
+                  />
+                  <ToolContent>
+                    <ToolInput input={part.input} />
+                    {isComplete && (
+                      <ToolOutput
+                        output={part.state === "output-available" ? part.output : undefined}
+                        errorText={part.state === "output-error" ? part.errorText : undefined}
+                      />
+                    )}
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            // Handle tool-* parts
+            if (part.type.startsWith("tool-")) {
+              const toolPart = part as {
+                type: `tool-${string}`;
+                toolCallId: string;
+                state: "input-streaming" | "input-available" | "output-available" | "output-error";
+                input?: Record<string, unknown>;
+                output?: unknown;
+                errorText?: string;
+              };
+              const isComplete = toolPart.state === "output-available" || toolPart.state === "output-error";
+              return (
+                <Tool key={key} defaultOpen={isComplete}>
+                  <ToolHeader type={toolPart.type} state={toolPart.state} />
+                  <ToolContent>
+                    <ToolInput input={toolPart.input} />
+                    {isComplete && (
+                      <ToolOutput
+                        output={toolPart.state === "output-available" ? toolPart.output : undefined}
+                        errorText={toolPart.state === "output-error" ? toolPart.errorText : undefined}
+                      />
+                    )}
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            return null;
+          })}
+
+          {isRunning && (!uiMessage?.parts?.length) && (
+            <div className="text-muted-foreground animate-pulse">
+              <Shimmer>Processing...</Shimmer>
+            </div>
+          )}
         </div>
       </ArtifactContent>
     </Artifact>
