@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -16,6 +16,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { RevealButton } from "@/components/ui/reveal-button";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BarVisualizer } from "@/components/ui/bar-visualizer";
+import { VoiceIcon } from "@/components/ui/voice-icon";
 import type { AgentState } from "@/components/ui/bar-visualizer";
 
 
@@ -57,12 +58,19 @@ export function ChatInput({
   compressing = false,
 }: ChatInputProps) {
   const [input, setInput] = useState("");
+  const submitInProgress = useRef(false);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || disabled) return;
+    if (submitInProgress.current) return;
+    submitInProgress.current = true;
     onSend(input.trim());
     setInput("");
+    // Reset after a short delay to prevent duplicate submissions
+    setTimeout(() => {
+      submitInProgress.current = false;
+    }, 100);
   };
 
   // Map agent state to visualizer state
@@ -123,17 +131,19 @@ export function ChatInput({
         <TextareaAutosize
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit();
-            }
-          }}
           minRows={1}
           maxRows={8}
           className="placeholder:text-muted-foreground/50 w-full resize-none bg-transparent px-6 py-4 text-base outline-none"
           placeholder="Send a message..."
           disabled={disabled || isLoading}
+          onKeyDown={(e) => {
+            // Prevent Enter from creating new lines - submit is handled by form onSubmit
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              // Trigger form submission
+              (e.currentTarget.form as HTMLFormElement)?.requestSubmit();
+            }
+          }}
         />
 
         <div className="flex items-center justify-between px-4 pt-1 pb-3">
@@ -222,7 +232,7 @@ export function ChatInput({
                 ) : (
                   // Normal Mode: Single voice button
                   <RevealButton
-                    icon={<Mic className="h-5 w-5" />}
+                    icon={<VoiceIcon />}
                     label="Voice"
                     onClick={() => {
                       if (onRequireAuth) {

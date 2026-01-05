@@ -1,5 +1,5 @@
 /**
- * Warp command - Connect local agent to Atlas via ACP
+ * Connect command - Connect local agent to Atlas via ACP
  *
  * Uses the Agent Client Protocol (ACP) for unified communication
  * with all compatible agents (opencode, claude, goose, gemini, etc.)
@@ -16,12 +16,12 @@ import {
 import type { StreamEvent } from "../agents/types";
 import type { AgentType } from "../agents/config";
 
-interface WarpOptions {
+interface ConnectOptions {
   openBrowser?: boolean;
 }
 
-export async function warp(agentType: AgentType, options: WarpOptions = {}) {
-  console.log("\n✨ Warming up the warp drive...\n");
+export async function connect(agentType: AgentType, options: ConnectOptions = {}) {
+  console.log("\n✨ Connecting to Atlas...\n");
 
   const credentials = await login();
 
@@ -189,7 +189,7 @@ export async function warp(agentType: AgentType, options: WarpOptions = {}) {
 
   // Cleanup on exit
   process.on("SIGINT", async () => {
-    console.log("\n👋 Warping out...\n");
+    console.log("\n👋 Disconnecting...\n");
     await agent.stop();
     await tunnel.disconnect();
     process.exit(0);

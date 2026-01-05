@@ -77,27 +77,27 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
       transition={{ duration: 0.5, delay: index * 0.1 }}
     >
       <Card className="group relative overflow-hidden p-6 transition-all duration-300 hover:shadow-md">
-      <div className="space-y-4">
-        {/* Icon and Category */}
-        <div className="flex items-center justify-between">
-          <div className="bg-primary/10 text-primary group-hover:bg-primary/20 flex h-12 w-12 items-center justify-center rounded-lg transition-all duration-300">
-            <IconComponent className="h-6 w-6" />
+        <div className="space-y-4">
+          {/* Icon and Category */}
+          <div className="flex items-center justify-between">
+            <div className="bg-primary/10 text-primary group-hover:bg-primary/20 flex h-12 w-12 items-center justify-center rounded-lg transition-all duration-300">
+              <IconComponent className="h-6 w-6" />
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {feature.category}
+            </Badge>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            {feature.category}
-          </Badge>
-        </div>
 
-        {/* Content */}
-        <div className="space-y-2">
-          <h3 className="text-foreground text-lg font-semibold">
-            {feature.title}
-          </h3>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {feature.description}
-          </p>
+          {/* Content */}
+          <div className="space-y-2">
+            <h3 className="text-foreground text-lg font-semibold">
+              {feature.title}
+            </h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {feature.description}
+            </p>
+          </div>
         </div>
-      </div>
 
         {/* Hover Arrow */}
         <div className="absolute right-4 bottom-4 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
@@ -110,7 +110,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
 
 export function Features() {
   return (
-    <section id="features" className="bg-background py-24 scroll-mt-20">
+    <section id="features" className="bg-background scroll-mt-20 py-24">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section Header */}
         <motion.div
@@ -126,12 +126,15 @@ export function Features() {
           </Badge>
 
           <h2 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
-            More than an AI
-            <span className="text-primary block">A companion who understands</span>
+            More than an AI,
+            <span className="text-primary block">
+              A companion who understands
+            </span>
           </h2>
 
           <p className="text-muted-foreground mt-6 text-lg">
-            HeyAtlas connects to your world, thinks alongside you, and helps accomplish what matters most. Your personal AI companion.
+            HeyAtlas connects to your world, thinks alongside you, and helps
+            accomplish what matters most. Your personal AI companion.
           </p>
         </motion.div>
 

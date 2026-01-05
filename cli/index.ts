@@ -3,7 +3,7 @@
  */
 
 import { parseArgs } from "util";
-import { warp } from "./commands/warp";
+import { connect } from "./commands/connect";
 import type { AgentType } from "./agents";
 
 // ACP-compatible agents
@@ -36,7 +36,7 @@ function printHelp() {
 heyatlas - Tunnel local AI agents to the cloud via ACP
 
 Usage:
-  heyatlas warp <agent>    Connect agent to Atlas (via ACP protocol)
+  heyatlas connect <agent>    Connect agent to Atlas (via ACP protocol)
 
 ACP-Compatible Agents:
   ${SUPPORTED_AGENTS.join(", ")}
@@ -51,9 +51,9 @@ Prerequisites:
   - Agent-specific setup (API keys, etc.)
 
 Examples:
-  heyatlas warp opencode   Connect OpenCode via ACP
-  heyatlas warp goose      Connect Goose via ACP
-  heyatlas warp claude     Connect Claude Code via ACP
+  heyatlas connect opencode   Connect OpenCode via ACP
+  heyatlas connect goose      Connect Goose via ACP
+  heyatlas connect claude     Connect Claude Code via ACP
 `);
 }
 
@@ -70,11 +70,11 @@ async function main() {
 
   const command = positionals[0];
 
-  if (command === "warp") {
+  if (command === "connect") {
     const agent = positionals[1];
     if (!agent) {
       console.error("Error: Agent name required");
-      console.error("Usage: heyatlas warp <agent>");
+      console.error("Usage: heyatlas connect <agent>");
       console.error(`Agents: ${SUPPORTED_AGENTS.join(", ")}`);
       process.exit(1);
     }
@@ -85,7 +85,7 @@ async function main() {
       process.exit(1);
     }
 
-    await warp(agent as AgentType, { 
+    await connect(agent as AgentType, { 
       openBrowser: !values["no-browser"],
     });
   } else {

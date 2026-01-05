@@ -25,7 +25,7 @@ export async function GET() {
   const virtualKey = user?.bifrostApiKey
     ? {
         apiKey: user.bifrostApiKey,
-        apiUrl: env.BIFROST_URL || "https://bifrost.heyatlas.app",
+        apiUrl: `${env.BIFROST_URL || "https://bifrost.heyatlas.app"}/v1`,
       }
     : null;
 

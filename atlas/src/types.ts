@@ -8,6 +8,7 @@ export interface Env {
   NIRMANUS_API_KEY: string;
   HEYATLAS_PROVIDER_API_URL: string;
   LLM_MODEL: string;
+  AI_GATEWAY_API_KEY: string;
   PARALLELS_WEB_SEARCH_API?: string;
   PARALLELS_WEB_SEARCH_API_KEY?: string;
   E2B_API_KEY?: string;
@@ -56,7 +57,14 @@ export interface Task {
   // - completed: Task fully done
   // - failed: Task failed
   // - paused: Task paused by user
-  state: "new" | "continue" | "in-progress" | "pending-user-feedback" | "completed" | "failed" | "paused";
+  state:
+    | "new"
+    | "continue"
+    | "in-progress"
+    | "pending-user-feedback"
+    | "completed"
+    | "failed"
+    | "paused";
   context: any[];
   result?: string;
   summary?: string; // Brief summary for voice feedback

@@ -99,6 +99,8 @@ export function SessionLayout({
   );
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [paramsHandled, setParamsHandled] = useState(false);
+  // Track which task ID the user has explicitly closed to prevent auto-reopening
+  const [userDismissedTaskId, setUserDismissedTaskId] = useState<string | null>(null);
 
   // Get live task from tasks array (not a stale snapshot)
   const selectedTask = selectedTaskId
@@ -143,14 +145,15 @@ export function SessionLayout({
   }, [voiceMessages, mcpForms]);
 
   // Auto-open artifact when a new task is created (in-progress state)
+  // Don't auto-open if user has explicitly closed this task
   useEffect(() => {
     const activeTask = tasks.find(
-      (t) => t.state === "in-progress" || t.state === "pending",
+      (t) => (t.state === "in-progress" || t.state === "pending") && t.id !== userDismissedTaskId,
     );
     if (activeTask && !selectedTaskId) {
       setSelectedTaskId(activeTask.id);
     }
-  }, [tasks, selectedTaskId]);
+  }, [tasks, selectedTaskId, userDismissedTaskId]);
 
   // Clear MCP forms on disconnect
   useEffect(() => {
@@ -209,7 +212,10 @@ export function SessionLayout({
         onToggleMute={handleToggleMute}
         showVoiceToggle
         tasks={tasks}
-        onTaskSelect={(task) => setSelectedTaskId(task.id)}
+        onTaskSelect={(task) => {
+          setUserDismissedTaskId(null);
+          setSelectedTaskId(task.id);
+        }}
         compact={compact}
         isVoiceMode={!isChatMode && voiceSessionStarted}
         isMicEnabled={isMicEnabled}
@@ -242,7 +248,10 @@ export function SessionLayout({
               <TaskArtifact
                 task={selectedTask}
                 ephemeralEvents={getTaskEphemeralEvents?.(selectedTask.id) || []}
-                onClose={() => setSelectedTaskId(null)}
+                onClose={() => {
+                  setUserDismissedTaskId(selectedTask.id);
+                  setSelectedTaskId(null);
+                }}
               />
 
               {/* Mobile only: Input at bottom */}
@@ -253,7 +262,10 @@ export function SessionLayout({
                       onSend={onSendMessage}
                       onStop={onStopChat}
                       onToggleVoice={onToggleMode}
-                      onToggleTasks={() => setSelectedTaskId(null)}
+                      onToggleTasks={() => {
+                        setUserDismissedTaskId(null);
+                        setSelectedTaskId(null);
+                      }}
                       isLoading={isChatLoading}
                       disabled={!isChatConnected}
                       showVoiceToggle
@@ -272,7 +284,10 @@ export function SessionLayout({
                       }
                       onToggleChat={onToggleMode}
                       isChatMode={false}
-                      onToggleTasks={() => setSelectedTaskId(null)}
+                      onToggleTasks={() => {
+                        setUserDismissedTaskId(null);
+                        setSelectedTaskId(null);
+                      }}
                       isTasksMode={true}
                       taskCount={tasks.length}
                     />
