@@ -1,17 +1,3 @@
-import type {
-  SubscriptionEntity,
-  CustomerEntity,
-  CheckoutEntity,
-  CustomerLinksEntity as CreemCustomerPortalLink,
-} from "creem/models/components";
-
-export type {
-  SubscriptionEntity,
-  CustomerEntity,
-  CheckoutEntity,
-  CreemCustomerPortalLink,
-};
-
 export type PaymentMode = "subscription" | "one_time";
 export type BillingCycle = "monthly" | "yearly";
 
@@ -47,9 +33,9 @@ export interface CreateCheckoutOptions {
   failureUrl?: string;
 }
 
-// --- Creem Webhook 事件对象详细类型定义 ---
+// --- Payment Provider Webhook Types ---
 
-export type CreemMetadata = {
+export type PaymentMetadata = {
   userId?: string;
   tierId?: string;
   paymentMode?: PaymentMode;
@@ -57,13 +43,13 @@ export type CreemMetadata = {
   [key: string]: unknown;
 };
 
-interface CreemBaseObject {
+export interface PaymentBaseObject {
   id: string;
   customer: string | { id: string };
-  metadata?: CreemMetadata;
+  metadata?: PaymentMetadata;
 }
 
-export interface CreemSubscriptionObject extends CreemBaseObject {
+export interface PaymentSubscriptionObject extends PaymentBaseObject {
   product: string | { id: string };
   status: SubscriptionStatus;
   current_period_start_date: string;
@@ -71,7 +57,7 @@ export interface CreemSubscriptionObject extends CreemBaseObject {
   canceled_at: string | null;
 }
 
-export interface CreemPaymentObject extends CreemBaseObject {
+export interface PaymentTransactionObject extends PaymentBaseObject {
   subscription_id?: string;
   subscription?: string;
   product_id?: string;
@@ -92,8 +78,8 @@ export interface CreemPaymentObject extends CreemBaseObject {
   };
 }
 
-export interface CreemCheckoutObject extends CreemBaseObject {
-  subscription?: CreemSubscriptionObject;
+export interface PaymentCheckoutObject extends PaymentBaseObject {
+  subscription?: PaymentSubscriptionObject;
   order?: {
     id: string;
     transaction: string;
@@ -102,11 +88,11 @@ export interface CreemCheckoutObject extends CreemBaseObject {
   };
 }
 
-export type CreemWebhookPayload = {
+export type PaymentWebhookPayload = {
   id: string;
   eventType: string;
   created_at: number;
-  object: CreemCheckoutObject | CreemSubscriptionObject | CreemPaymentObject;
+  object: PaymentCheckoutObject | PaymentSubscriptionObject | PaymentTransactionObject;
 };
 
 export interface PaymentRecord {
@@ -116,8 +102,8 @@ export interface PaymentRecord {
   currency: string;
   status: string;
   paymentType: string;
-  productId: string; // Changed from tierId to productId to match db
-  tierName: string; // Added missing tierName
+  productId: string;
+  tierName: string;
   createdAt: Date;
   subscriptionId: string | null;
 }

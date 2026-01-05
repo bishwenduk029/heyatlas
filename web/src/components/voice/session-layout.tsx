@@ -344,7 +344,6 @@ export function SessionLayout({
           <DesktopViewer
             vncUrl={vncUrl}
             logUrl={logUrl}
-            userId={userId}
             mobileChatContent={
               <div className="flex h-full flex-col p-2">
                 <ChatInterface

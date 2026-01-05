@@ -59,17 +59,7 @@ services:
   #     # Email service (configure with your Resend API key)
   #     RESEND_API_KEY: your-resend-api-key-here
 
-  #     # Cloudflare R2 Storage (configure with your credentials)
-  #     R2_ENDPOINT: your-r2-endpoint
-  #     R2_ACCESS_KEY_ID: your-r2-access-key
-  #     R2_SECRET_ACCESS_KEY: your-r2-secret-key
-  #     R2_BUCKET_NAME: your-bucket-name
-  #     R2_PUBLIC_URL: your-r2-public-url
-
-  #     # Payment provider (configure with your Creem credentials)
-  #     CREEM_API_KEY: your-creem-api-key
-  #     CREEM_ENVIRONMENT: test_mode
-  #     CREEM_WEBHOOK_SECRET: your-creem-webhook-secret
+  #     # Payment provider (configure with your DodoPayments credentials)
   #   depends_on:
   #     postgres:
   #       condition: service_healthy
