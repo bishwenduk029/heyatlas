@@ -91,7 +91,7 @@ export function Hero() {
             </div>
 
             {/* Chat Input */}
-            <div className="mx-auto w-full max-w-2xl">
+            <div className="mx-auto w-full max-w-3xl">
               <ChatInput
                 onSend={handleSend}
                 onStop={() => {}}

@@ -9,6 +9,7 @@ export interface PricingTier {
   name: string;
   description: string;
   isPopular: boolean;
+  isComingSoon?: boolean;
   features: ProductFeature[];
   pricing: {
     creem: {
@@ -28,12 +29,12 @@ export const PRODUCT_TIERS: PricingTier[] = [
     id: "free",
     name: "Free",
     description: "Perfect for trying out Atlas",
-    isPopular: false,
+    isPopular: true,
     features: [
       { name: "1M Tokens per month", included: true },
       { name: "Basic conversation", included: true },
       { name: "Terminal agent connections", included: true },
-      { name: "Web search", included: false },
+      { name: "Web search", included: true },
       { name: "Memory persistence", included: false },
     ],
     pricing: {
@@ -52,7 +53,8 @@ export const PRODUCT_TIERS: PricingTier[] = [
     id: "pro",
     name: "Pro",
     description: "For serious users who need reliability",
-    isPopular: true,
+    isPopular: false,
+    isComingSoon: true,
     features: [
       { name: "5M Tokens per month", included: true },
       { name: "Full conversation memory", included: true },

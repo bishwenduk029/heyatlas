@@ -15,6 +15,7 @@ import {
   Loader2,
   LogIn,
   Star,
+  Clock,
 } from "lucide-react";
 import { PRODUCT_TIERS, type PricingTier } from "@/lib/config/products";
 import { useSession } from "@/lib/auth/client";
@@ -136,13 +137,22 @@ export function PricingSection({ className }: { className?: string }) {
                 "transform-gpu will-change-transform",
                 tier.isPopular &&
                   "border-primary/50 ring-primary/20 from-primary/5 via-background to-background bg-gradient-to-br shadow-lg ring-1",
+                tier.isComingSoon && "opacity-60 grayscale",
               )}
             >
-              {tier.isPopular && (
+              {tier.isPopular && !tier.isComingSoon && (
                 <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
                   <div className="from-primary to-primary/80 text-primary-foreground flex items-center gap-1.5 rounded-full bg-gradient-to-r px-4 py-1.5 text-xs font-semibold shadow-lg">
                     <Star className="h-3 w-3 fill-current" />
                     Most Popular
+                  </div>
+                </div>
+              )}
+              {tier.isComingSoon && (
+                <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+                  <div className="bg-muted text-muted-foreground flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg">
+                    <Clock className="h-3 w-3" />
+                    Coming Soon
                   </div>
                 </div>
               )}
@@ -153,36 +163,39 @@ export function PricingSection({ className }: { className?: string }) {
                 <CardDescription className="text-muted-foreground text-sm leading-relaxed">
                   {tier.description}
                 </CardDescription>
-                <div className="mt-6 space-y-2">
-                  <div className="flex items-baseline justify-centergap-1">
-                    <span className="text-foreground text-5xl font-bold tracking-tight">
-                      {formatPrice(price, tier.currency)}
-                    </span>
-                    <span className="text-muted-foreground text-base font-medium">
-                      /month
-                    </span>
+                {tier.isComingSoon ? (
+                  <div className="mt-6 space-y-2">
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-foreground text-3xl font-bold tracking-tight">
+                        ${tier.prices.monthly}
+                      </span>
+                      <span className="text-muted-foreground text-base font-medium">
+                        /month
+                      </span>
+                    </div>
+                    <div className="flex h-5 items-center justify-center">
+                      <p className="text-muted-foreground text-sm font-medium">
+                        Launching soon
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex h-5 items-center justify-center">
-                    <p className="text-muted-foreground text-sm font-medium">
-                      Billed monthly
-                    </p>
+                ) : (
+                  <div className="mt-6 space-y-2">
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-foreground text-5xl font-bold tracking-tight">
+                        {formatPrice(price, tier.currency)}
+                      </span>
+                      <span className="text-muted-foreground text-base font-medium">
+                        /month
+                      </span>
+                    </div>
+                    <div className="flex h-5 items-center justify-center">
+                      <p className="text-muted-foreground text-sm font-medium">
+                        Billed monthly
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col px-6 pt-0 pb-6">
-                <div className="mb-6 flex-1 space-y-4">
-                  {tier.features.map((feature, index) => (
-                    <div
-                      key={index}
-                      className="group/feature flex items-start gap-3"
-                    >
-                      <div
-                        className={cn(
-                          "mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200",
-                          feature.included
-                            ? "bg-emerald-100 group-hover/feature:bg-emerald-200 dark:bg-emerald-900/30 dark:group-hover/feature:bg-emerald-900/50"
-                            : "bg-gray-100 dark:bg-gray-800",
-                        )}
+                )}
                       >
                         <Check
                           className={cn(
@@ -209,6 +222,18 @@ export function PricingSection({ className }: { className?: string }) {
                 {/* **Fix point 3: Use skeleton screen to handle unmounted or session loading state** */}
                 {!mounted || isSessionLoading ? (
                   <Skeleton className="h-12 w-full" />
+                ) : tier.isComingSoon ? (
+                  <Button
+                    className={cn(
+                      "h-12 w-full cursor-not-allowed text-base font-semibold transition-all duration-200",
+                      "bg-muted text-muted-foreground",
+                    )}
+                    variant="outline"
+                    disabled={true}
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    Coming Soon
+                  </Button>
                 ) : (
                   <Button
                     className={cn(
