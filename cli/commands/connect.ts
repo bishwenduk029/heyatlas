@@ -21,8 +21,6 @@ interface ConnectOptions {
 }
 
 export async function connect(agentType: AgentType, options: ConnectOptions = {}) {
-  console.log("\n✨ Connecting to Atlas...\n");
-
   const credentials = await login();
 
   // Check if agent supports ACP
@@ -50,11 +48,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
 
   // Create Atlas tunnel
   const tunnel = new AtlasTunnel({
-    host:
-      process.env.ATLAS_AGENT_HOST ||
-      (process.env.NODE_ENV === "development"
-        ? "localhost:8787"
-        : "agent.heyatlas.app"),
+    host: process.env.ATLAS_AGENT_HOST || "agent.heyatlas.app",
     token: credentials.accessToken,
     interactive: true, // ACP is always interactive
   });
@@ -183,7 +177,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
     } catch {}
   }
 
-  console.log(`\n🎙️  Voice Companion connected to ${agentType}`);
+  console.log(`\n✨ HeyAtlas connected to ${agentType}`);
   console.log(`🌐 Talk here: ${voiceUrl}`);
   console.log(`\n🛑 Press Ctrl+C to disconnect\n`);
 

@@ -88,36 +88,6 @@ HeyAtlas implements research-backed approaches to human-AI collaboration:
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- API keys for required services
-- (Optional) E2B API key for sandbox features
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/bishwenduk029/heyatlas.git
-cd heyatlas
-
-# Install dependencies
-just setup
-
-# Copy environment variables
-cp .env.example .env.local
-
-# Fill in your API keys
-# Edit .env.local with your configuration
-```
-
-### Run Locally
-
-```bash
-# Start development server
-just dev
-```
-
 ### Connect Coding Agents
 
 ```bash

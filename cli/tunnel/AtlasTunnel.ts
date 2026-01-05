@@ -114,7 +114,6 @@ export class AtlasTunnel {
       this.client.onopen = () => {
         clearTimeout(timeout);
         this._isConnected = true;
-        console.log(`✅ Connected to Atlas agent: ${userId}`);
         resolve();
       };
 
