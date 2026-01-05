@@ -214,6 +214,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
         this.askLocalComputerAgent(description, existingTaskId),
       getTask: (taskId) => this.getTask(taskId),
       listTasks: () => this.listTasks(),
+      deleteTask: (taskId) => this.deleteTask(taskId),
       updateUserContext: (userSection: string) =>
         this.updateUserSection(userSection),
     });
@@ -288,6 +289,25 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
 
   listTasks(): Task[] {
     return Object.values(this.state.tasks || {});
+  }
+
+  deleteTask(taskId: string): boolean {
+    const currentTasks = this.state.tasks || {};
+    if (!currentTasks[taskId]) {
+      // Try partial match (first 8 chars)
+      const match = Object.keys(currentTasks).find((id) =>
+        id.startsWith(taskId),
+      );
+      if (!match) return false;
+      taskId = match;
+    }
+
+    const { [taskId]: deleted, ...remainingTasks } = currentTasks;
+    this.setState({
+      ...this.state,
+      tasks: remainingTasks,
+    });
+    return true;
   }
 
   @callable({ description: "Update task by ID" })

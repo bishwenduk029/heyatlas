@@ -47,18 +47,18 @@ export function TaskArtifact({ task, ephemeralEvents = [], onClose }: TaskArtifa
   }, [storedEvents.length, ephemeralEvents.length]);
 
   return (
-    <Artifact className="h-full w-full">
+    <Artifact className="h-full w-full max-w-full">
       <ArtifactHeader>
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg icon-glow">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg icon-glow shrink-0">
             <Terminal className="h-4 w-4" />
           </div>
-          <div className="flex flex-col">
-            <ArtifactTitle>{agentName}</ArtifactTitle>
-            <p className="text-xs text-muted-foreground font-mono">{taskId.slice(0, 8)}</p>
+          <div className="flex flex-col min-w-0">
+            <ArtifactTitle className="truncate">{agentName}</ArtifactTitle>
+            <p className="text-xs text-muted-foreground font-mono truncate">{taskId.slice(0, 8)}</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           {isRunning && (
             <div className={cn("flex items-center gap-1.5 text-xs", status.className)}>
               <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
@@ -69,7 +69,7 @@ export function TaskArtifact({ task, ephemeralEvents = [], onClose }: TaskArtifa
         </div>
       </ArtifactHeader>
       <ArtifactContent className="p-0 flex flex-col overflow-hidden">
-        <div ref={contentRef} className="flex-1 overflow-auto p-4">
+        <div ref={contentRef} className="flex-1 overflow-auto p-4 min-w-0">
           <TaskEventViewer
             storedEvents={storedEvents}
             ephemeralEvents={ephemeralEvents}

@@ -43,7 +43,7 @@ voice-agent-download:
 
 deploy-voice-agent:
     @echo "Checking for changes in voice-agent..."
-    @cd voice-agent && fly deploy
+    @cd voice-agent && lk agent deploy
 
 # Agent Smith tasks
 setup-agent-smith:

@@ -43,15 +43,8 @@ HeyAtlas is an AI companion that doesn't just chat - it manages work. Through re
 ### 🤖 Multi-Agent Orchestration
 
 - **A2A WebSocket**: Agent-to-Agent communication protocol for delegation
-- **Coding Agents**: Connect to goose and opencode with `npx heyatlas connect <agent>`
-- **Agent Marketplace**: Future support for finance, research, writing, and specialized agents
+- **Coding Agents**: Connect to goose and opencode with `npx heyatlas connect <coding-agent>`
 - **E2B Sandbox**: Virtual desktop for multi-agent workflows with isolated environments
-
-### 💰 Cost-Effective
-
-- **$5/month**: Affordable pricing with production-ready features
-- **Shared Infrastructure**: Cloudflare Workers, Fly.io gateway, Neon database optimized for scale
-- **Open Source**: Full transparency and self-hosting capability
 
 ---
 
@@ -69,6 +62,7 @@ HeyAtlas implements research-backed approaches to human-AI collaboration:
 
 - [Next.js](https://nextjs.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
+- [BetterAuth](https://www.better-auth.com/)
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Drizzle ORM](https://orm.drizzle.team/)
 - [Neon PostgreSQL](https://neon.com/)
@@ -127,31 +121,13 @@ Goose: [Enhances README] → [Updates task #42 status]
 Atlas: "Added more detail to the README. Anything else you'd like me to add?"
 ```
 
-### Multi-Agent Workflow
-
-```
-User: "Build a landing page and analyze the market"
-Atlas: [Creates task #100] → [Splits into subtasks]
-  → Subtask A: "Build landing page" → [Delegates to coding agent]
-  → Subtask B: "Analyze market" → [Delegates to finance agent (future)]
-
-Both agents work in E2B sandbox:
-- Coding agent: Builds page in /var/www/
-- Finance agent: Creates analysis in /var/www/market-analysis.md
-
-Atlas: [Aggregates results] → [Presents to user]
-```
-
 ---
 
 ## Roadmap
 
-- [ ] Agent marketplace integration (finance, research, writing agents)
-- [ ] Enhanced E2B sandbox workflows
-- [ ] Mobile apps (iOS, Android)
-- [ ] Custom agent training
-- [ ] Team collaboration features
-- [ ] Advanced analytics dashboard
+- [ ] Enhanced E2B sandbox for user specific problem solving workflows
+- [ ] Improve the UX around ACP events display in Task Artefacts
+- [ ] Vector DB integration for personalized knowledge base and more
 
 ---
 
@@ -168,16 +144,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 ## Acknowledgments
-
-- Research on **Shared Task Abstractions** (HA² framework, University of Colorado Boulder)
-- Research on **Meta-Task Planning** (Huawei Noah's Ark Lab)
 - Open source community for amazing tools like Cloudflare Workers, LiveKit, Vercel AI SDK
 
 ---
 
 <div align="center">
-
-**Built with ❤️ by [Bishwendu Kundu](https://github.com/bishwenduk029)**
 
 [![Twitter](https://img.shields.io/badge/Twitter-@bishwenduk029-blue?style=flat&logo=twitter)](https://twitter.com/bishwenduk029)
 [![GitHub](https://img.shields.io/badge/GHub-bishwenduk029-green?style=flat&logo=github)](https://github.com/bishwenduk029)

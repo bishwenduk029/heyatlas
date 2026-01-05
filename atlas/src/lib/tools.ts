@@ -22,6 +22,7 @@ interface Deps {
   updateTask?: (taskId: string, updates: string) => Task | null;
   getTask?: (taskId: string) => Task | null;
   listTasks?: () => Task[];
+  deleteTask?: (taskId: string) => boolean;
   updateUserContext?: (userSection: string) => void;
 }
 
@@ -121,6 +122,27 @@ const listAllTasks = (listTasks: () => Task[]) =>
   });
 
 /**
+ * Tool: Delete a task by ID
+ */
+const deleteTaskTool = (deleteTask: (taskId: string) => boolean) =>
+  tool({
+    description:
+      "Delete a task by its ID. Use this when the user explicitly requests to remove a task. This action cannot be undone.",
+    inputSchema: z.object({
+      taskId: z
+        .string()
+        .describe("The task ID to delete (can be full UUID or first 8 characters)"),
+    }),
+    execute: async ({ taskId }: { taskId: string }) => {
+      const success = deleteTask(taskId);
+      if (!success) {
+        return `Task not found with ID: ${taskId}`;
+      }
+      return `Task deleted successfully.`;
+    },
+  });
+
+/**
  * Tool: Update user context section
  */
 const updateUserContextTool = (
@@ -178,6 +200,9 @@ export function buildTools(deps: Deps): Tools {
   }
   if (deps.listTasks) {
     tools.listTasks = listAllTasks(deps.listTasks);
+  }
+  if (deps.deleteTask) {
+    tools.deleteTask = deleteTaskTool(deps.deleteTask);
   }
   if (deps.updateUserContext) {
     tools.updateUserContext = updateUserContextTool(deps.updateUserContext);
