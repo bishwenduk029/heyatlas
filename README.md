@@ -50,11 +50,12 @@ HeyAtlas is an AI companion that doesn't just chat - it manages work. Through re
 
 ## Architecture
 
-HeyAtlas implements research-backed approaches to human-AI collaboration:
+HeyAtlas explores various approaches to human-AI collaboration:
 
-- **Shared Task Abstractions** (HA² framework, arXiv 2025) - Hierarchical task structures for human-agent alignment
 - **Meta-Task Planning** - Manager agent (companion) decomposes tasks for executor agents
 - **Split-Brain Methodology** - Companion brain + agent brain with task abstraction as bridge
+
+![alt TechStack](tech_stack.png)
 
 ---
 
@@ -69,7 +70,7 @@ HeyAtlas implements research-backed approaches to human-AI collaboration:
 - [Vercel AI SDK](https://sdk.vercel.ai/docs)
 - [Bifrost Gateway](https://www.getmaxim.ai/bifrost)
 - [Cloudflare Agents](https://github.com/cloudflare/agents)
-- [Basten](https://baseten.co) LLM inference provider for z-ai/GLM-4.7 (amazing low cost model)
+- [Baseten](https://baseten.co) LLM inference provider for z-ai/GLM-4.7 (amazing low cost model)
 - [Together.ai](https://www.together.ai/inference) For canopylabs/Orpheus-tts inference
 - [Deepgram](https://deepgram.com/) For Speech to text
 - [LiveKit](https://livekit.io/)
@@ -144,6 +145,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 ## Acknowledgments
+
 - Open source community for amazing tools like Cloudflare Workers, LiveKit, Vercel AI SDK
 
 ---
