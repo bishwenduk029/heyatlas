@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -18,7 +18,6 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BarVisualizer } from "@/components/ui/bar-visualizer";
 import { VoiceIcon } from "@/components/ui/voice-icon";
 import type { AgentState } from "@/components/ui/bar-visualizer";
-
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -59,6 +58,17 @@ export function ChatInput({
 }: ChatInputProps) {
   const [input, setInput] = useState("");
   const submitInProgress = useRef(false);
+
+  // Handle pending message from localStorage
+  useEffect(() => {
+    const pendingMessage = localStorage.getItem("heyatlas_pending_message");
+    console.log("Pending message:", pendingMessage);
+    if (pendingMessage) {
+      // Small delay to ensure UI is ready
+      setInput(pendingMessage);
+      localStorage.removeItem("heyatlas_pending_message");
+    }
+  }, []);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -187,8 +197,8 @@ export function ChatInput({
                       className={cn(
                         "h-10 w-10 cursor-pointer rounded-full",
                         isMicEnabled && visualizerState === "listening"
-                          ? "bg-green-600 hover:bg-green-700 text-white"
-                          : ""
+                          ? "bg-green-600 text-white hover:bg-green-700"
+                          : "",
                       )}
                       title={isMicEnabled ? "Mute" : "Unmute"}
                     >
@@ -208,7 +218,10 @@ export function ChatInput({
                           mediaStream={mediaStream}
                           minHeight={15}
                           maxHeight={100}
-                          demo={visualizerState === "speaking" || visualizerState === "thinking"}
+                          demo={
+                            visualizerState === "speaking" ||
+                            visualizerState === "thinking"
+                          }
                           className="bg-secondary/30 h-12 w-full rounded-md px-2"
                         />
                       </div>

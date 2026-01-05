@@ -188,10 +188,8 @@ async function checkUsageLimits(userId: string): Promise<{
     let tier = "genin";
     if (subscription && subscription.status === "active") {
       const productId = subscription.productId;
-      if (productId === "max_monthly") {
+      if (productId === "pro_monthly") {
         tier = "jonin";
-      } else if (productId === "pro_monthly") {
-        tier = "chunin";
       }
     }
 

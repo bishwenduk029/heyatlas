@@ -120,7 +120,6 @@ export function InterfaceWithAgent({
   // Send chat message (wraps agent's sendMessage)
   const handleSendMessage = useCallback(
     async (text: string) => {
-      if (!atlasAgent.isConnected) return;
       await atlasAgent.sendMessage({
         role: "user",
         parts: [{ type: "text", text }],
@@ -128,20 +127,6 @@ export function InterfaceWithAgent({
     },
     [atlasAgent],
   );
-
-  // Handle pending message from localStorage
-  useEffect(() => {
-    if (!atlasAgent.isConnected) return;
-
-    const pendingMessage = localStorage.getItem("heyatlas_pending_message");
-    if (pendingMessage) {
-      // Small delay to ensure UI is ready
-      setTimeout(() => {
-        handleSendMessage(pendingMessage);
-        localStorage.removeItem("heyatlas_pending_message");
-      }, 500);
-    }
-  }, [atlasAgent.isConnected, handleSendMessage]);
 
   // Connect to LiveKit when voice session starts
   useEffect(() => {
@@ -174,7 +159,7 @@ export function InterfaceWithAgent({
   return (
     <RoomContext.Provider value={room}>
       <MCPUIHandler />
-      <main className="bg-background flex h-screen supports-[height:100dvh]:h-[100dvh] flex-col">
+      <main className="bg-background flex h-screen flex-col supports-[height:100dvh]:h-[100dvh]">
         <Header />
         <div className="my-2 flex min-h-0 flex-1 flex-col">
           <RoomAudioRenderer />

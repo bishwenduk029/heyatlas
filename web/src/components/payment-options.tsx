@@ -22,7 +22,7 @@ import { useRouter } from "nextjs-toploader/app";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
 
-// 辅助函数：格式化价格
+// Helper function: Format price
 const formatPrice = (price: number, currency: string = "USD") => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -118,8 +118,8 @@ export function PricingSection({ className }: { className?: string }) {
         </p>
       </div>
 
-      {/* 定价卡片 */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:gap-8">
+      {/* Pricing cards */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8 max-w-4xl mx-auto">
         {PRODUCT_TIERS.map((tier) => {
           const price = tier.prices.monthly;
 
@@ -206,7 +206,7 @@ export function PricingSection({ className }: { className?: string }) {
                     </div>
                   ))}
                 </div>
-                {/* **修正点 3: 使用骨架屏处理未挂载或会话加载中的状态** */}
+                {/* **Fix point 3: Use skeleton screen to handle unmounted or session loading state** */}
                 {!mounted || isSessionLoading ? (
                   <Skeleton className="h-12 w-full" />
                 ) : (

@@ -1,9 +1,9 @@
 import { userRoleEnum } from "@/database/schema";
 
-// 从数据库 schema 导出角色类型，确保单一事实来源
+// Export role types from database schema to ensure single source of truth
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
 
-// 角色层级配置 - 数字越大权限越高
+// Role hierarchy configuration - higher numbers mean higher permissions
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
   user: 1,
   admin: 2,
@@ -11,38 +11,38 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
 } as const;
 
 /**
- * 检查用户是否具有所需角色权限
- * @param userRole 用户当前角色
- * @param requiredRole 所需的最低角色
- * @returns 是否具有权限
+ * Check if user has required role permissions
+ * @param userRole User's current role
+ * @param requiredRole Required minimum role
+ * @returns Whether has permission
  */
 export function hasRole(userRole: UserRole, requiredRole: UserRole): boolean {
   return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
 }
 
 /**
- * 获取所有可用角色
+ * Get all available roles
  */
 export function getAllRoles(): UserRole[] {
   return userRoleEnum.enumValues as UserRole[];
 }
 
 /**
- * 获取角色的层级值
+ * Get role's hierarchy level
  */
 export function getRoleLevel(role: UserRole): number {
   return ROLE_HIERARCHY[role];
 }
 
 /**
- * 检查角色是否为管理员级别（admin 或更高）
+ * Check if role is admin level (admin or higher)
  */
 export function isAdminRole(role: UserRole): boolean {
   return hasRole(role, "admin");
 }
 
 /**
- * 检查角色是否为超级管理员
+ * Check if role is super admin
  */
 export function isSuperAdminRole(role: UserRole): boolean {
   return role === "super_admin";

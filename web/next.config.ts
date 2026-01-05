@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-// 只有在 process.env.ANALYZE 为 'true' 时才启用 bundle analyzer
+// Only enable bundle analyzer when process.env.ANALYZE is 'true'
 if (process.env.ANALYZE === "true") {
   const withBundleAnalyzer = nextBundleAnalyzer({
     enabled: true,

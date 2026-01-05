@@ -24,9 +24,8 @@ import { eq } from "drizzle-orm";
 
 // Token limits based on pricing plans
 const PLAN_LIMITS = {
-  FREE: 2000000, // 2M tokens
-  PRO: 20000000, // 20M tokens ($20)
-  MAX: 200000000, // 200M tokens ($100)
+  FREE: 1000000, // 1M tokens
+  PRO: 5000000, // 5M tokens ($5)
 };
 
 // Create DodoPayments client
@@ -205,8 +204,7 @@ export const auth = betterAuth({
               const amount = payload.data?.amount || 0;
               let limit = PLAN_LIMITS.FREE;
 
-              if (amount >= 10000) limit = PLAN_LIMITS.MAX;
-              else if (amount >= 2000) limit = PLAN_LIMITS.PRO;
+              if (amount >= 2000) limit = PLAN_LIMITS.PRO;
 
               // @ts-expect-error customer_id might be named differently in some types
               const customerId = payload.data?.customer_id;
@@ -232,8 +230,7 @@ export const auth = betterAuth({
               const amount = payload.data?.amount || 0;
               let limit = PLAN_LIMITS.FREE;
 
-              if (amount >= 10000) limit = PLAN_LIMITS.MAX;
-              else if (amount >= 2000) limit = PLAN_LIMITS.PRO;
+              if (amount >= 2000) limit = PLAN_LIMITS.PRO;
 
               // @ts-expect-error customer_id might be named differently in some types
               const customerId = payload.data?.customer_id;

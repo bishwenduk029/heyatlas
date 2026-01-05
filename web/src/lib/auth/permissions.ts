@@ -2,7 +2,7 @@ import { auth } from "./server";
 import { redirect } from "next/navigation";
 import { UserRole, hasRole as checkRole } from "@/lib/config/roles";
 
-// 重新导出 UserRole 类型以保持向后兼容性
+// Re-export UserRole type to maintain backward compatibility
 export type { UserRole };
 
 export interface AuthUser {

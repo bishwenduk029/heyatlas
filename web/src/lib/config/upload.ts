@@ -3,8 +3,8 @@
 import { z } from "zod";
 
 /**
- * 将 MIME 类型映射到文件扩展名。
- * 这是文件扩展名的主要来源。
+ * Map MIME types to file extensions.
+ * This is the primary source of file extensions.
  */
 const MIME_TYPE_TO_EXTENSION = {
   // Images
@@ -63,43 +63,43 @@ const MIME_TYPE_TO_EXTENSION = {
   "application/zip": "zip",
   "application/x-rar-compressed": "rar",
   "application/x-7z-compressed": "7z",
-} as const; // 使用 as const 确保类型安全
+} as const; // Use as const to ensure type safety
 
 /**
- * 全局文件上传配置。
- * 这是整个应用中文件上传规则的单一事实来源。
+ * Global file upload configuration.
+ * This is the single source of truth for file upload rules across the entire application.
  */
 export const UPLOAD_CONFIG = {
-  /**
-   * 允许的最大文件大小（字节）。
-   * @default 50MB
-   */
+/**
+    * Maximum allowed file size in bytes.
+    * @default 50MB
+    */
   MAX_FILE_SIZE: 50 * 1024 * 1024,
 
-  /**
-   * 允许的最大文件大小（MB），用于在UI中显示。
-   */
+/**
+    * Maximum allowed file size in MB for UI display.
+    */
   MAX_FILE_SIZE_MB: 50,
 
-  /**
-   * 预签名 URL 的过期时间（秒）。
-   * @default 15 minutes
-   */
+/**
+    * Presigned URL expiration time in seconds.
+    * @default 15 minutes
+    */
   PRESIGNED_URL_EXPIRATION: 15 * 60,
 
-  /**
-   * 允许上传的 MIME 类型数组。
-   * **自动从 MIME_TYPE_TO_EXTENSION 生成，确保一致性。**
-   */
+/**
+    * Array of allowed upload MIME types.
+    * **Auto-generated from MIME_TYPE_TO_EXTENSION to ensure consistency.**
+    */
   ALLOWED_FILE_TYPES: Object.keys(
     MIME_TYPE_TO_EXTENSION,
   ) as (keyof typeof MIME_TYPE_TO_EXTENSION)[],
 } as const;
 
 /**
- * 检查文件类型是否在允许列表中。
- * @param contentType - 文件的 MIME 类型。
- * @returns 如果允许则为 `true`，否则为 `false`。
+ * Check if file type is in allowed list.
+ * @param contentType - File's MIME type.
+ * @returns `true` if allowed, otherwise `false`.
  */
 export function isFileTypeAllowed(contentType: string): boolean {
   return UPLOAD_CONFIG.ALLOWED_FILE_TYPES.includes(
@@ -108,18 +108,18 @@ export function isFileTypeAllowed(contentType: string): boolean {
 }
 
 /**
- * 检查文件大小是否在限制范围内。
- * @param size - 文件的字节大小。
- * @returns 如果在限制内则为 `true`，否则为 `false`。
+ * Check if file size is within allowed range.
+ * @param size - File's byte size.
+ * @returns `true` if within limit, otherwise `false`.
  */
 export function isFileSizeAllowed(size: number): boolean {
   return size <= UPLOAD_CONFIG.MAX_FILE_SIZE;
 }
 
 /**
- * 格式化文件大小以便于阅读。
- * @param bytes - 文件的字节大小。
- * @returns 格式化后的字符串 (例如, "1.23 MB")。
+ * Format file size for easy reading.
+ * @param bytes - File's byte size.
+ * @returns Formatted string (e.g., "1.23 MB").
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -132,9 +132,9 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * 从 MIME 类型获取文件扩展名。
- * @param contentType - 文件的 MIME 类型。
- * @returns 对应的文件扩展名，如果找不到则默认为 "bin"。
+ * Get file extension from MIME type.
+ * @param contentType - File's MIME type.
+ * @returns Corresponding file extension, defaults to "bin" if not found.
  */
 export function getFileExtension(contentType: string): string {
   if (contentType in MIME_TYPE_TO_EXTENSION) {
@@ -154,7 +154,7 @@ export function getFileExtension(contentType: string): string {
   return "bin"; // Default fallback
 }
 
-// 用于验证预签名 URL 请求体的 Zod schema
+// Zod schema for validating presigned URL request body
 export const presignedUrlRequestSchema = z.object({
   fileName: z
     .string()

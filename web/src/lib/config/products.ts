@@ -27,17 +27,14 @@ export const PRODUCT_TIERS: PricingTier[] = [
   {
     id: "free",
     name: "Free",
-    description: "Meet Atlas, but with a bad memory",
+    description: "Perfect for trying out Atlas",
     isPopular: false,
     features: [
       { name: "1M Tokens per month", included: true },
-      { name: "Atlas Forgets Everything", included: true },
-      {
-        name: "Atlas can talk to your terminal coding agents (Claude Code, OpenCode, Goose)",
-        included: true,
-      },
-      { name: "Atlas uses web search", included: false },
-      { name: "Cloud desktop for Atlas", included: false },
+      { name: "Basic conversation", included: true },
+      { name: "Terminal agent connections", included: true },
+      { name: "Web search", included: false },
+      { name: "Memory persistence", included: false },
     ],
     pricing: {
       creem: {
@@ -54,17 +51,14 @@ export const PRODUCT_TIERS: PricingTier[] = [
   {
     id: "pro",
     name: "Pro",
-    description: "Atlas actually remembers your name",
-    isPopular: false,
+    description: "For serious users who need reliability",
+    isPopular: true,
     features: [
       { name: "5M Tokens per month", included: true },
-      { name: "Atlas has memory", included: true },
-      {
-        name: "Atlas can talk to your terminal coding agents (Claude Code, OpenCode, Goose)",
-        included: true,
-      },
-      { name: "Atlas uses web search", included: true },
-      { name: "Atlas has a cloud desktop", included: false },
+      { name: "Full conversation memory", included: true },
+      { name: "Terminal agent connections", included: true },
+      { name: "Web search", included: true },
+      { name: "Priority support", included: true },
     ],
     pricing: {
       creem: {
@@ -75,33 +69,6 @@ export const PRODUCT_TIERS: PricingTier[] = [
     prices: {
       oneTime: 5,
       monthly: 5,
-    },
-    currency: "USD",
-  },
-  {
-    id: "max",
-    name: "Max",
-    description: "Atlas has perfect memory + computer",
-    isPopular: false,
-    features: [
-      { name: "20M Tokens per month", included: true },
-      { name: "Atlas has memory", included: true },
-      {
-        name: "Atlas can talk to your terminal coding agents (Claude Code, OpenCode, Goose)",
-        included: true,
-      },
-      { name: "Atlas uses web search", included: true },
-      { name: "Atlas has a cloud desktop", included: true },
-    ],
-    pricing: {
-      creem: {
-        oneTime: "max_monthly",
-        monthly: "max_monthly",
-      },
-    },
-    prices: {
-      oneTime: 15,
-      monthly: 15,
     },
     currency: "USD",
   },

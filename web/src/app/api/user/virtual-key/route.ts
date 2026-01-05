@@ -48,12 +48,10 @@ export async function GET(request: Request) {
     if (subscription && subscription.status === "active") {
       const productId = subscription.productId;
       // Map product IDs to assistant tiers
-      if (productId === "max_monthly") {
-        assistantTier = "jonin"; // Full features: memory + web search + cloud desktop
-      } else if (productId === "pro_monthly") {
-        assistantTier = "jonin"; // Mid tier: memory + web search, no cloud desktop
+      if (productId === "pro_monthly") {
+        assistantTier = "jonin"; // Pro tier: memory + web search
       } else if (productId === "free") {
-        assistantTier = "jonin"; // Basic: no memory, no web search, no cloud desktop
+        assistantTier = "jonin"; // Basic: no memory, no web search
       }
     }
 
