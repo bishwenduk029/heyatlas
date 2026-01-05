@@ -75,6 +75,9 @@ HeyAtlas implements research-backed approaches to human-AI collaboration:
 - [Vercel AI SDK](https://sdk.vercel.ai/docs)
 - [Bifrost Gateway](https://www.getmaxim.ai/bifrost)
 - [Cloudflare Agents](https://github.com/cloudflare/agents)
+- [Basten](https://baseten.co) LLM inference provider for z-ai/GLM-4.7 (amazing low cost model)
+- [Together.ai](https://www.together.ai/inference) For canopylabs/Orpheus-tts inference
+- [Deepgram](https://deepgram.com/) For Speech to text
 - [LiveKit](https://livekit.io/)
 - [Better Auth](https://github.com/better-auth/better-auth)
 - [Dodo Payments](https://dodopayments.com/) - Coming Soon
