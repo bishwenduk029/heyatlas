@@ -100,7 +100,9 @@ export function SessionLayout({
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [paramsHandled, setParamsHandled] = useState(false);
   // Track which task ID the user has explicitly closed to prevent auto-reopening
-  const [userDismissedTaskId, setUserDismissedTaskId] = useState<string | null>(null);
+  const [userDismissedTaskId, setUserDismissedTaskId] = useState<string | null>(
+    null,
+  );
 
   // Get live task from tasks array (not a stale snapshot)
   const selectedTask = selectedTaskId
@@ -148,7 +150,9 @@ export function SessionLayout({
   // Don't auto-open if user has explicitly closed this task
   useEffect(() => {
     const activeTask = tasks.find(
-      (t) => (t.state === "in-progress" || t.state === "pending") && t.id !== userDismissedTaskId,
+      (t) =>
+        (t.state === "in-progress" || t.state === "pending") &&
+        t.id !== userDismissedTaskId,
     );
     if (activeTask && !selectedTaskId) {
       setSelectedTaskId(activeTask.id);
@@ -244,7 +248,7 @@ export function SessionLayout({
 
             {/* Desktop: Right column - Task Artifact (wider) */}
             {/* Mobile: Full width Task Artifact with input below */}
-            <div className="flex h-full flex-1 flex-col">
+            <div className="flex h-full w-3/5 flex-1 flex-col">
               <TaskArtifact
                 task={selectedTask}
                 uiMessage={getTaskUIMessage?.(selectedTask.id)}
