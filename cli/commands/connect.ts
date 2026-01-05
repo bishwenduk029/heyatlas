@@ -83,64 +83,43 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
     ]);
 
     try {
-      // Stream prompt to ACP agent using toUIMessageStream for AI SDK UI compatibility
+      // Stream prompt to ACP agent
       const result = agent.stream(prompt);
-      const uiStream = result.toUIMessageStream();
-      const collectedParts: UIMessagePart[] = [];
-      let accumulatedText = "";
-      const toolCalls = new Map<string, UIMessagePart>();
+      const parts: UIMessagePart[] = [];
 
-      // Process the UI message stream and broadcast chunks
-      for await (const chunk of uiStream) {
-        // Broadcast each chunk for real-time UI updates
+      // Stream for real-time UI updates
+      for await (const chunk of result.toUIMessageStream()) {
         await tunnel.broadcastTaskEvent(task.id, {
           type: "ui_stream_chunk",
           timestamp: Date.now(),
           data: chunk as Record<string, unknown>,
         });
-
-        // Collect parts for final storage based on stream protocol types
-        switch (chunk.type) {
-          case "text-delta":
-            // Accumulate text deltas
-            accumulatedText += chunk.delta || "";
-            break;
-
-          case "tool-input-available":
-            // Tool call with complete input
-            toolCalls.set(chunk.toolCallId, {
-              type: "dynamic-tool",
-              toolCallId: chunk.toolCallId,
-              toolName: chunk.toolName,
-              state: "input-available",
-              input: chunk.input,
-            });
-            break;
-
-          case "tool-output-available":
-            // Tool result - update existing tool call
-            const existing = toolCalls.get(chunk.toolCallId);
-            if (existing) {
-              toolCalls.set(chunk.toolCallId, {
-                ...existing,
-                state: "output-available",
-                output: chunk.output,
-              });
-            }
-            break;
-        }
       }
 
-      // Build final parts array
-      if (accumulatedText) {
-        collectedParts.push({ type: "text", text: accumulatedText });
-      }
-      for (const toolPart of toolCalls.values()) {
-        collectedParts.push(toolPart);
+      // Use streamText result for storage (promises resolve after stream ends)
+      const text = await result.text;
+      const toolCalls = await result.toolCalls;
+      const toolResults = await result.toolResults;
+      
+      if (text) {
+        parts.push({ type: "text", text });
       }
 
-      // Store collected parts as UIMessage format in task context
-      if (collectedParts.length > 0) {
+      // Convert tool calls + results to UIMessage parts
+      for (const toolCall of toolCalls) {
+        const tr = toolResults.find(r => r.toolCallId === toolCall.toolCallId);
+        parts.push({
+          type: "dynamic-tool",
+          toolCallId: toolCall.toolCallId,
+          toolName: toolCall.toolName,
+          state: tr ? "output-available" as const : "input-available" as const,
+          input: toolCall.input,
+          output: tr?.output,
+        });
+      }
+
+      // Store as UIMessage in task context
+      if (parts.length > 0) {
         await tunnel.appendContext(task.id, [
           {
             type: "ui_message",
@@ -148,7 +127,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
             data: {
               id: crypto.randomUUID(),
               role: "assistant",
-              parts: collectedParts,
+              parts,
             },
           },
         ]);

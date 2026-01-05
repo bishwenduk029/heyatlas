@@ -48,10 +48,10 @@ export function Hero() {
 
   return (
     <section className="bg-background flex items-center justify-center">
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-8 lg:px-8 lg:py-16">
+      <div className="relative z-10 w-full py-8 lg:py-16">
         <div className="flex flex-col items-center justify-center gap-12 text-center">
           {/* Center Content */}
-          <div className="max-w-3xl space-y-8">
+          <div className="w-full space-y-8">
             {/* Status Badge */}
             <div className="border-border bg-background/50 inline-flex items-center rounded-full border px-3 py-1 text-sm backdrop-blur-sm">
               <Sparkles className="text-primary mr-2 h-3 w-3" />
@@ -91,7 +91,7 @@ export function Hero() {
             </div>
 
             {/* Chat Input */}
-            <div className="mx-auto w-full max-w-3xl">
+            <div className="mx-auto w-full px-2 md:w-1/2">
               <ChatInput
                 onSend={handleSend}
                 onStop={() => {}}
