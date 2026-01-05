@@ -70,6 +70,7 @@ HeyAtlas explores various approaches to human-AI collaboration:
 - [Vercel AI SDK](https://sdk.vercel.ai/docs)
 - [Bifrost Gateway](https://www.getmaxim.ai/bifrost)
 - [Cloudflare Agents](https://github.com/cloudflare/agents)
+- [Parallel Web Systems](https://t.co/7J43NiZ51y) Web Search API for AI
 - [Baseten](https://baseten.co) LLM inference provider for z-ai/GLM-4.7 (amazing low cost model)
 - [Together.ai](https://www.together.ai/inference) For canopylabs/Orpheus-tts inference
 - [Deepgram](https://deepgram.com/) For Speech to text
