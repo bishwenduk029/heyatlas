@@ -196,6 +196,21 @@ export function PricingSection({ className }: { className?: string }) {
                     </div>
                   </div>
                 )}
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col px-6 pt-0 pb-6">
+                <div className="mb-6 flex-1 space-y-4">
+                  {tier.features.map((feature, index) => (
+                    <div
+                      key={index}
+                      className="group/feature flex items-start gap-3"
+                    >
+                      <div
+                        className={cn(
+                          "mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200",
+                          feature.included
+                            ? "bg-emerald-100 group-hover/feature:bg-emerald-200 dark:bg-emerald-900/30 dark:group-hover/feature:bg-emerald-900/50"
+                            : "bg-gray-100 dark:bg-gray-800",
+                        )}
                       >
                         <Check
                           className={cn(
@@ -219,7 +234,6 @@ export function PricingSection({ className }: { className?: string }) {
                     </div>
                   ))}
                 </div>
-                {/* **Fix point 3: Use skeleton screen to handle unmounted or session loading state** */}
                 {!mounted || isSessionLoading ? (
                   <Skeleton className="h-12 w-full" />
                 ) : tier.isComingSoon ? (
