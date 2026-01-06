@@ -19,7 +19,11 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
+import {
+  Reasoning,
+  ReasoningTrigger,
+  ReasoningContent,
+} from "@/components/ai-elements/reasoning";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
@@ -50,37 +54,55 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
   const status = getTaskStatus(taskState);
   const isRunning = taskState === "in-progress" || taskState === "pending";
 
-  // Auto-scroll to bottom on new content
+  // Auto-scroll to bottom only when new content is added (not on initial render)
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    if (contentRef.current && uiMessage?.parts?.length) {
+      // Only scroll if content was added (not replaced)
+      const wasAtBottom =
+        contentRef.current.scrollHeight -
+          contentRef.current.scrollTop -
+          contentRef.current.clientHeight <
+        100;
+      if (wasAtBottom) {
+        contentRef.current.scrollTop = contentRef.current.scrollHeight;
+      }
     }
-  }, [uiMessage?.parts?.length]);
+  }, [uiMessage?.parts]);
 
   return (
     <Artifact className="h-full w-full max-w-full">
       <ArtifactHeader>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg icon-glow shrink-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="icon-glow flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
             <Terminal className="h-4 w-4" />
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex min-w-0 flex-col">
             <ArtifactTitle className="truncate">{agentName}</ArtifactTitle>
-            <p className="text-xs text-muted-foreground font-mono truncate">{taskId.slice(0, 8)}</p>
+            <p className="text-muted-foreground truncate font-mono text-xs">
+              {taskId.slice(0, 8)}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex shrink-0 items-center gap-4">
           {isRunning && (
-            <div className={cn("flex items-center gap-1.5 text-xs", status.className)}>
-              <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+            <div
+              className={cn(
+                "flex items-center gap-1.5 text-xs",
+                status.className,
+              )}
+            >
+              <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-500" />
               {status.text}
             </div>
           )}
           <ArtifactClose onClick={onClose} />
         </div>
       </ArtifactHeader>
-      <ArtifactContent className="p-0 flex flex-col overflow-hidden">
-        <div ref={contentRef} className="flex-1 overflow-auto p-4 min-w-0 space-y-3">
+      <ArtifactContent className="flex flex-col overflow-hidden p-0">
+        <div
+          ref={contentRef}
+          className="min-w-0 flex-1 space-y-3 overflow-auto p-4"
+        >
           {uiMessage?.parts?.map((part, i) => {
             const key = `${uiMessage.id}-${i}`;
 
@@ -90,28 +112,21 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
               return (
                 <Reasoning key={key} isStreaming={isStreaming}>
                   <ReasoningTrigger />
-                  <ReasoningContent>
-                    {part.text}
-                  </ReasoningContent>
+                  <ReasoningContent>{part.text}</ReasoningContent>
                 </Reasoning>
               );
             }
 
             // Handle text parts
             if (part.type === "text") {
-              return (
-                <MessageResponse
-                  key={key}
-                  className="prose prose-sm dark:prose-invert max-w-none"
-                >
-                  {part.text}
-                </MessageResponse>
-              );
+              return <MessageResponse key={key}>{part.text}</MessageResponse>;
             }
 
             // Handle dynamic tool parts (from ACP provider)
             if (part.type === "dynamic-tool") {
-              const isComplete = part.state === "output-available" || part.state === "output-error";
+              const isComplete =
+                part.state === "output-available" ||
+                part.state === "output-error";
               return (
                 <Tool key={key} defaultOpen={isComplete}>
                   <ToolHeader
@@ -123,8 +138,16 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
                     <ToolInput input={part.input} />
                     {isComplete && (
                       <ToolOutput
-                        output={part.state === "output-available" ? part.output : undefined}
-                        errorText={part.state === "output-error" ? part.errorText : undefined}
+                        output={
+                          part.state === "output-available"
+                            ? part.output
+                            : undefined
+                        }
+                        errorText={
+                          part.state === "output-error"
+                            ? part.errorText
+                            : undefined
+                        }
                       />
                     )}
                   </ToolContent>
@@ -137,12 +160,18 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
               const toolPart = part as {
                 type: `tool-${string}`;
                 toolCallId: string;
-                state: "input-streaming" | "input-available" | "output-available" | "output-error";
+                state:
+                  | "input-streaming"
+                  | "input-available"
+                  | "output-available"
+                  | "output-error";
                 input?: Record<string, unknown>;
                 output?: unknown;
                 errorText?: string;
               };
-              const isComplete = toolPart.state === "output-available" || toolPart.state === "output-error";
+              const isComplete =
+                toolPart.state === "output-available" ||
+                toolPart.state === "output-error";
               return (
                 <Tool key={key} defaultOpen={isComplete}>
                   <ToolHeader type={toolPart.type} state={toolPart.state} />
@@ -150,8 +179,16 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
                     <ToolInput input={toolPart.input} />
                     {isComplete && (
                       <ToolOutput
-                        output={toolPart.state === "output-available" ? toolPart.output : undefined}
-                        errorText={toolPart.state === "output-error" ? toolPart.errorText : undefined}
+                        output={
+                          toolPart.state === "output-available"
+                            ? toolPart.output
+                            : undefined
+                        }
+                        errorText={
+                          toolPart.state === "output-error"
+                            ? toolPart.errorText
+                            : undefined
+                        }
                       />
                     )}
                   </ToolContent>
@@ -162,7 +199,7 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
             return null;
           })}
 
-          {isRunning && (!uiMessage?.parts?.length) && (
+          {isRunning && !uiMessage?.parts?.length && (
             <div className="text-muted-foreground animate-pulse">
               <Shimmer>Processing...</Shimmer>
             </div>
