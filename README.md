@@ -68,6 +68,7 @@ HeyAtlas explores various approaches to human-AI collaboration:
 - [Drizzle ORM](https://orm.drizzle.team/)
 - [Neon PostgreSQL](https://neon.com/)
 - [Vercel AI SDK](https://sdk.vercel.ai/docs)
+- [MCPC - AI SDK wrapper for ACP](https://github.com/mcpc-tech/mcpc/tree/main/packages/acp-ai-provider)
 - [Bifrost Gateway](https://www.getmaxim.ai/bifrost)
 - [Cloudflare Agents](https://github.com/cloudflare/agents)
 - [Parallel Web Systems](https://t.co/7J43NiZ51y) Web Search API for AI
