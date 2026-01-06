@@ -139,12 +139,6 @@ This is a personal project I work on as time allows. Feedback and contributions 
 
 ---
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
 ## Acknowledgments
 
 - Open source community for amazing tools like Cloudflare Workers, LiveKit, Vercel AI SDK
