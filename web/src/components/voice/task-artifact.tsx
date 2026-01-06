@@ -19,7 +19,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
-import { Reasoning } from "@/components/ai-elements/reasoning";
+import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
@@ -86,12 +86,13 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
 
             // Handle reasoning parts (thinking/planning content)
             if (part.type === "reasoning") {
+              const isStreaming = part.state === "streaming";
               return (
-                <Reasoning
-                  key={key}
-                  state={part.state}
-                >
-                  {part.text}
+                <Reasoning key={key} isStreaming={isStreaming}>
+                  <ReasoningTrigger />
+                  <ReasoningContent>
+                    {part.text}
+                  </ReasoningContent>
                 </Reasoning>
               );
             }
