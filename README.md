@@ -24,6 +24,20 @@ HeyAtlas is an AI companion that doesn't just chat - it manages work. Through re
 
 ---
 
+## Quick Start
+
+### Connect Coding Agents
+
+```bash
+# Connect to goose
+npx heyatlas connect goose
+
+# Connect to opencode
+npx heyatlas connect opencode
+```
+
+---
+
 ## Features
 
 ### 🧠 Companion Core
@@ -54,8 +68,7 @@ HeyAtlas explores various approaches to human-AI collaboration:
 
 - **Meta-Task Planning** - Manager agent (companion) decomposes tasks for executor agents
 - **Split-Brain Methodology** - Companion brain + agent brain with task abstraction as bridge
-
-![alt TechStack](tech_stack.png)
+  ![alt TechStack](tech_stack.png)
 
 ---
 
@@ -80,20 +93,6 @@ HeyAtlas explores various approaches to human-AI collaboration:
 - [Dodo Payments](https://dodopayments.com/) - Coming Soon
 - [Vercel](https://vercel.com/) (deployment)
 - [Fly.io](https://fly.io/) (Livekit voice agent and Bifrost gateway deployment)
-
----
-
-## Quick Start
-
-### Connect Coding Agents
-
-```bash
-# Connect to goose
-npx heyatlas connect goose
-
-# Connect to opencode
-npx heyatlas connect opencode
-```
 
 ---
 
