@@ -7,7 +7,7 @@
 An open-source AI companion with task lifecycle management, multi-agent orchestration, and seamless voice-text interaction.
 
 [![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=flat&logo=vercel)](https://vercel.com)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/bishwenduk029/heyatlas?style=social)](https://github.com/bishwenduk029/heyatlas)
 
 🔗 **[Try HeyAtlas](https://heyatlas.app)**
