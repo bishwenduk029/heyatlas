@@ -20,11 +20,14 @@ import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { CodeBlock } from "./code-block";
 
-export type ToolProps = ComponentProps<typeof Collapsible>;
+export type ToolProps = ComponentProps<typeof Collapsible> & {
+  defaultOpen?: boolean;
+};
 
-export const Tool = ({ className, ...props }: ToolProps) => (
+export const Tool = ({ className, defaultOpen, ...props }: ToolProps) => (
   <Collapsible
     className={cn("not-prose mb-4 w-full rounded-md border", className)}
+    open={defaultOpen}
     {...props}
   />
 );
