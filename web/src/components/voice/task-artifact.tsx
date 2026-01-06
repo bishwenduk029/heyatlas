@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useEffect, useRef } from "react";
 import { Terminal } from "lucide-react";
 import {
@@ -18,7 +19,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
-import { Reasoning } from "ai-elements";
+import { Reasoning } from "@/components/ai-elements/reasoning";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
