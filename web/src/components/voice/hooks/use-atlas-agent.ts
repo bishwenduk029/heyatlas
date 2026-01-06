@@ -254,53 +254,86 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
 
 /**
  * Convert UI stream chunks to UIMessage parts for rendering.
- * Uses AI SDK UI stream protocol types (text-delta, tool-input-available, tool-output-available).
+ * Uses AI SDK UI stream protocol types including reasoning, text, and tools.
+ * Preserves stream order - parts pushed as they arrive.
  */
 function chunksToMessageParts(chunks: UIStreamChunk[]): UIMessagePart[] {
   const parts: UIMessagePart[] = [];
-  let accumulatedText = "";
   const toolCalls = new Map<string, UIMessagePart>();
+  const activeReasoningParts = new Map<string, UIMessagePart>();
 
   for (const chunk of chunks) {
     switch (chunk.type) {
-      case "text-delta":
+      case "text-delta": {
         // AI SDK UI stream protocol uses 'delta' property for text-delta
-        accumulatedText += (chunk.delta as string) || "";
+        const existingText = parts.find(p => p.type === "text");
+        if (existingText && "text" in existingText) {
+          existingText.text += chunk.delta as string || "";
+        } else {
+          parts.push({ type: "text", text: chunk.delta as string || "" } as UIMessagePart);
+        }
         break;
+      }
+
+      case "reasoning-start": {
+        // Start a new reasoning part
+        const reasoningPart = {
+          type: "reasoning" as const,
+          text: "",
+          state: "streaming" as const,
+        };
+        activeReasoningParts.set(chunk.id as string, reasoningPart);
+        parts.push(reasoningPart);
+        break;
+      }
+
+      case "reasoning-delta": {
+        // Append to existing reasoning part
+        const reasoningPart = activeReasoningParts.get(chunk.id as string);
+        if (reasoningPart && "text" in reasoningPart) {
+          reasoningPart.text += chunk.delta as string || "";
+        }
+        break;
+      }
+
+      case "reasoning-end": {
+        // Mark reasoning as done
+        const reasoningPart = activeReasoningParts.get(chunk.id as string);
+        if (reasoningPart) {
+          (reasoningPart as { state: string }).state = "done";
+          activeReasoningParts.delete(chunk.id as string);
+        }
+        break;
+      }
 
       case "tool-input-available":
-        // Tool call with complete input ready
+        // Tool call with complete input ready - push immediately to preserve order
         toolCalls.set(chunk.toolCallId as string, {
           type: "dynamic-tool",
           toolCallId: chunk.toolCallId as string,
           toolName: chunk.toolName as string,
-          state: "input-available",
+          state: "input-available" as const,
           input: chunk.input,
         } as UIMessagePart);
+        parts.push(toolCalls.get(chunk.toolCallId as string)!);
         break;
 
       case "tool-output-available":
         // Tool result available - update existing tool call
         const existing = toolCalls.get(chunk.toolCallId as string);
         if (existing) {
-          toolCalls.set(chunk.toolCallId as string, {
+          const updated = {
             ...existing,
-            state: "output-available",
+            state: "output-available" as const,
             output: chunk.output,
-          } as UIMessagePart);
+          } as UIMessagePart;
+          toolCalls.set(chunk.toolCallId as string, updated);
+          // Update in parts array to preserve position
+          const idx = parts.findIndex(p => p.type === "dynamic-tool" && p.toolCallId === chunk.toolCallId);
+          if (idx >= 0) parts[idx] = updated;
         }
         break;
     }
-  }
-
-  // Add accumulated text as first part
-  if (accumulatedText) {
-    parts.push({ type: "text", text: accumulatedText } as UIMessagePart);
-  }
-
-  // Add tool calls
-  for (const toolPart of toolCalls.values()) {
-    parts.push(toolPart);
   }
 
   return parts;

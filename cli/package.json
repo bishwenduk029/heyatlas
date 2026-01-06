@@ -1,6 +1,6 @@
 {
   "name": "heyatlas",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Tunnel local AI agents to the cloud for voice-powered interactions",
   "author": "Bishwendu Kundu <bishwenduk029@gmail.com>",
   "license": "MIT",

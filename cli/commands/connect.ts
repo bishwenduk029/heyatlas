@@ -87,6 +87,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
       const result = agent.stream(prompt);
       const parts: UIMessagePart[] = [];
       const toolCalls = new Map<string, UIMessagePart>();
+      const activeReasoningParts = new Map<string, UIMessagePart>();
 
       // Iterate toUIMessageStream once for BOTH real-time UI and building parts
       for await (const chunk of result.toUIMessageStream()) {
@@ -97,7 +98,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
           data: chunk as Record<string, unknown>,
         });
 
-        // Build parts in stream order (text and tools interspersed)
+        // Build parts in stream order (text, reasoning, tools interspersed)
         switch (chunk.type) {
           case "text-delta": {
             const existingText = parts.find(p => p.type === "text");
@@ -105,6 +106,37 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
               existingText.text += chunk.delta || "";
             } else {
               parts.push({ type: "text", text: chunk.delta || "" });
+            }
+            break;
+          }
+
+          case "reasoning-start": {
+            // Start a new reasoning part (thinking/planning content)
+            const reasoningPart = {
+              type: "reasoning" as const,
+              text: "",
+              state: "streaming" as const,
+            };
+            activeReasoningParts.set(chunk.id, reasoningPart);
+            parts.push(reasoningPart);
+            break;
+          }
+
+          case "reasoning-delta": {
+            // Append to existing reasoning part
+            const reasoningPart = activeReasoningParts.get(chunk.id);
+            if (reasoningPart && "text" in reasoningPart) {
+              reasoningPart.text += chunk.delta || "";
+            }
+            break;
+          }
+
+          case "reasoning-end": {
+            // Mark reasoning as done
+            const reasoningPart = activeReasoningParts.get(chunk.id);
+            if (reasoningPart) {
+              reasoningPart.state = "done";
+              activeReasoningParts.delete(chunk.id);
             }
             break;
           }

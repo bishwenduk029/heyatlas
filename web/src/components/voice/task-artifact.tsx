@@ -18,6 +18,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import { Reasoning } from "ai-elements";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import type { AtlasTask } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
@@ -81,6 +82,18 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
         <div ref={contentRef} className="flex-1 overflow-auto p-4 min-w-0 space-y-3">
           {uiMessage?.parts?.map((part, i) => {
             const key = `${uiMessage.id}-${i}`;
+
+            // Handle reasoning parts (thinking/planning content)
+            if (part.type === "reasoning") {
+              return (
+                <Reasoning
+                  key={key}
+                  state={part.state}
+                >
+                  {part.text}
+                </Reasoning>
+              );
+            }
 
             // Handle text parts
             if (part.type === "text") {
