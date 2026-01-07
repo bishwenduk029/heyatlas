@@ -13,7 +13,7 @@ web-dev:
 
 deploy-web:
     @echo "🔄 Changes detected in web, proceeding with deployment..."
-    cd web && vercel deploy --prod
+    cd web && pnpm run deploy
 
 # Atlas Agent tasks (Cloudflare Durable Object)
 setup-atlas:

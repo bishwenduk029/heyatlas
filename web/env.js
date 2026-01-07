@@ -6,7 +6,7 @@ const env = createEnv({
   server: {
     // Bifrost Gateway
     BIFROST_URL: z.string().optional(),
-    BIFROST_ADMIN_KEY: z.string().optional(),
+    BIFROST_BEARER_TOKEN: z.string().optional(),
 
     // Database URL
     DATABASE_URL: z.string().url({ message: "Invalid database URL" }),
@@ -20,10 +20,6 @@ const env = createEnv({
     // Authentication credentials
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
-    GITHUB_CLIENT_ID: z.string().optional(),
-    GITHUB_CLIENT_SECRET: z.string().optional(),
-    LINKEDIN_CLIENT_ID: z.string().optional(),
-    LINKEDIN_CLIENT_SECRET: z.string().optional(),
     BETTER_AUTH_SECRET: z.string(),
 
     // API keys
@@ -31,7 +27,10 @@ const env = createEnv({
 
     // Payments - DodoPayments
     DODO_PAYMENTS_API_KEY: z.string().optional(),
-    DODO_PAYMENTS_ENVIRONMENT: z.enum(["test_mode", "live_mode"]).default("test_mode").optional(),
+    DODO_PAYMENTS_ENVIRONMENT: z
+      .enum(["test_mode", "live_mode"])
+      .default("test_mode")
+      .optional(),
     DODO_PAYMENTS_WEBHOOK_SECRET: z.string().optional(),
 
     // LiveKit Voice Agent
@@ -53,7 +52,7 @@ const env = createEnv({
   runtimeEnv: {
     // Bifrost Gateway
     BIFROST_URL: process.env.BIFROST_URL,
-    BIFROST_ADMIN_KEY: process.env.BIFROST_ADMIN_KEY,
+    BIFROST_BEARER_TOKEN: process.env.BIFROST_BEARER_TOKEN,
 
     // Database URL
     DATABASE_URL: process.env.DATABASE_URL,
@@ -67,10 +66,6 @@ const env = createEnv({
     // Authentication credentials
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
-    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
-    LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID,
-    LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 
     // API keys

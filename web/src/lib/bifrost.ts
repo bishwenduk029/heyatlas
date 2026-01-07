@@ -10,7 +10,7 @@ export interface BifrostVirtualKeyResponse {
 
 class BifrostService {
   private baseUrl: string;
-  private adminKey: string;
+  private bearerToken: string;
 
   constructor() {
     this.baseUrl = env.BIFROST_URL || "http://localhost:4000";
@@ -18,7 +18,14 @@ class BifrostService {
     if (this.baseUrl.endsWith("/v1")) {
       this.baseUrl = this.baseUrl.substring(0, this.baseUrl.length - 3);
     }
-    this.adminKey = env.BIFROST_ADMIN_KEY || "";
+    this.bearerToken = env.BIFROST_BEARER_TOKEN || "";
+  }
+
+  private getHeaders() {
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.bearerToken}`,
+    };
   }
 
   /**
@@ -32,15 +39,17 @@ class BifrostService {
     email: string,
     budgetLimit?: number,
   ): Promise<string | null> {
+    if (!this.bearerToken) {
+      console.error("BIFROST_BEARER_TOKEN is not set");
+      return null;
+    }
     console.log(`[Bifrost] Creating virtual key for user ${userId} (${email})`);
     try {
       const response = await fetch(
         `${this.baseUrl}/api/governance/virtual-keys`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: this.getHeaders(),
           body: JSON.stringify({
             name: email || `user-${userId}`,
             provider_configs: [
@@ -87,21 +96,21 @@ class BifrostService {
    * @param budgetLimit - New budget limit
    */
   async updateVirtualKey(key: string, budgetLimit: number): Promise<boolean> {
-    if (!this.adminKey) {
-      console.error("BIFROST_ADMIN_KEY is not set");
+    if (!this.bearerToken) {
+      console.error("BIFROST_BEARER_TOKEN is not set");
       return false;
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/key/update`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.adminKey}`,
-          "Content-Type": "application/json",
-        },
+      const response = await fetch(`${this.baseUrl}/api/governance/virtual-keys/${key}`, {
+        method: "PATCH",
+        headers: this.getHeaders(),
         body: JSON.stringify({
-          key: key,
-          max_budget: budgetLimit,
+          rate_limit: {
+            token_max_limit: budgetLimit,
+            token_reset_duration: "1M",
+            request_reset_duration: "1h",
+          },
         }),
       });
 
@@ -133,9 +142,7 @@ class BifrostService {
         `${this.baseUrl}/api/governance/virtual-keys/${key}`,
         {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: this.getHeaders(),
         },
       );
 

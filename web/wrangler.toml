@@ -1,0 +1,11 @@
+  main = ".open-next/worker.js"
+  name = "heyatlas-web"
+  compatibility_date = "2026-01-06"
+  compatibility_flags = ["nodejs_compat"]
+  [assets]
+  directory = ".open-next/assets"
+  binding = "ASSETS"
+
+  [[routes]]
+  pattern = "heyatlas.app"
+  custom_domain = true

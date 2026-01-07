@@ -15,16 +15,6 @@ export const providerConfigs: {
     clientIdKey: "GOOGLE_CLIENT_ID",
     clientSecretKey: "GOOGLE_CLIENT_SECRET",
   },
-  {
-    name: "github",
-    clientIdKey: "GITHUB_CLIENT_ID",
-    clientSecretKey: "GITHUB_CLIENT_SECRET",
-  },
-  {
-    name: "linkedin",
-    clientIdKey: "LINKEDIN_CLIENT_ID",
-    clientSecretKey: "LINKEDIN_CLIENT_SECRET",
-  },
 ];
 
 /**

@@ -105,3 +105,5 @@ qdrant_storage
 
 # Wrangler
 .wrangler/
+**/**/.open-next
+**/**/bun.lock
