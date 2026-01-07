@@ -80,19 +80,19 @@ HeyAtlas explores various approaches to human-AI collaboration:
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Drizzle ORM](https://orm.drizzle.team/)
 - [Neon PostgreSQL](https://neon.com/)
+- [Cloudflare Agents](https://github.com/cloudflare/agents)
 - [Vercel AI SDK](https://sdk.vercel.ai/docs)
 - [MCPC - AI SDK wrapper for ACP](https://github.com/mcpc-tech/mcpc/tree/main/packages/acp-ai-provider)
 - [Bifrost Gateway](https://www.getmaxim.ai/bifrost)
-- [Cloudflare Agents](https://github.com/cloudflare/agents)
-- [Parallel Web Systems](https://t.co/7J43NiZ51y) Web Search API for AI
+- [Parallel Web Systems](https://parallel.ai/) Web Search API for AI
 - [Baseten](https://baseten.co) LLM inference provider for z-ai/GLM-4.7 (amazing low cost model)
 - [Together.ai](https://www.together.ai/inference) For canopylabs/Orpheus-tts inference
 - [Deepgram](https://deepgram.com/) For Speech to text
 - [LiveKit](https://livekit.io/)
 - [Better Auth](https://github.com/better-auth/better-auth)
 - [Dodo Payments](https://dodopayments.com/) - Coming Soon
-- [Vercel](https://vercel.com/) (deployment)
-- [Fly.io](https://fly.io/) (Livekit voice agent and Bifrost gateway deployment)
+- [Cloudflare](https://workers.cloudflare.com/) (deployment)
+- [Fly.io](https://fly.io/) (Bifrost gateway deployment)
 
 ---
 
