@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import neon from "@neondatabase/serverless";
 import env from "@/env";
 import * as tables from "./tables";
 import {
@@ -18,8 +18,8 @@ if (process.env.NODE_ENV === "development") {
   validateDatabaseConfig();
 }
 
-// Set up the SQL client with dynamic configuration
-const sql = postgres(databaseUrl, connectionConfig);
+// Always use @neondatabase/serverless - works in both local dev and Cloudflare Workers
+const sql = neon(databaseUrl, connectionConfig);
 
 // Initialize the database with drizzle and schema
 export const db = drizzle(sql, { schema: { ...tables } });
@@ -27,7 +27,5 @@ export const db = drizzle(sql, { schema: { ...tables } });
 // Export the sql client for direct queries if needed
 export { sql };
 
-// Graceful shutdown function for cleanup
-export const closeDatabase = async () => {
-  await sql.end({ timeout: 5 });
-};
+// Neon HTTP uses stateless connections, no cleanup needed
+export const closeDatabase = async () => {};
