@@ -1,6 +1,6 @@
 {
   "name": "heyatlas",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Tunnel local AI agents to the cloud for voice-powered interactions",
   "author": "Bishwendu Kundu <bishwenduk029@gmail.com>",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "start": "bun run index.ts",
     "dev": "bun run --hot index.ts",
     "build": "bun build index.ts --target=node --outfile=dist/cli.js && { echo '#!/usr/bin/env node'; cat dist/cli.js; } > dist/cli.tmp && mv dist/cli.tmp dist/cli.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "@types/bun": "latest"

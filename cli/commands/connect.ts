@@ -25,12 +25,17 @@ interface UIMessagePart {
   [key: string]: unknown;
 }
 
-export async function connect(agentType: AgentType, options: ConnectOptions = {}) {
+export async function connect(
+  agentType: AgentType,
+  options: ConnectOptions = {},
+) {
   const credentials = await login();
 
   if (!isACPAgent(agentType)) {
     console.error(`Error: Agent '${agentType}' is not ACP-compatible`);
-    console.error(`Supported agents: opencode, claude, goose, gemini, codex, etc.`);
+    console.error(
+      `Supported agents: opencode, claude, goose, gemini, codex, etc.`,
+    );
     process.exit(1);
   }
 
@@ -43,7 +48,9 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
   const available = await agent.isAvailable();
   if (!available) {
     const cmd = getACPCommand(agentType as ACPAgentType);
-    console.error(`Error: Agent '${agentType}' is not installed or not in PATH`);
+    console.error(
+      `Error: Agent '${agentType}' is not installed or not in PATH`,
+    );
     console.error(`Command: ${cmd.join(" ")}`);
     process.exit(1);
   }
@@ -70,7 +77,9 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
   tunnel.onNewTask(async (task: Task) => {
     const { prompt, latestUserMessage } = buildPromptWithContext(task);
     const isNewTask = task.state === "new";
-    console.log(`${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`);
+    console.log(
+      `${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`,
+    );
 
     // Update task state
     await tunnel.updateTask(task.id, { state: "in-progress" });
@@ -101,7 +110,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
         // Build parts in stream order (text, reasoning, tools interspersed)
         switch (chunk.type) {
           case "text-delta": {
-            const existingText = parts.find(p => p.type === "text");
+            const existingText = parts.find((p) => p.type === "text");
             if (existingText && "text" in existingText) {
               existingText.text += chunk.delta || "";
             } else {
@@ -161,7 +170,11 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
                 output: chunk.output,
               };
               toolCalls.set(chunk.toolCallId, updated);
-              const idx = parts.findIndex(p => p.type === "dynamic-tool" && p.toolCallId === chunk.toolCallId);
+              const idx = parts.findIndex(
+                (p) =>
+                  p.type === "dynamic-tool" &&
+                  p.toolCallId === chunk.toolCallId,
+              );
               if (idx >= 0) parts[idx] = updated;
             }
             break;
@@ -203,7 +216,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
   console.log(`Tunnel established`);
 
   // Open browser
-  const voiceUrl = `${process.env.HEYATLAS_API || "https://www.heyatlas.app"}/chat`;
+  const voiceUrl = `${process.env.HEYATLAS_API || "https://heyatlas.app"}/chat`;
   if (options.openBrowser !== false) {
     try {
       const { execSync } = await import("child_process");
@@ -218,7 +231,7 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
   }
 
   console.log(`\nHeyAtlas connected to ${agentType}`);
-  console.log(`Talk here: ${voiceUrl}`);
+  console.log(`Continue here: ${voiceUrl}`);
   console.log(`\nPress Ctrl+C to disconnect\n`);
 
   // Cleanup on exit
@@ -250,16 +263,22 @@ function buildPromptWithContext(task: Task): {
       const data = e.data as Record<string, unknown>;
       const parts = data.parts as Array<Record<string, unknown>> | undefined;
       if (parts) {
-        const textPart = parts.find(p => p.type === "text");
+        const textPart = parts.find((p) => p.type === "text");
         if (textPart && textPart.text) {
-          messages.push({ role: String(data.role || "assistant"), content: String(textPart.text) });
+          messages.push({
+            role: String(data.role || "assistant"),
+            content: String(textPart.text),
+          });
         }
       }
     } else if (e.type === "message" && e.data) {
       // Legacy message format
       const data = e.data as Record<string, unknown>;
       if (data.role && data.content) {
-        messages.push({ role: String(data.role), content: String(data.content) });
+        messages.push({
+          role: String(data.role),
+          content: String(data.content),
+        });
       }
     } else if (e.role && e.content) {
       messages.push({ role: String(e.role), content: String(e.content) });

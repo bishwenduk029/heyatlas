@@ -171,16 +171,25 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       return;
     }
 
-    const searchMcpServerResponse = await this.addMcpServer("Web Search", this.env.PARALLELS_WEB_SEARCH_API || "", undefined, undefined, {
-      transport: {
-        type: "streamable-http",
-        headers: {
-          authorization: `Bearer ${this.env.PARALLELS_WEB_SEARCH_API_KEY || ""}`,
+    const searchMcpServerResponse = await this.addMcpServer(
+      "Web Search",
+      this.env.PARALLELS_WEB_SEARCH_API || "",
+      undefined,
+      undefined,
+      {
+        transport: {
+          type: "streamable-http",
+          headers: {
+            authorization: `Bearer ${this.env.PARALLELS_WEB_SEARCH_API_KEY || ""}`,
+          },
         },
       },
-    });
+    );
     if (searchMcpServerResponse.state !== "ready") {
-      console.warn(`[Atlas] MCP Server requires authentication:`, searchMcpServerResponse.authUrl);
+      console.warn(
+        `[Atlas] MCP Server requires authentication:`,
+        searchMcpServerResponse.authUrl,
+      );
     }
 
     this.mcpInitialized = true;
@@ -338,7 +347,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
           model: this.model,
           system: systemPrompt,
           messages: await this.prepareModelMessages(),
-          tools: { ...this.tools,  ...this.mcp.getAITools() },
+          tools: { ...this.tools, ...this.mcp.getAITools() },
           onFinish: async (event) => {
             // Call original onFinish
             await (onFinish as StreamTextOnFinishCallback<typeof this.tools>)(
@@ -484,7 +493,7 @@ Write your first-person summary:`;
       model: this.model,
       system: await this.getSystemPrompt(),
       messages: await this.prepareModelMessages(),
-      tools: { ...this.tools,  ...this.mcp.getAITools() },
+      tools: { ...this.tools, ...this.mcp.getAITools() },
       stopWhen: stepCountIs(10),
       onFinish: async (event) => {
         if (event.text) {
@@ -562,29 +571,11 @@ Write your first-person summary:`;
     }
 
     const cfg = getTierConfig(tier);
-    if (cfg.hasCloudDesktop) this.ensureSandbox().catch(() => { });
+    if (cfg.hasCloudDesktop) this.ensureSandbox().catch(() => {});
 
     await this.buildMCPServers();
 
     conn.send(JSON.stringify({ type: "connected", userId: this.userId }));
-  }
-
-  /**
-   * Hook called when state is updated (from server or client).
-   */
-  onStateUpdate(state: AgentState, source: "server" | Connection) {
-    const sourceType = source === "server" ? "server" : "client";
-    const taskCount = Object.keys(state.tasks || {}).length;
-    console.log(`[Atlas] onStateUpdate [${sourceType}]: tasks=${taskCount}`);
-
-    // Log task states for debugging
-    if (state.tasks) {
-      for (const [taskId, task] of Object.entries(state.tasks)) {
-        console.log(
-          `  - Task ${taskId.slice(0, 8)}: ${task.state}, context=${task.context?.length || 0}`,
-        );
-      }
-    }
   }
 
   // --- Public API (called from Hono router) ---
@@ -633,7 +624,7 @@ Write your first-person summary:`;
 
     const cfg = getTierConfig(this.state.tier);
     if (this.state.credentials && cfg.hasCloudDesktop) {
-      this.ensureSandbox().catch(() => { });
+      this.ensureSandbox().catch(() => {});
     }
 
     // Ensure MCP servers are initialized for HTTP requests (voice mode)
@@ -674,7 +665,10 @@ Write your first-person summary:`;
    * Used for tool calls, thinking indicators, status updates, etc.
    */
   @callable({ description: "Broadcast ephemeral task event to UI" })
-  broadcast_task_event(taskId: string, event: { type: string; timestamp: number; data: Record<string, unknown> }): void {
+  broadcast_task_event(
+    taskId: string,
+    event: { type: string; timestamp: number; data: Record<string, unknown> },
+  ): void {
     this.broadcast(
       JSON.stringify({
         type: "task_event",

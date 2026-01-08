@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "fs";
 
 const CONFIG_DIR = join(homedir(), ".heyatlas");
 const CREDENTIALS_FILE = join(CONFIG_DIR, "credentials.json");
-const API_BASE = process.env.HEYATLAS_API || "https://www.heyatlas.app";
+const API_BASE = process.env.HEYATLAS_API || "https://heyatlas.app";
 const CLIENT_ID = "heyatlas-cli";
 
 interface Credentials {
@@ -78,7 +78,7 @@ async function requestDeviceCode(): Promise<{
 // Poll for token
 async function pollForToken(
   deviceCode: string,
-  interval: number
+  interval: number,
 ): Promise<{ accessToken: string; user: { id: string; email: string } }> {
   let pollInterval = interval;
 
@@ -155,21 +155,28 @@ export async function login(): Promise<Credentials> {
   if (existing) {
     return existing;
   }
-  
+
   // Request device code
-  const { deviceCode, userCode, verificationUri, verificationUriComplete, interval } =
-    await requestDeviceCode();
+  const {
+    deviceCode,
+    userCode,
+    verificationUri,
+    verificationUriComplete,
+    interval,
+  } = await requestDeviceCode();
 
   // Format user code with dash for readability
-  const formattedCode = userCode.length === 8
-    ? `${userCode.slice(0, 4)}-${userCode.slice(4)}`
-    : userCode;
+  const formattedCode =
+    userCode.length === 8
+      ? `${userCode.slice(0, 4)}-${userCode.slice(4)}`
+      : userCode;
 
   console.log(`🔐 Enter code: ${formattedCode}`);
   console.log(`   at ${verificationUri}\n`);
 
   // Open browser
-  const urlToOpen = verificationUriComplete || `${verificationUri}?code=${userCode}`;
+  const urlToOpen =
+    verificationUriComplete || `${verificationUri}?code=${userCode}`;
 
   try {
     const { execSync } = await import("child_process");
