@@ -108,32 +108,38 @@ export function ChatInput({
   }, [agentState]);
 
   return (
-    <div className="w-full">
-      {(connectedAgentId || compressing) && (
-        <div className="fade-in-up overflow-hidden">
-          <div
-            className={cn(
-              "mx-auto my-auto -mb-1 flex h-8 w-[95%] items-center justify-between rounded-sm border-2 border-b-0 px-3 pb-1",
-
-              compressing
-                ? "bg-primary border-amber-500/30"
-                : "bg-primary border-primary/30",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-background text-[10px] tracking-widest">
-                Agent Connected
-              </span>
-            </div>
-
-            {compressing && (
-              <Shimmer className="text-background text-[10px] tracking-widest">
-                Compressing Memory...
-              </Shimmer>
-            )}
+    <div className="relative w-full">
+      {/* Status Banner - Absolutely positioned to overlay form boundary */}
+      <div
+        className={cn(
+          "absolute bottom-full left-0 right-0 mx-auto w-[95%] overflow-hidden transition-all duration-300 ease-in-out z-10",
+          connectedAgentId || compressing
+            ? "max-h-16 opacity-100 translate-y-0"
+            : "max-h-0 opacity-0 translate-y-2",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-8 items-center justify-between rounded-t-sm border-2 border-b-0 px-3",
+            compressing
+              ? "bg-amber-500/20 border-amber-500/30"
+              : "bg-primary/10 border-primary/30",
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-foreground text-[10px] tracking-widest font-medium">
+              Agent Connected
+            </span>
           </div>
+
+          {compressing && (
+            <Shimmer className="text-foreground text-[10px] tracking-widest">
+              Compressing Memory...
+            </Shimmer>
+          )}
         </div>
-      )}
+      </div>
+      
       <form
         onSubmit={handleSubmit}
         className="bg-muted/30 focus-within:border-primary/30 relative overflow-hidden rounded-xl border-2 shadow-md transition-all"
@@ -187,15 +193,15 @@ export function ChatInput({
             {showVoiceToggle && onToggleVoice && (
               <>
                 {isVoiceMode ? (
-                  // Voice Mode: Expanded controls replace the voice button
-                  <div className="flex items-center gap-2">
+                  // Voice Mode: Expanded controls - use fixed height to prevent layout shift
+                  <div className="flex items-center gap-2 h-12">
                     {/* Mute Button */}
                     <Button
                       variant={isMicEnabled ? "default" : "secondary"}
                       size="icon"
                       onClick={onToggleMute}
                       className={cn(
-                        "h-10 w-10 cursor-pointer rounded-full",
+                        "h-10 w-10 cursor-pointer rounded-full shrink-0",
                         isMicEnabled && visualizerState === "listening"
                           ? "bg-green-600 text-white hover:bg-green-700"
                           : "",
@@ -210,7 +216,7 @@ export function ChatInput({
                     </Button>
 
                     {/* Bar Visualizer with State Text */}
-                    <div className="flex flex-col items-center gap-0.5">
+                    <div className="flex flex-col items-center gap-0.5 shrink-0">
                       <div className="w-36">
                         <BarVisualizer
                           state={visualizerState}
@@ -239,7 +245,7 @@ export function ChatInput({
                       }
                       label="End Voice"
                       onClick={onToggleVoice}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 shrink-0"
                     />
                   </div>
                 ) : (
