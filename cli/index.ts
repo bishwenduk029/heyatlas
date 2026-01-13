@@ -9,9 +9,9 @@ import type { AgentType } from "./agents";
 // ACP-compatible agents
 const SUPPORTED_AGENTS = [
   "opencode",
-  "claude",
+  "claude-code",
   "goose",
-  "gemini",
+  "gemini-code",
   "codex",
   "kimi",
   "vibe",

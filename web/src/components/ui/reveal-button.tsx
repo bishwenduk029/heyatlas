@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { type ReactNode } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const BUTTON_MOTION_CONFIG = {
   initial: "rest",
@@ -14,6 +15,16 @@ const BUTTON_MOTION_CONFIG = {
       maxWidth: "140px",
       transition: { type: "spring", stiffness: 200, damping: 35, delay: 0.15 },
     },
+    tap: { scale: 0.95 },
+  },
+  transition: { type: "spring", stiffness: 250, damping: 25 },
+} as const;
+
+const MOBILE_MOTION_CONFIG = {
+  initial: "rest",
+  whileTap: "tap",
+  variants: {
+    rest: { maxWidth: "40px" },
     tap: { scale: 0.95 },
   },
   transition: { type: "spring", stiffness: 250, damping: 25 },
@@ -46,9 +57,11 @@ export function RevealButton({
   className,
   "aria-label": ariaLabel,
 }: RevealButtonProps) {
+  const isMobile = useIsMobile();
+
   return (
     <motion.button
-      {...BUTTON_MOTION_CONFIG}
+      {...(isMobile ? MOBILE_MOTION_CONFIG : BUTTON_MOTION_CONFIG)}
       type="button"
       onClick={onClick}
       className={cn(
@@ -58,13 +71,15 @@ export function RevealButton({
       aria-label={ariaLabel || label}
     >
       <div className="shrink-0">{icon}</div>
-      <motion.span
-        variants={LABEL_VARIANTS}
-        transition={LABEL_TRANSITION}
-        className="pr-1 text-sm font-medium"
-      >
-        {label}
-      </motion.span>
+      {!isMobile && (
+        <motion.span
+          variants={LABEL_VARIANTS}
+          transition={LABEL_TRANSITION}
+          className="pr-1 text-sm font-medium"
+        >
+          {label}
+        </motion.span>
+      )}
     </motion.button>
   );
 }

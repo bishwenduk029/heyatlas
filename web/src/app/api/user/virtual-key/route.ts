@@ -15,6 +15,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
+    console.log(`[VirtualKey] GET /api/user/virtual-key userId=${userId}`);
+
     if (!userId) {
       return NextResponse.json(
         { error: "Missing userId parameter" },
@@ -28,7 +30,10 @@ export async function GET(request: Request) {
       columns: { bifrostApiKey: true },
     });
 
+    console.log(`[VirtualKey] User found in DB: ${!!user}, has key: ${!!user?.bifrostApiKey}`);
+
     if (!user) {
+      console.log(`[VirtualKey] User ${userId} not found - returning 404`);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 

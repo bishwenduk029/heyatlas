@@ -4,6 +4,7 @@ import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "agents/ai-react";
 import type { UIMessage } from "@ai-sdk/react";
+import { toast } from "sonner";
 
 // Type for UIMessage parts array element
 type UIMessagePart = UIMessage["parts"][number];
@@ -52,16 +53,23 @@ export interface UIStreamChunk {
 /** Agent state synced from Atlas via CF_AGENT_STATE */
 export interface AtlasAgentState {
   sandbox?: {
+    type: "e2b" | "cloudflare";
     sandboxId: string;
-    vncUrl: string;
-    computerAgentUrl: string;
-    logsUrl: string;
+    sessionId?: string;
+    vncUrl?: string;
+    computerAgentUrl?: string;
+    logsUrl?: string;
+    agentConnected?: boolean;
   } | null;
   tier?: string;
   tasks?: Record<string, AtlasTask>;
-  connectedAgentId?: string | null;
+  activeAgent?: string | null;
+  // Note: selectedAgent is a legacy field - we derive it from activeAgent instead
   compressing?: boolean;
 }
+
+/** Selected agent type for the UI - null means no agent connected */
+export type SelectedAgent = { type: "cloud"; agentId: string } | null;
 
 interface UseAtlasAgentOptions {
   userId: string;
@@ -74,10 +82,18 @@ interface UseAtlasAgentOptions {
  * All state (tasks, sandbox, etc.) is synced automatically via onStateUpdate.
  */
 export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions) {
-  const [sandboxInfo, setSandboxInfo] = useState<{ vncUrl?: string; logsUrl?: string }>({});
+  const [sandboxInfo, setSandboxInfo] = useState<{
+    type?: "e2b" | "cloudflare";
+    sandboxId?: string;
+    sessionId?: string;
+    vncUrl?: string;
+    logsUrl?: string;
+    agentConnected?: boolean;
+  }>({});
   const [isConnected, setIsConnected] = useState(false);
   const [tasks, setTasks] = useState<AtlasTask[]>([]);
-  const [connectedAgentId, setConnectedAgentId] = useState<string | null>("Droid"); // TODO: Remove default for prod
+  const [activeAgent, setActiveAgent] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>(null);
   const [compressing, setCompressing] = useState(false);
   
   // Streaming UI chunks: real-time updates from CLI agent (ephemeral, not stored)
@@ -89,18 +105,31 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     setIsConnected(true);
     if (state.sandbox) {
       setSandboxInfo({
+        type: state.sandbox.type,
+        sandboxId: state.sandbox.sandboxId,
+        sessionId: state.sandbox.sessionId,
         vncUrl: state.sandbox.vncUrl,
         logsUrl: state.sandbox.logsUrl,
+        agentConnected: state.sandbox.agentConnected,
       });
+    } else if (state.sandbox === null) {
+      setSandboxInfo({});
     }
+
     if (state.tasks) {
-      // Debug: log task context lengths
       const taskList = Object.values(state.tasks).sort((a, b) => b.updatedAt - a.updatedAt);
       setTasks(taskList);
     }
-    if (state.connectedAgentId !== undefined) {
-      setConnectedAgentId(state.connectedAgentId || null);
+    if (state.activeAgent !== undefined) {
+      setActiveAgent(state.activeAgent || null);
+      // Derive selectedAgent from activeAgent - activeAgent is the source of truth
+      if (state.activeAgent) {
+        setSelectedAgent({ type: "cloud", agentId: state.activeAgent });
+      } else {
+        setSelectedAgent(null);
+      }
     }
+    // Ignore state.selectedAgent - it's a legacy field that may have stale data
     if (state.compressing !== undefined) {
       setCompressing(state.compressing);
     }
@@ -143,6 +172,10 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     onStateUpdate: handleStateUpdate,
     onOpen: handleOpen,
     onClose: handleClose,
+    onError: (event: Event) => {
+      console.error("Atlas Connection Error:", event);
+      toast.error("Failed to connect to Atlas agent. Please check your connection.");
+    },
   });
 
   // Listen for broadcast messages (ephemeral task events)
@@ -186,6 +219,13 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   // Chat functionality
   const chat = useAgentChat<unknown, UIMessage>({
     agent: agentConnection as ReturnType<typeof useAgent>,
+    onError: (error: Error) => {
+      console.error("Agent Chat Error:", error);
+      // Avoid duplicate toasts if useAgent already fired one
+      if (!error.message.includes("Failed to fetch")) {
+        toast.error("Chat error: " + error.message);
+      }
+    },
   });
 
   const isLoading = chat.status === "submitted" || chat.status === "streaming";
@@ -232,6 +272,63 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     [tasks]
   );
 
+  // Connect to a cloud agent (creates sandbox)
+  const connectCloudAgent = useCallback(async (agentId: string, apiKey?: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch("/api/agent/connect-cloud", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ agentId, apiKey }),
+      });
+
+      const result = await response.json() as { success: boolean; error?: string };
+      
+      if (!response.ok) {
+        return { success: false, error: result.error || "Failed to connect cloud agent" };
+      }
+      
+      // On successful cloud connection, update selectedAgent state for UI feedback (green dot, etc)
+      if (result.success) {
+        setSelectedAgent({ type: "cloud", agentId });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Failed to connect cloud agent:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }, []);
+
+  // Disconnect current agent (destroys sandbox, clears state)
+  const disconnectAgent = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch("/api/agent/disconnect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json() as { success: boolean; error?: string };
+      
+      if (!response.ok) {
+        return { success: false, error: result.error || "Failed to disconnect agent" };
+      }
+      
+      // On successful disconnect, clear local state immediately
+      if (result.success) {
+        setSelectedAgent(null);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Failed to disconnect agent:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }, []);
+
   return {
     isConnected,
     isLoading,
@@ -247,7 +344,10 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     sendMessage: chat.sendMessage,
     clearHistory: chat.clearHistory,
     stop: chat.stop,
-    connectedAgentId,
+    activeAgent,
+    selectedAgent,
+    connectCloudAgent,
+    disconnectAgent,
     compressing,
   };
 }
@@ -259,80 +359,104 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
  */
 function chunksToMessageParts(chunks: UIStreamChunk[]): UIMessagePart[] {
   const parts: UIMessagePart[] = [];
-  const toolCalls = new Map<string, UIMessagePart>();
-  const activeReasoningParts = new Map<string, UIMessagePart>();
+  const toolCalls = new Map<string, { part: UIMessagePart; index: number }>();
+  const activeReasoningParts = new Map<string, { part: UIMessagePart; index: number }>();
+  let currentTextPart: UIMessagePart | null = null;
 
   for (const chunk of chunks) {
     switch (chunk.type) {
       case "text-delta": {
-        // AI SDK UI stream protocol uses 'delta' property for text-delta
-        const existingText = parts.find(p => p.type === "text");
-        if (existingText && "text" in existingText) {
-          existingText.text += chunk.delta as string || "";
+        // Append to current text part if it's the last part, otherwise create new
+        const delta = (chunk.delta as string) || "";
+        if (!delta) break;
+        
+        if (currentTextPart && parts[parts.length - 1] === currentTextPart) {
+          // Continue appending to current text if it's still the last part
+          if ("text" in currentTextPart) {
+            currentTextPart.text += delta;
+          }
         } else {
-          parts.push({ type: "text", text: chunk.delta as string || "" } as UIMessagePart);
+          // Create new text part (tool/reasoning was inserted between)
+          currentTextPart = { type: "text", text: delta } as UIMessagePart;
+          parts.push(currentTextPart);
         }
         break;
       }
 
       case "reasoning-start": {
-        // Start a new reasoning part
+        currentTextPart = null; // Break text accumulation
         const reasoningPart = {
           type: "reasoning" as const,
           text: "",
           state: "streaming" as const,
         };
-        activeReasoningParts.set(chunk.id as string, reasoningPart);
+        activeReasoningParts.set(chunk.id as string || "default", { part: reasoningPart, index: parts.length });
         parts.push(reasoningPart);
         break;
       }
 
-      case "reasoning-delta": {
-        // Append to existing reasoning part
-        const reasoningPart = activeReasoningParts.get(chunk.id as string);
-        if (reasoningPart && "text" in reasoningPart) {
-          reasoningPart.text += chunk.delta as string || "";
+      case "reasoning-delta":
+      case "reasoning": {
+        const id = (chunk.id as string) || "default";
+        let entry = activeReasoningParts.get(id);
+        
+        if (!entry) {
+          currentTextPart = null;
+          const reasoningPart = { type: "reasoning" as const, text: "", state: "streaming" as const };
+          entry = { part: reasoningPart, index: parts.length };
+          activeReasoningParts.set(id, entry);
+          parts.push(reasoningPart);
+        }
+        
+        if ("text" in entry.part) {
+          const delta = (chunk.delta as string) || (chunk.text as string) || "";
+          entry.part.text += delta;
         }
         break;
       }
 
       case "reasoning-end": {
-        // Mark reasoning as done
-        const reasoningPart = activeReasoningParts.get(chunk.id as string);
-        if (reasoningPart) {
-          (reasoningPart as { state: string }).state = "done";
-          activeReasoningParts.delete(chunk.id as string);
+        const id = (chunk.id as string) || "default";
+        const entry = activeReasoningParts.get(id);
+        if (entry) {
+          (entry.part as { state: string }).state = "done";
+          activeReasoningParts.delete(id);
         }
         break;
       }
 
-      case "tool-input-available":
-        // Tool call with complete input ready - push immediately to preserve order
-        toolCalls.set(chunk.toolCallId as string, {
+      case "tool-input-available": {
+        currentTextPart = null; // Break text accumulation
+        const input = chunk.input as Record<string, unknown> | undefined;
+        const realToolName = (input?.toolName as string) || (chunk.toolName as string);
+        const realArgs = (input?.args as Record<string, unknown>) || input || {};
+        
+        const toolPart = {
           type: "dynamic-tool",
           toolCallId: chunk.toolCallId as string,
-          toolName: chunk.toolName as string,
+          toolName: realToolName,
           state: "input-available" as const,
-          input: chunk.input,
-        } as UIMessagePart);
-        parts.push(toolCalls.get(chunk.toolCallId as string)!);
+          input: realArgs,
+        } as UIMessagePart;
+        
+        toolCalls.set(chunk.toolCallId as string, { part: toolPart, index: parts.length });
+        parts.push(toolPart);
         break;
+      }
 
-      case "tool-output-available":
-        // Tool result available - update existing tool call
-        const existing = toolCalls.get(chunk.toolCallId as string);
-        if (existing) {
+      case "tool-output-available": {
+        const entry = toolCalls.get(chunk.toolCallId as string);
+        if (entry) {
           const updated = {
-            ...existing,
+            ...entry.part,
             state: "output-available" as const,
             output: chunk.output,
           } as UIMessagePart;
-          toolCalls.set(chunk.toolCallId as string, updated);
-          // Update in parts array to preserve position
-          const idx = parts.findIndex(p => p.type === "dynamic-tool" && p.toolCallId === chunk.toolCallId);
-          if (idx >= 0) parts[idx] = updated;
+          entry.part = updated;
+          parts[entry.index] = updated;
         }
         break;
+      }
     }
   }
 

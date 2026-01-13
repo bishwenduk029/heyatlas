@@ -6,9 +6,7 @@
 
 An open-source AI companion with task lifecycle management, multi-agent orchestration, and seamless voice-text interaction.
 
-[![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=flat&logo=vercel)](https://vercel.com)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/bishwenduk029/heyatlas?style=social)](https://github.com/bishwenduk029/heyatlas)
 
 🔗 **[Try HeyAtlas](https://heyatlas.app)**
 
@@ -18,7 +16,7 @@ An open-source AI companion with task lifecycle management, multi-agent orchestr
 
 ## Overview
 
-HeyAtlas is an AI companion that doesn't just chat - it manages work. Through research-backed task abstractions and split-brain methodology, HeyAtlas orchestrates multiple AI agents (coding, finance, research, and more) to get things done while maintaining natural conversation.
+HeyAtlas is an AI companion that doesn't just chat - it manages work. Using split-brain methodology, HeyAtlas orchestrates multiple AI agents (coding, finance, research, and more) to get things done while maintaining natural conversation.
 
 **Key Differentiator:** Task lifecycle management with context accumulation. Unlike other AI companions that treat every request as isolated, HeyAtlas maintains task identity, state, and accumulated context over time - enabling human-in-the-loop continuation and multi-agent workflows.
 

@@ -10,6 +10,7 @@ import {
   Text,
 } from "@react-email/components";
 import { sendEmail } from "@/lib/email";
+import { renderEmail } from "@/lib/render-email";
 import { APP_NAME, COMPANY_NAME } from "@/lib/config/constants";
 import { userAgent } from "next/server";
 
@@ -420,21 +421,30 @@ export async function sendMagicLink(
     // The request object is optional, so handle the case where it might not exist.
     const deviceInfo = request ? parseDeviceInfo(request) : undefined;
 
-    await sendEmail(
-      email,
-      `Your secure sign-in link for ${APP_NAME}`,
+    const html = renderEmail(
       <MagicLinkEmailBody email={email} url={url} deviceInfo={deviceInfo} />,
     );
-  } catch (error) {
-    // Log the error but don't re-throw, as failing to send device info
-    // should not prevent the magic link email from being sent.
-    console.error("Error sending magic link email with device info:", error);
-
-    // As a fallback, send the email without device info
     await sendEmail(
       email,
       `Your secure sign-in link for ${APP_NAME}`,
-      <MagicLinkEmailBody email={email} url={url} />,
+      html,
     );
+  } catch (error) {
+    // Log the error and try again without device info
+    console.error("Error sending magic link email:", error);
+
+    // As a fallback, send the email without device info
+    try {
+      const html = renderEmail(<MagicLinkEmailBody email={email} url={url} />);
+      await sendEmail(
+        email,
+        `Your secure sign-in link for ${APP_NAME}`,
+        html,
+      );
+    } catch (fallbackError) {
+      // Log the fallback error and re-throw so better-auth can handle it
+      console.error("Error sending magic link email (fallback):", fallbackError);
+      throw fallbackError;
+    }
   }
 }

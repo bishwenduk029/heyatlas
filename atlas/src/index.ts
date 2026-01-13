@@ -6,7 +6,10 @@ import { authenticate, validateSandboxToken, type AuthData } from "./lib/auth";
 import type { Env } from "./types";
 import type { Tier } from "./prompts";
 
+// Export Durable Objects
 export { AtlasAgent };
+// Re-export Sandbox from Cloudflare SDK for Durable Object registration
+export { Sandbox } from "@cloudflare/sandbox";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -80,6 +83,44 @@ app.post("/agents/atlas-agent/:userId/task-update", async (c) => {
   
   agent.broadcast(JSON.stringify({ type: "task-update", content: body.content, source: "sandbox" }));
   return c.json({ success: true });
+});
+
+// Connect cloud agent endpoint (called from Next.js API route)
+// This keeps API keys server-side only
+app.post("/agents/:userId/connect-cloud-agent", async (c) => {
+  const userId = c.req.param("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const agent = await getAgent(c, userId);
+  const body = await c.req.json<{ agentId: string; apiKey?: string }>();
+  
+  if (!body.agentId) {
+    return c.json({ success: false, error: "Missing agentId" }, 400);
+  }
+
+  try {
+    const result = await agent.connectCloudAgentHTTP(body.agentId, body.apiKey);
+    return c.json(result);
+  } catch (error) {
+    console.error("[connect-cloud-agent] Error:", error);
+    return c.json({ success: false, error: "Failed to connect cloud agent" }, 500);
+  }
+});
+
+// Disconnect agent endpoint - destroys sandbox and clears agent state
+app.post("/agents/:userId/disconnect-agent", async (c) => {
+  const userId = c.req.param("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const agent = await getAgent(c, userId);
+
+  try {
+    const result = await agent.disconnectAgent();
+    return c.json(result);
+  } catch (error) {
+    console.error("[disconnect-agent] Error:", error);
+    return c.json({ success: false, error: "Failed to disconnect agent" }, 500);
+  }
 });
 
 // WebSocket upgrade and built-in routes (get-messages, etc.)

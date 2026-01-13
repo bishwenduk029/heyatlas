@@ -32,14 +32,14 @@ function getLiveOutput(task: AtlasTask): string | null {
 function getStatusStyle(state: AtlasTask["state"]) {
   switch (state) {
     case "in-progress":
-      return "bg-blue-500/10 text-blue-600";
+      return "bg-primary/10 text-primary";
     case "completed":
     case "pending-user-feedback":
-      return "bg-green-500/10 text-green-600";
+      return "bg-accent text-accent-foreground";
     case "failed":
-      return "bg-red-500/10 text-red-600";
+      return "bg-destructive/10 text-destructive";
     default:
-      return "bg-muted/50 text-muted-foreground";
+      return "bg-muted text-muted-foreground";
   }
 }
 

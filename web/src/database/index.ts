@@ -19,7 +19,8 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // Always use @neondatabase/serverless - works in both local dev and Cloudflare Workers
-const sql = neon(databaseUrl, connectionConfig);
+// Note: neon only accepts the connection string, config is handled differently
+const sql = neon(databaseUrl);
 
 // Initialize the database with drizzle and schema
 export const db = drizzle(sql, { schema: { ...tables } });

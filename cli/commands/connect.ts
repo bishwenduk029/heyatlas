@@ -126,40 +126,56 @@ export async function connect(
               text: "",
               state: "streaming" as const,
             };
-            activeReasoningParts.set(chunk.id, reasoningPart);
+            activeReasoningParts.set(chunk.id || "default", reasoningPart);
             parts.push(reasoningPart);
             break;
           }
 
-          case "reasoning-delta": {
-            // Append to existing reasoning part
-            const reasoningPart = activeReasoningParts.get(chunk.id);
-            if (reasoningPart && "text" in reasoningPart) {
-              reasoningPart.text += chunk.delta || "";
+          case "reasoning-delta":
+          case "reasoning": {
+            // Append to existing reasoning part (handle both delta and full)
+            const id = chunk.id || "default";
+            let reasoningPart = activeReasoningParts.get(id);
+            
+            // Auto-create if delta arrives first
+            if (!reasoningPart) {
+              reasoningPart = { type: "reasoning" as const, text: "", state: "streaming" as const };
+              activeReasoningParts.set(id, reasoningPart);
+              parts.push(reasoningPart);
             }
+            
+            reasoningPart.text += chunk.delta || (chunk as any).text || "";
             break;
           }
 
           case "reasoning-end": {
             // Mark reasoning as done
-            const reasoningPart = activeReasoningParts.get(chunk.id);
+            const id = chunk.id || "default";
+            const reasoningPart = activeReasoningParts.get(id);
             if (reasoningPart) {
               reasoningPart.state = "done";
-              activeReasoningParts.delete(chunk.id);
+              activeReasoningParts.delete(id);
             }
             break;
           }
 
-          case "tool-input-available":
+          case "tool-input-available": {
+            // ACP wraps tools in acp_provider_agent_dynamic_tool
+            // Extract real tool name and args from input if present
+            const input = chunk.input as Record<string, unknown> | undefined;
+            const realToolName = (input?.toolName as string) || chunk.toolName;
+            const realArgs = (input?.args as Record<string, unknown>) || input || {};
+            
             toolCalls.set(chunk.toolCallId, {
               type: "dynamic-tool",
               toolCallId: chunk.toolCallId,
-              toolName: chunk.toolName,
+              toolName: realToolName,
               state: "input-available" as const,
-              input: chunk.input,
+              input: realArgs,
             });
             parts.push(toolCalls.get(chunk.toolCallId)!);
             break;
+          }
 
           case "tool-output-available":
             const existing = toolCalls.get(chunk.toolCallId);

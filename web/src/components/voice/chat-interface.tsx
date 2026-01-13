@@ -5,7 +5,7 @@ import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
 import { useState } from "react";
 import { TaskList } from "./task-list";
-import type { AtlasTask } from "./hooks/use-atlas-agent";
+import type { AtlasTask, SelectedAgent } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
 
 interface ChatInterfaceProps {
@@ -26,9 +26,15 @@ interface ChatInterfaceProps {
   mediaStream?: MediaStream | null;
   disabled?: boolean;
   initialViewMode?: "chat" | "tasks";
-  connectedAgentId?: string | null;
+  activeAgent?: string | null;
   compressing?: boolean;
   selectedTask?: boolean;
+  selectedAgent?: SelectedAgent | null;
+  onDisconnectAgent?: () => Promise<{ success: boolean; error?: string }>;
+  onConnectCloudAgent?: (
+    agentId: string,
+    apiKey?: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function ChatInterface({
@@ -49,9 +55,12 @@ export function ChatInterface({
   mediaStream,
   disabled = false,
   initialViewMode = "chat",
-  connectedAgentId,
+  activeAgent,
   compressing,
   selectedTask = false,
+  selectedAgent,
+  onDisconnectAgent,
+  onConnectCloudAgent,
 }: ChatInterfaceProps) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -97,8 +106,11 @@ export function ChatInterface({
             isMicEnabled={isMicEnabled}
             agentState={agentState}
             mediaStream={mediaStream}
-            connectedAgentId={connectedAgentId}
+            activeAgent={activeAgent}
             compressing={compressing}
+            selectedAgent={selectedAgent}
+            onDisconnectAgent={onDisconnectAgent}
+            onConnectCloudAgent={onConnectCloudAgent}
           />
         </div>
       </div>

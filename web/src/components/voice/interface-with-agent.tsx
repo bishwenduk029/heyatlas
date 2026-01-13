@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import useConnectionDetails from "@/hooks/useConnectionDetails";
 import { Header } from "../homepage/header";
-import { Footer } from "./footer";
 import { MCPUIHandler } from "./mcp-ui-handler";
 import { useAtlasAgent } from "./hooks/use-atlas-agent";
 import { SessionLayout } from "./session-layout";
@@ -39,7 +38,7 @@ export function InterfaceWithAgent({
     token,
   });
 
-  // VNC URL comes from agent state (sandbox creation)
+  // VNC URL comes from agent state (E2B sandbox creation)
   const vncUrl = atlasAgent.vncUrl;
   const logUrl = atlasAgent.logsUrl;
 
@@ -180,11 +179,13 @@ export function InterfaceWithAgent({
             isChatConnected={atlasAgent.isConnected}
             tasks={atlasAgent.tasks}
             getTaskUIMessage={atlasAgent.getTaskUIMessage}
-            connectedAgentId={atlasAgent.connectedAgentId}
+            activeAgent={atlasAgent.activeAgent}
             compressing={atlasAgent.compressing}
+            selectedAgent={atlasAgent.selectedAgent}
+            onDisconnectAgent={atlasAgent.disconnectAgent}
+            onConnectCloudAgent={atlasAgent.connectCloudAgent}
           />
         </div>
-        <Footer />
       </main>
     </RoomContext.Provider>
   );

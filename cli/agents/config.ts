@@ -1,9 +1,9 @@
 // ACP-compatible agents
 export type AgentType =
   | "opencode"
-  | "claude"
+  | "claude-code"
   | "goose"
-  | "gemini"
+  | "gemini-code"
   | "codex"
   | "kimi"
   | "vibe"

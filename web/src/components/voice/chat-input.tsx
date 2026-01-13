@@ -17,6 +17,8 @@ import { RevealButton } from "@/components/ui/reveal-button";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BarVisualizer } from "@/components/ui/bar-visualizer";
 import { VoiceIcon } from "@/components/ui/voice-icon";
+import { AgentSelector } from "./agent-selector";
+import { getAgentDisplayName } from "@/lib/cloudflare-sandbox";
 import type { AgentState } from "@/components/ui/bar-visualizer";
 
 interface ChatInputProps {
@@ -34,8 +36,14 @@ interface ChatInputProps {
   agentState?: string;
   mediaStream?: MediaStream | null;
   onRequireAuth?: () => void;
-  connectedAgentId?: string | null;
+  activeAgent?: string | null;
   compressing?: boolean;
+  selectedAgent?: { type: "cloud"; agentId: string } | null;
+  onDisconnectAgent?: () => Promise<{ success: boolean; error?: string }>;
+  onConnectCloudAgent?: (
+    agentId: string,
+    apiKey?: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function ChatInput({
@@ -53,8 +61,11 @@ export function ChatInput({
   agentState,
   mediaStream,
   onRequireAuth,
-  connectedAgentId,
+  activeAgent,
   compressing = false,
+  selectedAgent = null,
+  onDisconnectAgent,
+  onConnectCloudAgent,
 }: ChatInputProps) {
   const [input, setInput] = useState("");
   const submitInProgress = useRef(false);
@@ -109,37 +120,28 @@ export function ChatInput({
 
   return (
     <div className="relative w-full">
-      {/* Status Banner - Absolutely positioned to overlay form boundary */}
+      {/* Status Banner - Only show when compressing memory */}
       <div
         className={cn(
-          "absolute bottom-full left-0 right-0 mx-auto w-[95%] overflow-hidden transition-all duration-300 ease-in-out z-10",
-          connectedAgentId || compressing
-            ? "max-h-16 opacity-100 translate-y-0"
-            : "max-h-0 opacity-0 translate-y-2",
+          "absolute right-0 bottom-full left-0 z-10 mx-auto w-[95%] overflow-hidden transition-all duration-300 ease-in-out",
+          compressing
+            ? "max-h-16 translate-y-0 opacity-100"
+            : "max-h-0 translate-y-2 opacity-0",
         )}
       >
-        <div
-          className={cn(
-            "flex h-8 items-center justify-between rounded-t-sm border-2 border-b-0 px-3",
-            compressing
-              ? "bg-amber-500/20 border-amber-500/30"
-              : "bg-primary/10 border-primary/30",
-          )}
-        >
+        <div className="flex h-8 items-center justify-between rounded-t-sm border-2 border-b-0 border-amber-500/30 bg-amber-500/20 px-3">
           <div className="flex items-center gap-2">
-            <span className="text-foreground text-[10px] tracking-widest font-medium">
-              Agent Connected
+            <span className="text-foreground text-[10px] font-medium tracking-widest">
+              Compressing Memory...
             </span>
           </div>
 
-          {compressing && (
-            <Shimmer className="text-foreground text-[10px] tracking-widest">
-              Compressing Memory...
-            </Shimmer>
-          )}
+          <Shimmer className="text-foreground text-[10px] tracking-widest">
+            In Progress
+          </Shimmer>
         </div>
       </div>
-      
+
       <form
         onSubmit={handleSubmit}
         className="bg-muted/30 focus-within:border-primary/30 relative overflow-hidden rounded-xl border-2 shadow-md transition-all"
@@ -147,7 +149,7 @@ export function ChatInput({
         <TextareaAutosize
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          minRows={1}
+          minRows={2}
           maxRows={8}
           className="placeholder:text-muted-foreground/50 w-full resize-none bg-transparent px-6 py-4 text-base outline-none"
           placeholder="Send a message..."
@@ -164,6 +166,17 @@ export function ChatInput({
 
         <div className="flex items-center justify-between px-4 pt-1 pb-3">
           <div className="flex items-center gap-2">
+            {/* Agent Selector */}
+            {onConnectCloudAgent && (
+              <AgentSelector
+                selectedAgent={selectedAgent}
+                activeAgent={activeAgent}
+                onDisconnectAgent={onDisconnectAgent}
+                onConnectCloudAgent={onConnectCloudAgent}
+                disabled={disabled || isLoading}
+              />
+            )}
+
             {onToggleTasks && (
               <RevealButton
                 icon={
@@ -183,8 +196,8 @@ export function ChatInput({
                 }}
                 className={cn(
                   isTasksView
-                    ? "bg-primary/10 text-primary"
-                    : "bg-secondary text-secondary-foreground hover:text-foreground",
+                    ? "bg-primary/20 text-primary"
+                    : "bg-secondary/50 text-secondary-foreground hover:bg-primary/10 hover:text-primary",
                 )}
               />
             )}
@@ -194,14 +207,14 @@ export function ChatInput({
               <>
                 {isVoiceMode ? (
                   // Voice Mode: Expanded controls - use fixed height to prevent layout shift
-                  <div className="flex items-center gap-2 h-12">
+                  <div className="flex h-12 items-center gap-1.5 sm:gap-2">
                     {/* Mute Button */}
                     <Button
                       variant={isMicEnabled ? "default" : "secondary"}
                       size="icon"
                       onClick={onToggleMute}
                       className={cn(
-                        "h-10 w-10 cursor-pointer rounded-full shrink-0",
+                        "h-9 w-9 shrink-0 cursor-pointer rounded-full sm:h-10 sm:w-10",
                         isMicEnabled && visualizerState === "listening"
                           ? "bg-green-600 text-white hover:bg-green-700"
                           : "",
@@ -209,15 +222,15 @@ export function ChatInput({
                       title={isMicEnabled ? "Mute" : "Unmute"}
                     >
                       {isMicEnabled ? (
-                        <Mic className="h-5 w-5" />
+                        <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
                       ) : (
-                        <MicOff className="h-5 w-5" />
+                        <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
                       )}
                     </Button>
 
                     {/* Bar Visualizer with State Text */}
-                    <div className="flex flex-col items-center gap-0.5 shrink-0">
-                      <div className="w-36">
+                    <div className="flex shrink-0 flex-col items-center gap-0.5">
+                      <div className="w-20 sm:w-36">
                         <BarVisualizer
                           state={visualizerState}
                           barCount={8}
@@ -228,10 +241,10 @@ export function ChatInput({
                             visualizerState === "speaking" ||
                             visualizerState === "thinking"
                           }
-                          className="bg-secondary/30 h-12 w-full rounded-md px-2"
+                          className="bg-secondary/30 h-10 w-full rounded-md px-1.5 sm:h-12 sm:px-2"
                         />
                       </div>
-                      <span className="text-muted-foreground text-[10px] font-medium">
+                      <span className="text-muted-foreground text-[9px] font-medium sm:text-[10px]">
                         {stateText}
                       </span>
                     </div>
@@ -260,7 +273,7 @@ export function ChatInput({
                         onToggleVoice();
                       }
                     }}
-                    className="bg-secondary text-secondary-foreground hover:text-foreground"
+                    className="bg-secondary/50 text-secondary-foreground hover:bg-primary/10 hover:text-primary"
                   />
                 )}
               </>
@@ -293,6 +306,19 @@ export function ChatInput({
           )}
         </div>
       </form>
+      
+      {/* Minimal footer - like ChatGPT/Claude */}
+      <div className="text-muted-foreground mt-2 flex items-center justify-center gap-3 text-[10px]">
+        <span>© 2025 HeyAtlas</span>
+        <span>·</span>
+        <a href="/privacy" className="hover:text-foreground transition-colors">
+          Privacy
+        </a>
+        <span>·</span>
+        <a href="/terms" className="hover:text-foreground transition-colors">
+          Terms
+        </a>
+      </div>
     </div>
   );
 }

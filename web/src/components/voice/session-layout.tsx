@@ -15,7 +15,7 @@ import { TaskList } from "./task-list";
 import { TaskArtifact } from "./task-artifact";
 import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
-import type { AtlasTask } from "./hooks/use-atlas-agent";
+import type { AtlasTask, SelectedAgent } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
 
 interface SessionLayoutProps {
@@ -35,8 +35,14 @@ interface SessionLayoutProps {
   isChatConnected?: boolean;
   tasks?: AtlasTask[];
   getTaskUIMessage?: (taskId: string) => UIMessage | null;
-  connectedAgentId?: string | null;
+  activeAgent?: string | null;
   compressing?: boolean;
+  selectedAgent?: SelectedAgent | null;
+  onDisconnectAgent?: () => Promise<{ success: boolean; error?: string }>;
+  onConnectCloudAgent?: (
+    agentId: string,
+    apiKey?: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function SessionLayout({
@@ -56,8 +62,11 @@ export function SessionLayout({
   isChatConnected,
   tasks = [],
   getTaskUIMessage,
-  connectedAgentId,
+  activeAgent,
   compressing,
+  selectedAgent,
+  onDisconnectAgent,
+  onConnectCloudAgent,
 }: SessionLayoutProps) {
   const room = useRoomContext();
   const { state: agentState } = useVoiceAssistant();
@@ -227,9 +236,12 @@ export function SessionLayout({
         mediaStream={mediaStream}
         disabled={!isChatMode}
         initialViewMode={initialViewMode}
-        connectedAgentId={connectedAgentId}
+        activeAgent={activeAgent}
         compressing={compressing}
         selectedTask={!!selectedTask}
+        selectedAgent={selectedAgent}
+        onDisconnectAgent={onDisconnectAgent}
+        onConnectCloudAgent={onConnectCloudAgent}
       />
     </div>
   );
@@ -338,8 +350,11 @@ export function SessionLayout({
             mediaStream={mediaStream}
             disabled={!isChatMode}
             initialViewMode={initialViewMode}
-            connectedAgentId={connectedAgentId}
+            activeAgent={activeAgent}
             compressing={compressing}
+            selectedAgent={selectedAgent}
+            onDisconnectAgent={onDisconnectAgent}
+            onConnectCloudAgent={onConnectCloudAgent}
           />
         </div>
 
@@ -368,8 +383,11 @@ export function SessionLayout({
                   mediaStream={mediaStream}
                   disabled={!isChatMode}
                   initialViewMode={initialViewMode}
-                  connectedAgentId={connectedAgentId}
+                  activeAgent={activeAgent}
                   compressing={compressing}
+                  selectedAgent={selectedAgent}
+                  onDisconnectAgent={onDisconnectAgent}
+                  onConnectCloudAgent={onConnectCloudAgent}
                 />
               </div>
             }

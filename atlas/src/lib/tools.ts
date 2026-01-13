@@ -6,7 +6,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { Tier } from "../prompts";
 import { getTierConfig } from "../prompts";
-import type { SandboxState, Task } from "../types";
+import type { SandboxMetadata, Task } from "../types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Tools = Record<string, any>;
@@ -17,20 +17,26 @@ interface Deps {
   userId: string;
   tier: Tier;
   broadcast?: BroadcastFn;
-  sandbox?: SandboxState | null;
+  sandbox?: SandboxMetadata | null;
   askLocalComputerAgent?: (task: string, existingTaskId?: string) => string;
   updateTask?: (taskId: string, updates: string) => Task | null;
   getTask?: (taskId: string) => Task | null;
   listTasks?: () => Task[];
   deleteTask?: (taskId: string) => boolean;
   updateUserContext?: (userSection: string) => void;
+  // Learnings & Shared History
+  saveLearning?: (content: string) => void;
+  getLearnings?: () => string[];
+  forgetLearning?: (content: string) => boolean;
+  addToOurStory?: (moment: string) => void;
+  getOurStory?: () => string[];
 }
 
 /**
  * Tool: Ask sandbox computer agent (agent-smith in E2B) to perform a task.
  * Uses HTTP to communicate with agent-smith running in the sandbox.
  */
-const askSandboxComputerAgent = (sandbox: SandboxState | null) =>
+const askSandboxComputerAgent = (sandbox: SandboxMetadata | null) =>
   tool({
     description:
       "Delegate a task to the cloud sandbox computer. Use this for browser automation, web tasks, GUI interactions, or tasks requiring a persistent desktop environment.",
@@ -40,7 +46,7 @@ const askSandboxComputerAgent = (sandbox: SandboxState | null) =>
         .describe("Detailed task description for the sandbox agent"),
     }),
     execute: async ({ task }: { task: string }) => {
-      if (!sandbox?.computerAgentUrl) {
+      if (sandbox?.type !== "e2b" || !sandbox.computerAgentUrl) {
         return "Cloud sandbox not available. Sandbox may still be starting up.";
       }
 
@@ -190,6 +196,92 @@ const speakToHumanTool = (broadcast?: BroadcastFn) =>
     },
   });
 
+/**
+ * Tool: Remember something about the user
+ */
+const rememberTool = (saveLearning: (content: string) => void) =>
+  tool({
+    description: `Remember something about the user. Use when they:
+- Tell you their name or how to address them ("call me the King")
+- Share a preference ("I like concise answers")
+- Give behavioral instructions ("always be direct with me")
+- Share facts about themselves (job, interests, projects)`,
+    inputSchema: z.object({
+      what: z.string().describe("What to remember about the user"),
+    }),
+    execute: async ({ what }: { what: string }) => {
+      saveLearning(what);
+      return `Remembered: "${what}"`;
+    },
+  });
+
+/**
+ * Tool: Recall what you know about the user
+ */
+const recallTool = (getLearnings: () => string[]) =>
+  tool({
+    description: "Recall everything you know about the user.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const learnings = getLearnings();
+      if (learnings.length === 0) {
+        return "I don't know anything about this user yet.";
+      }
+      return learnings.map((l) => `• ${l}`).join("\n");
+    },
+  });
+
+/**
+ * Tool: Forget something about the user
+ */
+const forgetTool = (forgetLearning: (content: string) => boolean) =>
+  tool({
+    description: "Forget something about the user if they ask you to.",
+    inputSchema: z.object({
+      what: z.string().describe("What to forget (partial match works)"),
+    }),
+    execute: async ({ what }: { what: string }) => {
+      const success = forgetLearning(what);
+      return success ? `Forgot: "${what}"` : "Couldn't find that to forget.";
+    },
+  });
+
+/**
+ * Tool: Add a moment to our shared story
+ */
+const addToOurStoryTool = (addToOurStory: (moment: string) => void) =>
+  tool({
+    description: `Record a meaningful moment in our story together. Use for:
+- Completing something significant together (shipped a feature, solved a hard bug)
+- Breakthrough conversations or realizations
+- Milestones in our relationship (first project, first joke that landed)
+- Moments that made you feel more connected to this user
+These become part of who I am with this person.`,
+    inputSchema: z.object({
+      moment: z.string().describe("A brief description of what happened and why it mattered"),
+    }),
+    execute: async ({ moment }: { moment: string }) => {
+      addToOurStory(moment);
+      return `Added to our story: "${moment}"`;
+    },
+  });
+
+/**
+ * Tool: Recall our shared story
+ */
+const getOurStoryTool = (getOurStory: () => string[]) =>
+  tool({
+    description: "Recall our shared history together. Use to reference past experiences naturally.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const moments = getOurStory();
+      if (moments.length === 0) {
+        return "We haven't made any memories together yet.";
+      }
+      return moments.map((m, i) => `${i + 1}. ${m}`).join("\n");
+    },
+  });
+
 export function buildTools(deps: Deps): Tools {
   const cfg = getTierConfig(deps.tier);
   const tools: Tools = {};
@@ -209,6 +301,23 @@ export function buildTools(deps: Deps): Tools {
   }
   if (deps.broadcast) {
     tools.speakToHuman = speakToHumanTool(deps.broadcast);
+  }
+
+  // Learnings & Shared History tools - always available
+  if (deps.saveLearning) {
+    tools.remember = rememberTool(deps.saveLearning);
+  }
+  if (deps.getLearnings) {
+    tools.recall = recallTool(deps.getLearnings);
+  }
+  if (deps.forgetLearning) {
+    tools.forget = forgetTool(deps.forgetLearning);
+  }
+  if (deps.addToOurStory) {
+    tools.addToOurStory = addToOurStoryTool(deps.addToOurStory);
+  }
+  if (deps.getOurStory) {
+    tools.getOurStory = getOurStoryTool(deps.getOurStory);
   }
 
   if (deps.askLocalComputerAgent) {

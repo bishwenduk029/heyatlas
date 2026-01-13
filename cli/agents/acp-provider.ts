@@ -11,9 +11,9 @@ import { streamText } from "ai";
 // ACP commands for each agent
 const ACP_COMMANDS: Record<string, { command: string; args: string[] }> = {
   opencode: { command: "opencode", args: ["acp"] },
-  claude: { command: "claude-code-acp", args: [] },
+  "claude-code": { command: "claude-code-acp", args: [] },
   goose: { command: "goose", args: ["acp"] },
-  gemini: { command: "gemini", args: ["--experimental-acp"] },
+  "gemini-code": { command: "gemini", args: ["--experimental-acp"] },
   codex: { command: "npx", args: ["@zed-industries/codex-acp"] },
   kimi: { command: "kimi", args: ["--acp"] },
   vibe: { command: "vibe-acp", args: [] },

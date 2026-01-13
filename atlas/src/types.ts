@@ -1,4 +1,5 @@
 import type { AgentNamespace } from "agents";
+import type { Sandbox } from "@cloudflare/sandbox";
 import type { AtlasAgent } from "./agent";
 import type { Tier } from "./prompts";
 
@@ -7,12 +8,17 @@ export interface Env {
   AUTH_API_BASE: string;
   NIRMANUS_API_KEY: string;
   HEYATLAS_PROVIDER_API_URL: string;
+  HEYATLAS_PROVIDER_API_KEY?: string;
   LLM_MODEL: string;
   AI_GATEWAY_API_KEY: string;
   PARALLELS_WEB_SEARCH_API?: string;
   PARALLELS_WEB_SEARCH_API_KEY?: string;
   E2B_API_KEY?: string;
   ATLAS_CALLBACK_URL?: string;
+  // For sandbox to connect back to Atlas
+  ATLAS_AGENT_HOST?: string;
+  // Cloudflare Sandbox Durable Object namespace
+  Sandbox: DurableObjectNamespace<Sandbox>;
 }
 
 export interface TaskUpdate {
@@ -35,14 +41,18 @@ export interface AgentState {
   tier: Tier;
   persona: string | null;
   personaUpdatedAt: number | null;
-  sandbox: SandboxState | null;
+  sandbox: SandboxMetadata | null;
   tasks: Record<string, Task>;
-  connectedAgentId: string | null;
+  activeAgent: string | null;
   interactiveMode: boolean;
   interactiveTaskId: string | null;
   systemPrompt: string | null;
   userSection: string | null;
   compressing: boolean;
+  /** User learnings - things to remember about the user (name, preferences, instructions) */
+  learnings: string[];
+  /** Evolving backstory - shared experiences and moments that shape our relationship */
+  sharedHistory: string[];
 }
 
 export interface Task {
@@ -72,19 +82,26 @@ export interface Task {
   updatedAt: number;
 }
 
-export interface SandboxState {
+export interface SandboxMetadata {
+  type: "e2b" | "cloudflare";
   sandboxId: string;
-  vncUrl: string;
-  computerAgentUrl: string;
-  logsUrl: string;
-  sandboxCallbackToken: string;
+  sessionId?: string;
+  vncUrl?: string;
+  computerAgentUrl?: string;
+  logsUrl?: string;
+  agentConnected?: boolean;
 }
+
+export type SelectedAgent =
+  | { type: "local" }
+  | { type: "cloud"; agentId: string };
 
 export interface UserCredentials {
   userId: string;
   email?: string;
   providerApiKey: string;
   providerApiUrl: string;
+  atlasAccessToken?: string;
 }
 
 export interface ChatMessage {

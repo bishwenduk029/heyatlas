@@ -19,6 +19,11 @@ import {
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { CodeBlock } from "./code-block";
+import {
+  DiffRenderer,
+  tryExtractDiff,
+  tryExtractFileDiff,
+} from "./diff-renderer";
 
 export type ToolProps = ComponentProps<typeof Collapsible> & {
   defaultOpen?: boolean;
@@ -135,6 +140,31 @@ export const ToolOutput = ({
     return null;
   }
 
+  // Try to detect and render diffs
+  const diffInfo = tryExtractDiff(output);
+  if (diffInfo) {
+    return (
+      <div className={cn("p-4", className)} {...props}>
+        <DiffRenderer path={diffInfo.path} unifiedDiff={diffInfo.diff} defaultExpanded />
+      </div>
+    );
+  }
+
+  // Try before/after file diff - convert to simple display for now
+  const fileDiffInfo = tryExtractFileDiff(output);
+  if (fileDiffInfo) {
+    // Show before/after as text for simplicity
+    return (
+      <div className={cn("space-y-2 p-4", className)} {...props}>
+        <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+          {fileDiffInfo.path}
+        </h4>
+        <CodeBlock code={fileDiffInfo.newContent} language="tsx" />
+      </div>
+    );
+  }
+
+  // Default: render as JSON or text
   let Output = <div>{output as ReactNode}</div>;
 
   if (typeof output === "object" && !isValidElement(output)) {

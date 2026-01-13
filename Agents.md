@@ -1,5 +1,7 @@
 # Atlas Agent Architecture
 
+## Most important principle keep things stupid simple. No complexity , no overcoding just mininmal , simple and easy to read modular code that easy to change in near future give new enhancements. BEAUTY IS IN SIMPLICITY
+
 ## Overview
 
 Atlas is a Cloudflare Durable Object-based AI agent that extends `AIChatAgent` from the `agents` framework. It provides persistent chat with automatic memory management, task delegation, and real-time state synchronization.
@@ -11,6 +13,7 @@ Atlas is a Cloudflare Durable Object-based AI agent that extends `AIChatAgent` f
 #### `agent.ts` - AtlasAgent Class
 
 Extends `AIChatAgent<Env, AgentState>` which provides:
+
 - **SQLite-backed message persistence** via `cf_ai_chat_agent_messages` table
 - **`this.messages`** - In-memory array of `ChatMessage` objects, auto-loaded from DB
 - **`persistMessages(messages)`** - Saves to DB and reloads `this.messages` (upsert only, doesn't delete)
@@ -19,6 +22,7 @@ Extends `AIChatAgent<Env, AgentState>` which provides:
 - **`this.setState(state)`** - Update and sync state to all clients
 
 Key methods:
+
 - `onChatMessage()` - Override to handle incoming chat, return Response with stream
 - `prepareModelMessages()` - Called before LLM invocation, handles message transformation
 - `onConnect()` / `onStateUpdate()` - Lifecycle hooks for connections and state changes
@@ -29,11 +33,11 @@ Key methods:
 interface AgentState {
   credentials: UserCredentials | null;
   tier: Tier;
-  sandbox: SandboxState | null;
+  sandbox: SandboxMetadata | null;
   tasks: Record<string, Task>;
-  connectedAgentId: string | null;  // CLI agent connection
+  activeAgent: string | null; // CLI agent connection
   interactiveMode: boolean;
-  compressing: boolean;             // Memory summarization in progress
+  compressing: boolean; // Memory summarization in progress
   // ... other fields
 }
 ```
@@ -44,7 +48,7 @@ interface AgentState {
 
 ```
 useAtlasAgent (hook)
-    ↓ returns { messages, tasks, connectedAgentId, compressing, ... }
+    ↓ returns { messages, tasks, activeAgent, compressing, ... }
 InterfaceWithAgent
     ↓ passes props
 SessionLayout
@@ -62,14 +66,14 @@ Central hook for Atlas connection:
 const atlasAgent = useAtlasAgent({ userId, token });
 
 // Returns:
-atlasAgent.isConnected      // WebSocket connected
-atlasAgent.isLoading        // Chat request in progress
-atlasAgent.messages         // Formatted message array
-atlasAgent.tasks            // Task list from state
-atlasAgent.connectedAgentId // CLI agent ID if connected
-atlasAgent.compressing      // Memory summarization active
-atlasAgent.sendMessage()    // Send chat message
-atlasAgent.stop()           // Cancel current request
+atlasAgent.isConnected; // WebSocket connected
+atlasAgent.isLoading; // Chat request in progress
+atlasAgent.messages; // Formatted message array
+atlasAgent.tasks; // Task list from state
+atlasAgent.activeAgent; // CLI agent ID if connected
+atlasAgent.compressing; // Memory summarization active
+atlasAgent.sendMessage(); // Send chat message
+atlasAgent.stop(); // Cancel current request
 ```
 
 Uses `useAgent()` for WebSocket connection with `onStateUpdate` callback for real-time state sync.
@@ -77,6 +81,7 @@ Uses `useAgent()` for WebSocket connection with `onStateUpdate` callback for rea
 #### Component Props Pattern
 
 Props flow through component hierarchy:
+
 1. Add to interface/props type
 2. Destructure in component
 3. Pass to child components
@@ -87,6 +92,7 @@ Props flow through component hierarchy:
 ### Message Summarization (`prepareModelMessages`)
 
 When `this.messages.length > 25`:
+
 1. Set `compressing: true` state (broadcasts to UI)
 2. Keep last 25 messages
 3. Summarize older messages via `generateText()` into first-person assistant summary
@@ -103,6 +109,7 @@ await this.persistMessages([summaryMessage, ...remainingMessages]);
 ## Real-time State Sync
 
 State changes flow automatically:
+
 1. Backend: `this.setState({ ...this.state, newField: value })`
 2. Cloudflare syncs to all WebSocket clients
 3. Frontend: `onStateUpdate` callback fires in `useAgent()`
@@ -119,13 +126,15 @@ State changes flow automatically:
 ### Status Indicators (`ChatInput`)
 
 Trapezoid header shows contextual status:
+
 - Green pulse: Agent connected
 - Amber spinner + shimmer: Memory compressing
 
 ## Task System
 
 Tasks are stored in `state.tasks` (Record<string, Task>):
-- Created via `createTask(description)` 
+
+- Created via `createTask(description)`
 - States: `new` → `in-progress` → `completed`/`failed`
 - CLI picks up `new` tasks, updates state as work progresses
 - UI receives updates via state sync

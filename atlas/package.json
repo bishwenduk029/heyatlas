@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev --port 8787",
+    "dev": "wrangler dev --port 8787 --ip 0.0.0.0",
     "deploy": "wrangler deploy --env=''",
     "secrets": "wrangler secret bulk .dev.vars --env=''",
     "typecheck": "tsc --noEmit",
@@ -22,10 +22,14 @@
   "dependencies": {
     "@ai-sdk/openai": "^3.0.2",
     "@ai-sdk/ui-utils": "^1.2.11",
+    "@cloudflare/sandbox": "^0.6.10",
     "@e2b/desktop": "^2.2.2",
     "agents": "^0.3.3",
+    "agentfs-sdk": "^0.5.3",
     "ai": "^6.0.6",
+    "bash-tool": "^1.0.0",
     "hono": "^4.11.3",
+    "just-bash": "^2.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -10,6 +10,13 @@
 
 import { AgentClient } from "agents/client";
 import type { StreamEvent } from "../agents/types";
+import WebSocket from "ws";
+
+// Polyfill WebSocket for Node.js environments (required by PartySocket/agents)
+if (typeof globalThis.WebSocket === "undefined") {
+  // @ts-ignore - WebSocket types differ slightly between ws and browser
+  globalThis.WebSocket = WebSocket;
+}
 
 export interface AtlasTunnelOptions {
   host?: string;
@@ -48,7 +55,7 @@ export interface Task {
 // Agent state from Atlas
 export interface AgentState {
   tasks: Record<string, Task>;
-  connectedAgentId: string | null;
+  activeAgent: string | null;
   interactiveMode: boolean;
   interactiveTaskId: string | null;
   [key: string]: unknown;
@@ -62,7 +69,7 @@ const DEFAULT_HOST = "agent.heyatlas.app";
 export class AtlasTunnel {
   private client: AgentClient<AgentState> | null = null;
   private options: AtlasTunnelOptions;
-  private agentId: string = "heyatlas-cli";
+  private agentId: string = "local";
   private currentUserId: string | null = null;
   private seenTaskIds = new Set<string>();
   private taskCallback: TaskCallback | null = null;
@@ -107,6 +114,12 @@ export class AtlasTunnel {
         agent: "atlas-agent",
         name: userId,
         host,
+        // Disable SSL for local development or docker internal networking
+        secure: !(
+          host.includes("localhost") ||
+          host.includes("127.0.0.1") ||
+          host.includes("host.docker.internal")
+        ),
         onStateUpdate: (state, source) => this.handleStateUpdate(state, source),
         query,
       });
@@ -209,7 +222,7 @@ export class AtlasTunnel {
     ) {
       return;
     }
-    
+
     const task = this.currentState.tasks?.[taskId];
     if (!task) return;
 
@@ -246,7 +259,6 @@ export class AtlasTunnel {
    */
   async broadcastTaskEvent(taskId: string, event: StreamEvent): Promise<void> {
     if (!this.client || !this._isConnected) {
-
       return;
     }
 

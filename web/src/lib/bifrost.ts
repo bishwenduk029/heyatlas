@@ -59,9 +59,21 @@ class BifrostService {
                 weight: 1,
                 allowed_models: [],
               },
+              {
+                id: 29,
+                provider: "gemini",
+                weight: 1,
+                allowed_models: [],
+              },
+              {
+                id: 29,
+                provider: "cerebras",
+                weight: 1,
+                allowed_models: [],
+              },
             ],
             mcp_configs: [],
-            key_ids: ["c5c5f39a-571d-4af6-a0ab-2e9fbf77a295"],
+            key_ids: ["c5c5f39a-571d-4af6-a0ab-2e9fbf77a295", "a55f0780-a2e3-490d-8e1f-944f25502b4f", "43783ef4-fc23-4669-87f8-2c615bd0f1d5"],
             is_active: true,
             rate_limit: {
               token_max_limit: budgetLimit || 2000000,

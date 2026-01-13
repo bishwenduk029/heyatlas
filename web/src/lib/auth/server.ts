@@ -65,11 +65,8 @@ export const auth = betterAuth({
     "http://127.0.0.1:3000",
     "http://localhost:8080",
     env.NEXT_PUBLIC_APP_URL,
-    "https://heyatlas.vercel.app",
-    "https://heyatlas-me.vercel.app",
     "https://heyatlas.app",
     "https://www.heyatlas.app",
-    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
   ],
   logger: {
     disabled: process.env.NODE_ENV === "production",
@@ -102,7 +99,7 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["google", "github", "linkedin"],
+      trustedProviders: ["google", "github"],
     },
   },
   hooks: {

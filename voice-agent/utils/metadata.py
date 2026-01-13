@@ -46,7 +46,7 @@ async def get_user_virtual_key(user_id: str) -> tuple[Optional[str], str]:
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, params=params, headers=headers, timeout=5.0)
 
-            logger.info(f"[VirtualKey] Response: status={resp.status_code}")
+            logger.info(f"[VirtualKey] Response: status={resp.status_code}, body={resp.text[:200] if resp.text else 'empty'}")
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -54,6 +54,8 @@ async def get_user_virtual_key(user_id: str) -> tuple[Optional[str], str]:
                 tier = data.get("assistantTier", "genin")
                 logger.info(f"[VirtualKey] Got key={'set' if key else 'NOT SET'}, tier={tier}")
                 return key, tier
+            elif resp.status_code == 404:
+                logger.warning(f"[VirtualKey] User {user_id} not found in database - this user needs to sign up first")
             else:
                 logger.warning(f"[VirtualKey] Failed: {resp.status_code} - {resp.text[:200]}")
 
