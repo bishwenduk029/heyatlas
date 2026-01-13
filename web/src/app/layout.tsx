@@ -1,7 +1,13 @@
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { DM_Sans, Fraunces, Fira_Mono, Instrument_Serif } from "next/font/google";
+import {
+  DM_Sans,
+  Fraunces,
+  Fira_Mono,
+  Instrument_Serif,
+  Caveat,
+} from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { createMetadata } from "@/lib/metadata";
 import {
@@ -43,6 +49,12 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
+  display: "swap",
+});
+
 export const metadata = createMetadata({
   title: {
     template: `%s | ${APP_NAME}`,
@@ -68,9 +80,9 @@ export const metadata = createMetadata({
     canonical: env.NEXT_PUBLIC_APP_URL,
   },
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/logo.png',
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
   },
   // themeColor: [], // Will add later if specific theme colors are defined
   // manifest: "/manifest.json", // Will add later if PWA is implemented
@@ -84,10 +96,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${fraunces.variable} ${firaMono.variable} ${instrumentSerif.variable}`}
+      className={`${dmSans.variable} ${fraunces.variable} ${firaMono.variable} ${instrumentSerif.variable} ${caveat.variable}`}
       suppressHydrationWarning
     >
-      <head />
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__name = window.__name || function(name) { return name; };`,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <NuqsAdapter>
           <ThemeProvider
