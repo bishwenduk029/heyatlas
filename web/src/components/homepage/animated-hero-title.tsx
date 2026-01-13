@@ -2,16 +2,15 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import { Logo } from "@/components/logo";
 
 export function AnimatedHeroTitle() {
   return (
     <h1 className="text-foreground text-5xl font-bold tracking-tight sm:text-6xl lg:text-8xl" style={{ fontFamily: 'var(--font-satoshi)' }}>
       <div className="relative inline-flex items-center">
-        <img
-          src="/logo.svg"
-          alt="Logo"
-          className="h-14 w-14 mr-4"
-        />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "var(--logo-gradient)" }}>
+          <Logo className="text-primary h-14 w-14" variant="icon-only" />
+        </div>
 
         <span style={{ fontFamily: 'var(--font-instrument-serif), serif' }}>
           <motion.span

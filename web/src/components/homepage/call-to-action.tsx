@@ -24,7 +24,9 @@ export function CallToAction() {
         >
           {/* Icon */}
           <div className="bg-primary/10 mx-auto flex h-16 w-16 items-center justify-center rounded-2xl backdrop-blur-sm">
-            <Logo className="text-primary h-10 w-10" variant="icon-only" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--logo-gradient)" }}>
+              <Logo className="text-primary h-10 w-10" variant="icon-only" />
+            </div>
           </div>
 
           {/* Heading */}

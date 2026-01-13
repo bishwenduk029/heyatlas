@@ -126,7 +126,9 @@ export function Footer() {
             {/* Brand section */}
             <div className="lg:col-span-2">
               <div className="mb-4 flex items-center gap-2">
-                <Logo className="text-primary h-10 w-10" variant="icon-only" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "var(--logo-gradient)" }}>
+                  <Logo className="text-primary h-10 w-10" variant="icon-only" />
+                </div>
                 <span className="text-foreground text-xl font-bold">
                   {APP_NAME}
                 </span>

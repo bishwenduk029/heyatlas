@@ -81,7 +81,7 @@ export function MessageList({
                 <Avatar
                   className={cn(
                     "h-10 w-10 shrink-0 shadow-sm",
-                    msg.role === "user" ? "bg-[#5865f2]" : "bg-[#23a55a]",
+                    msg.role === "user" ? "bg-[#5865f2]" : "",
                   )}
                 >
                   {msg.role === "user" ? (
@@ -92,13 +92,13 @@ export function MessageList({
                       </AvatarFallback>
                     </>
                   ) : (
-                    <div className="relative flex h-full w-full items-center justify-center bg-[#23a55a] p-2">
+                    <div className="relative flex h-full w-full items-center justify-center rounded-full p-2" style={{ background: "var(--logo-gradient)" }}>
                       <Image
                         src="/logo.svg"
                         alt="Atlas"
                         width={24}
                         height={24}
-                        className="brightness-0 invert"
+                        className="relative brightness-0 invert"
                       />
                     </div>
                   )}
@@ -110,7 +110,7 @@ export function MessageList({
                         "text-sm font-bold",
                         msg.role === "user"
                           ? "text-[#5865f2]"
-                          : "text-[#23a55a]",
+                          : "text-[oklch(0.646_0.222_41)]",
                       )}
                     >
                       {msg.role === "user" ? "You" : "Atlas"}
@@ -141,7 +141,7 @@ export function MessageList({
                     if (part.type === "dynamic-tool") {
                       const isComplete = part.state === "output-available" || part.state === "output-error";
                       return (
-                        <Tool key={key} defaultOpen={isComplete}>
+                        <Tool key={key} defaultOpen={false}>
                           <ToolHeader
                             type={`tool-${part.toolName}` as `tool-${string}`}
                             state={part.state}
@@ -172,7 +172,7 @@ export function MessageList({
                       };
                       const isComplete = toolPart.state === "output-available" || toolPart.state === "output-error";
                       return (
-                        <Tool key={key} defaultOpen={isComplete}>
+                        <Tool key={key} defaultOpen={false}>
                           <ToolHeader
                             type={toolPart.type}
                             state={toolPart.state}

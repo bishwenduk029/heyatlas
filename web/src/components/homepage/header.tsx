@@ -276,7 +276,9 @@ function MobileNavigation({
       <SheetContent side="right" className="w-80 p-0">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <div className="border-border flex items-center gap-2 border-b p-6">
-          <Logo className="text-primary h-2 w-2" variant="icon-only" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: "var(--logo-gradient)" }}>
+            <Logo className="text-primary h-2 w-2" variant="icon-only" />
+          </div>
           <span className="text-lg font-bold">{APP_NAME}</span>
         </div>
 
@@ -328,7 +330,9 @@ export function Header() {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
-              <Logo className="text-primary h-12 w-12" variant="icon-only" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--logo-gradient)" }}>
+                <Logo className="text-primary h-12 w-12" variant="icon-only" />
+              </div>
               <span className="text-foreground text-xl font-bold">
                 {APP_NAME}
               </span>
