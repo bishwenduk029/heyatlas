@@ -184,6 +184,9 @@ export function InterfaceWithAgent({
             selectedAgent={atlasAgent.selectedAgent}
             onDisconnectAgent={atlasAgent.disconnectAgent}
             onConnectCloudAgent={atlasAgent.connectCloudAgent}
+            isMiniComputerActive={atlasAgent.isMiniComputerActive}
+            isMiniComputerConnecting={atlasAgent.isMiniComputerConnecting}
+            onToggleMiniComputer={atlasAgent.toggleMiniComputer}
           />
         </div>
       </main>

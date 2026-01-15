@@ -7,7 +7,7 @@ import { connect } from "./commands/connect";
 import type { AgentType } from "./agents";
 
 // ACP-compatible agents
-const SUPPORTED_AGENTS = [
+const ACP_AGENTS = [
   "opencode",
   "claude-code",
   "goose",
@@ -21,6 +21,12 @@ const SUPPORTED_AGENTS = [
   "cagent",
 ];
 
+// HTTP-based agents
+const HTTP_AGENTS = ["agent-smith-py"];
+
+// All supported agents
+const SUPPORTED_AGENTS = [...ACP_AGENTS, ...HTTP_AGENTS];
+
 const { positionals, values } = parseArgs({
   args: process.argv.slice(2),
   options: {
@@ -33,27 +39,23 @@ const { positionals, values } = parseArgs({
 
 function printHelp() {
   console.log(`
-heyatlas - Tunnel local AI agents to the cloud via ACP
+heyatlas - Tunnel local AI agents to the cloud
 
 Usage:
-  heyatlas connect <agent>    Connect agent to Atlas (via ACP protocol)
+  heyatlas connect <agent>    Connect agent to Atlas
 
-ACP-Compatible Agents:
-  ${SUPPORTED_AGENTS.join(", ")}
+Supported Agents:
+  ACP Agents:    ${ACP_AGENTS.join(", ")}
+  HTTP Agents:   ${HTTP_AGENTS.join(", ")}
 
 Options:
   -h, --help        Show this help message
   -v, --version     Show version
   --no-browser      Don't open browser automatically
 
-Prerequisites:
-  - The agent must be installed and support ACP mode
-  - Agent-specific setup (API keys, etc.)
-
 Examples:
-  heyatlas connect opencode   Connect OpenCode via ACP
-  heyatlas connect goose      Connect Goose via ACP
-  heyatlas connect claude     Connect Claude Code via ACP
+  heyatlas connect opencode         Connect OpenCode via ACP
+  heyatlas connect agent-smith-py   Connect Agent Smith (CAMEL-AI workforce)
 `);
 }
 

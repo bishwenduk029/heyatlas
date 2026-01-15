@@ -13,6 +13,7 @@ import {
   PLANNING_PROMPT,
   PRESENTATION_CREATOR_PROMPT,
   FILESYSTEM_PROMPT,
+  RESEARCHER_PROMPT,
 } from './prompts'
 import { sendTaskUpdateTool } from './tools'
 
@@ -43,7 +44,7 @@ const logger = createPinoLogger({
   const workflowAgent = new PlanAgent({
     name: 'workflow-orchestrator',
     systemPrompt: ORCHESTRATOR_PROMPT,
-    model: heyatlasProvider('Baseten/zai-org/GLM-4.6'),
+    model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
     tools: [sendTaskUpdateTool],
     filesystem: {
       backend: new NodeFilesystemBackend({
@@ -57,36 +58,36 @@ const logger = createPinoLogger({
         purpose:
           'Convert documents (PDF, Word, Excel, images, audio) to Markdown format',
         systemPrompt: MARKDOWN_CONVERTER_PROMPT,
-        model: heyatlasProvider('Baseten/zai-org/GLM-4.6'),
+        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
         tools: toolsets.markitdown?.getTools() || [],
       },
       {
         name: 'browser-automation',
         purpose:
-          'Execute web automation workflows including form filling, data extraction, navigation, and research tasks',
+          'Research topics live on google.com and also execute web automation workflows including form filling, data extraction, navigation, and research tasks',
         systemPrompt: BROWSER_AUTOMATION_PROMPT,
-        model: heyatlasProvider('Baseten/zai-org/GLM-4.6'),
+        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
         tools: toolsets.browser?.getTools() || [],
       },
       {
         name: 'presentation-creator',
         purpose: 'Create and edit PowerPoint presentations',
         systemPrompt: PRESENTATION_CREATOR_PROMPT,
-        model: heyatlasProvider('Baseten/zai-org/GLM-4.6'),
+        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
         tools: toolsets.powerpoint?.getTools() || [],
       },
       {
-        name: 'document-writer',
+        name: 'word-document-writer',
         purpose: 'Create and edit Word documents',
         systemPrompt: DOCUMENT_WRITER_PROMPT,
-        model: heyatlasProvider('Baseten/zai-org/GLM-4.6'),
+        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
         tools: toolsets.word?.getTools() || [],
       },
       {
-        name: 'format-converter',
+        name: 'document-format-converter',
         purpose: 'Convert between various document formats using Pandoc',
         systemPrompt: FORMAT_CONVERTER_PROMPT,
-        model: heyatlasProvider('Baseten/zai-org/GLM-4.6'),
+        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
         tools: toolsets.pandoc?.getTools() || [],
       },
     ],

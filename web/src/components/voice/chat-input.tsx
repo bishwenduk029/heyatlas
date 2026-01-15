@@ -18,6 +18,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BarVisualizer } from "@/components/ui/bar-visualizer";
 import { VoiceIcon } from "@/components/ui/voice-icon";
 import { AgentSelector } from "./agent-selector";
+import { MiniComputerToggle } from "./mini-computer-toggle";
 import { getAgentDisplayName } from "@/lib/cloudflare-sandbox";
 import type { AgentState } from "@/components/ui/bar-visualizer";
 
@@ -44,6 +45,10 @@ interface ChatInputProps {
     agentId: string,
     apiKey?: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  // Mini Computer (sandbox)
+  isMiniComputerActive?: boolean;
+  isMiniComputerConnecting?: boolean;
+  onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
 }
 
 export function ChatInput({
@@ -66,6 +71,9 @@ export function ChatInput({
   selectedAgent = null,
   onDisconnectAgent,
   onConnectCloudAgent,
+  isMiniComputerActive = false,
+  isMiniComputerConnecting = false,
+  onToggleMiniComputer,
 }: ChatInputProps) {
   const [input, setInput] = useState("");
   const submitInProgress = useRef(false);
@@ -280,30 +288,42 @@ export function ChatInput({
             )}
           </div>
 
-          {isLoading ? (
-            <Button
-              type="button"
-              size="lg"
-              onClick={onStop}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-12 cursor-pointer rounded-full"
-            >
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="lg"
-              disabled={disabled || !input.trim()}
-              className={cn(
-                "h-12 w-12 cursor-pointer rounded-full transition-all",
-                input.trim()
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80",
-              )}
-            >
-              <ArrowUp className="h-6 w-6" />
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Mini Computer Toggle */}
+            {onToggleMiniComputer && (
+              <MiniComputerToggle
+                isActive={isMiniComputerActive}
+                isConnecting={isMiniComputerConnecting}
+                onToggle={onToggleMiniComputer}
+                disabled={disabled || isLoading}
+              />
+            )}
+
+            {isLoading ? (
+              <Button
+                type="button"
+                size="lg"
+                onClick={onStop}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-12 cursor-pointer rounded-full"
+              >
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="lg"
+                disabled={disabled || !input.trim()}
+                className={cn(
+                  "h-12 w-12 cursor-pointer rounded-full transition-all",
+                  input.trim()
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
+              >
+                <ArrowUp className="h-6 w-6" />
+              </Button>
+            )}
+          </div>
         </div>
       </form>
       

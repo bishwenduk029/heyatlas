@@ -61,6 +61,11 @@ export interface AtlasAgentState {
     logsUrl?: string;
     agentConnected?: boolean;
   } | null;
+  miniComputer?: {
+    active: boolean;
+    sandboxId?: string;
+    vncUrl?: string;
+  } | null;
   tier?: string;
   tasks?: Record<string, AtlasTask>;
   activeAgent?: string | null;
@@ -95,6 +100,8 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>(null);
   const [compressing, setCompressing] = useState(false);
+  const [miniComputer, setMiniComputer] = useState<{ active: boolean; sandboxId?: string; vncUrl?: string } | null>(null);
+  const [miniComputerConnecting, setMiniComputerConnecting] = useState(false);
   
   // Streaming UI chunks: real-time updates from CLI agent (ephemeral, not stored)
   const [streamingChunks, setStreamingChunks] = useState<Map<string, UIStreamChunk[]>>(new Map());
@@ -133,6 +140,11 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     if (state.compressing !== undefined) {
       setCompressing(state.compressing);
     }
+    // Mini computer state
+    if (state.miniComputer !== undefined) {
+      setMiniComputer(state.miniComputer);
+      setMiniComputerConnecting(false);
+    }
   }, []);
 
   const handleOpen = useCallback(() => setIsConnected(true), []);
@@ -153,6 +165,22 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
             const chunks = newMap.get(taskId) || [];
             // Keep last N chunks per task to prevent memory bloat
             const updated = [...chunks, chunk].slice(-MAX_UI_CHUNKS_PER_TASK);
+            newMap.set(taskId, updated);
+            return newMap;
+          });
+        }
+        
+        // Handle workforce events (from agent-smith-py via SSE → CLI → Atlas)
+        if (taskEvent.type === "workforce_event" && taskEvent.data) {
+          const workforceEvent = taskEvent.data as Record<string, unknown>;
+          // Convert to UI chunk format for display
+          setStreamingChunks(prev => {
+            const newMap = new Map(prev);
+            const chunks = newMap.get(taskId) || [];
+            const updated = [...chunks, {
+              type: "workforce_event",
+              ...workforceEvent,
+            } as UIStreamChunk].slice(-MAX_UI_CHUNKS_PER_TASK);
             newMap.set(taskId, updated);
             return newMap;
           });
@@ -329,6 +357,28 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     }
   }, []);
 
+  // Toggle mini computer (cloud sandbox with browser & tools)
+  const toggleMiniComputer = useCallback(async (enabled: boolean): Promise<void> => {
+    setMiniComputerConnecting(true);
+    try {
+      const response = await fetch("/api/agent/mini-computer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      
+      if (!response.ok) {
+        const result = await response.json() as { error?: string };
+        throw new Error(result.error || "Failed to toggle mini computer");
+      }
+      // State update will come via handleStateUpdate
+    } catch (error) {
+      console.error("Failed to toggle mini computer:", error);
+      setMiniComputerConnecting(false);
+      throw error;
+    }
+  }, []);
+
   return {
     isConnected,
     isLoading,
@@ -349,6 +399,11 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     connectCloudAgent,
     disconnectAgent,
     compressing,
+    // Mini computer
+    isMiniComputerActive: miniComputer?.active ?? false,
+    isMiniComputerConnecting: miniComputerConnecting,
+    miniComputerVncUrl: miniComputer?.vncUrl,
+    toggleMiniComputer,
   };
 }
 
@@ -455,6 +510,16 @@ function chunksToMessageParts(chunks: UIStreamChunk[]): UIMessagePart[] {
           entry.part = updated;
           parts[entry.index] = updated;
         }
+        break;
+      }
+
+      case "workforce_event": {
+        // Pass through workforce events as-is for TaskArtifact to render
+        currentTextPart = null;
+        parts.push({
+          type: "workforce_event",
+          event: chunk,
+        } as unknown as UIMessagePart);
         break;
       }
     }

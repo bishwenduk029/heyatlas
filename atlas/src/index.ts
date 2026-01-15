@@ -123,6 +123,23 @@ app.post("/agents/:userId/disconnect-agent", async (c) => {
   }
 });
 
+// Mini-computer toggle endpoint (cloud sandbox with browser & agent-smith tools)
+app.post("/agents/:userId/mini-computer", async (c) => {
+  const userId = c.req.param("userId");
+  if (!userId) return c.json({ error: "Missing userId" }, 400);
+
+  const agent = await getAgent(c, userId);
+  const body = await c.req.json<{ enabled: boolean }>();
+
+  try {
+    const result = await agent.toggleMiniComputer(body.enabled);
+    return c.json(result);
+  } catch (error) {
+    console.error("[mini-computer] Error:", error);
+    return c.json({ success: false, error: "Failed to toggle mini computer" }, 500);
+  }
+});
+
 // WebSocket upgrade and built-in routes (get-messages, etc.)
 app.all("/agents/atlas-agent/:userId", async (c) => {
   const userId = c.req.param("userId");

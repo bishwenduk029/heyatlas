@@ -5,8 +5,8 @@ export const mcpConfig = new MCPConfiguration({
   servers: {
     browser: {
       type: 'stdio',
-      command: 'npx',
-      args: ['@playwright/mcp@latest'],
+      command: 'uvx',
+      args: ["--from", "browser-use[cli]", "browser-use", "--mcp"],
       timeout: 60000,
     },
     markitdown: {
@@ -42,11 +42,9 @@ export const mcpConfig = new MCPConfiguration({
       type: 'stdio',
       command: 'npx',
       args: [
-        '-y',
-        '@modelcontextprotocol/server-filesystem',
-        path.join(process.env.HOME || '', 'projects'),
+        "-y",
+        '@wonderwhy-er/desktop-commander@latest',
       ],
-      cwd: process.env.HOME,
       env: { NODE_ENV: 'production' },
       timeout: 10000,
     },

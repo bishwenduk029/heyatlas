@@ -36,7 +36,7 @@ const AGENT_SMITH_CONFIG = {
   template: "heyatlas-desktop",
   port: 3141,
   startupCommand:
-    "bash -lc 'node /home/user/agents/agent-smith.cjs >> /tmp/agent-smith.log 2>&1'",
+    "bash -lc 'python -m main --port 3141 >> /tmp/agent-smith.log 2>&1'",
 };
 
 export class AtlasAgent extends AIChatAgent<Env, AgentState> {
@@ -46,6 +46,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     persona: null,
     personaUpdatedAt: null,
     sandbox: null,
+    miniComputer: null,
     tasks: {},
     activeAgent: null,
     interactiveMode: false,
@@ -1117,5 +1118,60 @@ Write your first-person summary:`;
       port,
       hostname || "heyatlas.app",
     );
+  }
+
+  /**
+   * Toggle mini-computer (cloud sandbox with browser & agent-smith tools)
+   */
+  async toggleMiniComputer(enabled: boolean): Promise<{ success: boolean; vncUrl?: string; error?: string }> {
+    console.log(`[Atlas] toggleMiniComputer: enabled=${enabled}, userId=${this.userId}`);
+
+    if (enabled) {
+      // Start mini-computer via MINI_DESKTOP service binding
+      try {
+        const containerId = `mini-computer-${this.userId}`;
+        
+        // Use POST /start endpoint which returns immediately
+        const response = await this.env.MINI_DESKTOP.fetch(
+          new Request(`https://mini-desktop/container/${containerId}/start`, {
+            method: "POST",
+          }),
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("[Atlas] Failed to start mini-computer:", errorText);
+          return { success: false, error: "Failed to start mini-computer" };
+        }
+
+        // Container is starting, construct VNC URL
+        // The desktop will be accessible via the mini-desktop worker
+        const vncUrl = `https://mini-desktop.heyatlas.workers.dev/container/${containerId}/desktop`;
+
+        this.setState({
+          ...this.state,
+          miniComputer: {
+            active: true,
+            sandboxId: containerId,
+            vncUrl,
+          },
+        });
+
+        console.log(`[Atlas] Mini-computer starting: ${containerId}`);
+        return { success: true, vncUrl };
+      } catch (error) {
+        console.error("[Atlas] Error starting mini-computer:", error);
+        return { success: false, error: "Failed to start mini-computer" };
+      }
+    } else {
+      // Stop mini-computer - just update state, container will idle timeout
+      this.setState({
+        ...this.state,
+        miniComputer: { active: false },
+      });
+
+      console.log("[Atlas] Mini-computer stopped");
+      return { success: true };
+    }
   }
 }

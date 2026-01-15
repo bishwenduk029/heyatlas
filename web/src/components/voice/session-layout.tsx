@@ -43,6 +43,10 @@ interface SessionLayoutProps {
     agentId: string,
     apiKey?: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  // Mini Computer
+  isMiniComputerActive?: boolean;
+  isMiniComputerConnecting?: boolean;
+  onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
 }
 
 export function SessionLayout({
@@ -67,6 +71,9 @@ export function SessionLayout({
   selectedAgent,
   onDisconnectAgent,
   onConnectCloudAgent,
+  isMiniComputerActive,
+  isMiniComputerConnecting,
+  onToggleMiniComputer,
 }: SessionLayoutProps) {
   const room = useRoomContext();
   const { state: agentState } = useVoiceAssistant();
@@ -242,6 +249,9 @@ export function SessionLayout({
         selectedAgent={selectedAgent}
         onDisconnectAgent={onDisconnectAgent}
         onConnectCloudAgent={onConnectCloudAgent}
+        isMiniComputerActive={isMiniComputerActive}
+        isMiniComputerConnecting={isMiniComputerConnecting}
+        onToggleMiniComputer={onToggleMiniComputer}
       />
     </div>
   );
@@ -287,6 +297,9 @@ export function SessionLayout({
                       showVoiceToggle
                       isTasksView={true}
                       isVoiceMode={false}
+                      isMiniComputerActive={isMiniComputerActive}
+                      isMiniComputerConnecting={isMiniComputerConnecting}
+                      onToggleMiniComputer={onToggleMiniComputer}
                     />
                   </div>
                 ) : (
@@ -355,6 +368,9 @@ export function SessionLayout({
             selectedAgent={selectedAgent}
             onDisconnectAgent={onDisconnectAgent}
             onConnectCloudAgent={onConnectCloudAgent}
+            isMiniComputerActive={isMiniComputerActive}
+            isMiniComputerConnecting={isMiniComputerConnecting}
+            onToggleMiniComputer={onToggleMiniComputer}
           />
         </div>
 
@@ -388,6 +404,9 @@ export function SessionLayout({
                   selectedAgent={selectedAgent}
                   onDisconnectAgent={onDisconnectAgent}
                   onConnectCloudAgent={onConnectCloudAgent}
+                  isMiniComputerActive={isMiniComputerActive}
+                  isMiniComputerConnecting={isMiniComputerConnecting}
+                  onToggleMiniComputer={onToggleMiniComputer}
                 />
               </div>
             }

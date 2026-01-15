@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "browser_use": {
+            "url": "http://127.0.0.1:12306/mcp",
+            "transport": "streamable-http"
+        }
+    }
+}

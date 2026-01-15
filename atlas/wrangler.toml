@@ -32,6 +32,11 @@ name = "atlas-agent-dev"
 AUTH_API_BASE = "http://host.docker.internal:3000"
 ATLAS_AGENT_HOST = "host.docker.internal:8787"
 
+# Service binding to mini-desktop worker
+[[services]]
+binding = "MINI_DESKTOP"
+service = "mini-desktop"
+
 [[routes]]
 pattern = "agent.heyatlas.app"
 custom_domain = true

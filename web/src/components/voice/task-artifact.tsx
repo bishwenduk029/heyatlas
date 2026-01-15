@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Terminal, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Terminal, Loader2, CheckCircle2, XCircle, Users, GitBranch, Play, ArrowRight } from "lucide-react";
 import {
   Artifact,
   ArtifactHeader,
@@ -169,6 +169,119 @@ function ReasoningEntry({ text, isStreaming }: { text: string; isStreaming: bool
   );
 }
 
+// Workforce event types from agent-smith-py
+interface WorkforceEvent {
+  event_type: string;
+  timestamp: number;
+  task_id?: string;
+  task_content?: string;
+  worker_name?: string;
+  result?: string;
+  error?: string;
+  subtasks?: string[];
+}
+
+function WorkforceEventEntry({ event }: { event: WorkforceEvent }) {
+  const getEventIcon = () => {
+    switch (event.event_type) {
+      case "task_created":
+      case "task_started":
+        return <Play className="h-3 w-3 text-blue-500" />;
+      case "task_assigned":
+        return <ArrowRight className="h-3 w-3 text-purple-500" />;
+      case "task_decomposed":
+        return <GitBranch className="h-3 w-3 text-cyan-500" />;
+      case "task_completed":
+      case "all_tasks_completed":
+        return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      case "task_failed":
+        return <XCircle className="h-3 w-3 text-red-500" />;
+      case "worker_created":
+        return <Users className="h-3 w-3 text-amber-500" />;
+      default:
+        return <Terminal className="h-3 w-3 text-muted-foreground" />;
+    }
+  };
+
+  const getEventColor = () => {
+    switch (event.event_type) {
+      case "task_completed":
+      case "all_tasks_completed":
+        return "border-emerald-500/30";
+      case "task_failed":
+        return "border-red-500/30";
+      case "task_assigned":
+        return "border-purple-500/30";
+      case "task_decomposed":
+        return "border-cyan-500/30";
+      case "worker_created":
+        return "border-amber-500/30";
+      default:
+        return "border-blue-500/30";
+    }
+  };
+
+  const getEventLabel = () => {
+    switch (event.event_type) {
+      case "task_created":
+        return "Task Created";
+      case "task_started":
+        return "Started";
+      case "task_assigned":
+        return `Assigned → ${event.worker_name || "Worker"}`;
+      case "task_decomposed":
+        return "Decomposed";
+      case "task_completed":
+        return "Completed";
+      case "task_failed":
+        return "Failed";
+      case "worker_created":
+        return `Worker: ${event.worker_name}`;
+      case "all_tasks_completed":
+        return "All Tasks Done";
+      default:
+        return event.event_type;
+    }
+  };
+
+  return (
+    <div className={cn("border-l-2 pl-3 py-1", getEventColor())}>
+      <div className="flex items-center gap-2 text-sm font-medium">
+        {getEventIcon()}
+        <span>{getEventLabel()}</span>
+      </div>
+      
+      {event.task_content && (
+        <div className="mt-1 text-xs text-muted-foreground truncate">
+          {event.task_content}
+        </div>
+      )}
+      
+      {event.subtasks && event.subtasks.length > 0 && (
+        <div className="mt-1 space-y-0.5">
+          {event.subtasks.map((st, i) => (
+            <div key={i} className="text-xs text-muted-foreground/70 pl-2 truncate">
+              • {st}
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {event.result && (
+        <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 truncate">
+          {event.result}
+        </div>
+      )}
+      
+      {event.error && (
+        <div className="mt-1 text-xs text-red-500 truncate">
+          {event.error}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { id: taskId, agentId: agentName, state: taskState } = task;
@@ -262,6 +375,18 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
                   errorText={toolPart.state === "output-error" ? toolPart.errorText : undefined}
                 />
               );
+            }
+
+            // Workforce events from agent-smith-py
+            const partType = (part as { type: string }).type;
+            if (partType === "workforce_event") {
+              // Event data can be nested under 'event' or 'data'
+              const eventPart = part as unknown as { event?: WorkforceEvent; data?: WorkforceEvent };
+              const event = eventPart.event || eventPart.data;
+              if (event && event.event_type !== "result") {
+                return <WorkforceEventEntry key={key} event={event} />;
+              }
+              return null;
             }
 
             return null;

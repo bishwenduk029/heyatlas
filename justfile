@@ -45,20 +45,21 @@ deploy-voice-agent:
     @echo "Checking for changes in voice-agent..."
     @cd voice-agent && lk agent deploy
 
-# Agent Smith tasks
+# Agent Smith Python tasks
 setup-agent-smith:
-    @echo "Setting up agent-smith..."
-    cd desktop-sandbox/agent-smith && bun install
+    @echo "Setting up agent-smith-py..."
+    cd desktop-sandbox/agent-smith-py && uv sync
 
 build-agent-smith: setup-agent-smith
-    @echo "Building agent-smith..."
-    cd desktop-sandbox/agent-smith && bun run build
-    @echo "Copying built agent-smith.cjs to template/files..."
-    cp desktop-sandbox/agent-smith/dist/agent-smith.cjs desktop-sandbox/template/files/agent-smith.cjs
+    @echo "Building agent-smith-py for sandbox..."
+    @mkdir -p desktop-sandbox/cloudflare/files/agent-smith-py
+    cp -r desktop-sandbox/agent-smith-py/src desktop-sandbox/cloudflare/files/agent-smith-py/
+    cp desktop-sandbox/agent-smith-py/main.py desktop-sandbox/cloudflare/files/agent-smith-py/
+    cp desktop-sandbox/agent-smith-py/pyproject.toml desktop-sandbox/cloudflare/files/agent-smith-py/
 
 agent-smith-dev:
-    @echo "Running agent-smith in dev mode..."
-    cd desktop-sandbox/agent-smith && bun run dev
+    @echo "Running agent-smith-py in dev mode..."
+    cd desktop-sandbox/agent-smith-py && python main.py
 
 # Desktop Sandbox tasks
 setup-desktop-sandbox:
@@ -73,9 +74,9 @@ desktop-sandbox-dev:
     @echo "Running desktop-sandbox in dev mode..."
     cd desktop-sandbox/template && uv run python build_dev.py
 
-deploy-desktop-sandbox:
+deploy-desktop-sandbox: build-agent-smith
     @echo "Deploying desktop-sandbox..."
-    cd desktop-sandbox/template && uv run python build_docker.py
+    cd desktop-sandbox/cloudflare && pnpm run deploy
 
 # CLI tasks
 setup-cli:

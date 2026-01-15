@@ -19,6 +19,8 @@ export interface Env {
   ATLAS_AGENT_HOST?: string;
   // Cloudflare Sandbox Durable Object namespace
   Sandbox: DurableObjectNamespace<Sandbox>;
+  // Mini-desktop worker service binding
+  MINI_DESKTOP: Fetcher;
 }
 
 export interface TaskUpdate {
@@ -42,6 +44,8 @@ export interface AgentState {
   persona: string | null;
   personaUpdatedAt: number | null;
   sandbox: SandboxMetadata | null;
+  /** Mini computer - cloud sandbox with browser & agent-smith tools */
+  miniComputer: MiniComputerMetadata | null;
   tasks: Record<string, Task>;
   activeAgent: string | null;
   interactiveMode: boolean;
@@ -53,6 +57,12 @@ export interface AgentState {
   learnings: string[];
   /** Evolving backstory - shared experiences and moments that shape our relationship */
   sharedHistory: string[];
+}
+
+export interface MiniComputerMetadata {
+  active: boolean;
+  sandboxId?: string;
+  vncUrl?: string;
 }
 
 export interface Task {

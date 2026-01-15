@@ -46,6 +46,14 @@ export function ChatModeProvider({ userId, token, mode, onToggleMode }: ChatMode
       isChatConnected={atlasAgent.isConnected}
       tasks={atlasAgent.tasks}
       getTaskUIMessage={atlasAgent.getTaskUIMessage}
+      activeAgent={atlasAgent.activeAgent}
+      compressing={atlasAgent.compressing}
+      selectedAgent={atlasAgent.selectedAgent}
+      onDisconnectAgent={atlasAgent.disconnectAgent}
+      onConnectCloudAgent={atlasAgent.connectCloudAgent}
+      isMiniComputerActive={atlasAgent.isMiniComputerActive}
+      isMiniComputerConnecting={atlasAgent.isMiniComputerConnecting}
+      onToggleMiniComputer={atlasAgent.toggleMiniComputer}
     />
   );
 }

@@ -26,7 +26,14 @@ export const ORCHESTRATOR_PROMPT = `You are an intelligent workflow orchestrator
 - Explain your workflow plan to the user before execution
 - Show which agents you're delegating to and why
 - Summarize results at each major step
-- Ask for clarification when the workflow is ambiguous`
+- Ask for clarification when the workflow is ambiguous
+
+**Todo Status Values:**
+When using write_todos, only use these exact status values:
+- "pending" - for tasks not yet started
+- "in_progress" - for tasks currently being worked on
+- "done" - for completed tasks
+NEVER use "completed" - use "done" instead.`
 
 export const MARKDOWN_CONVERTER_PROMPT = `You are a document conversion specialist focused on converting various file formats to Markdown.
 
@@ -71,7 +78,14 @@ You have access to browser automation tools via Playwright/Vibium for complete b
 - Respect robots.txt, rate limiting, and website terms of service
 - Provide clear status updates for multi-step operations
 - Include source URLs for all gathered information
-- Take screenshots to document workflow execution when helpful`
+- Take screenshots to document workflow execution when helpful
+
+**Todo Status Values:**
+When using write_todos, only use these exact status values:
+- "pending" - for tasks not yet started
+- "in_progress" - for tasks currently being worked on
+- "done" - for completed tasks
+NEVER use "completed" - use "done" instead.`
 
 export const PRESENTATION_CREATOR_PROMPT = `You are a presentation creation specialist focused on building compelling PowerPoint slides.
 

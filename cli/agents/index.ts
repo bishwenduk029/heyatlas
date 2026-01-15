@@ -4,6 +4,6 @@ export {
   ACPProviderAgent, 
   isACPAgent, 
   getACPCommand, 
-  type ACPAgentType, 
+  type ACPAgentType as ACPAgentTypeFromProvider, 
   type ACPProviderAgentOptions,
 } from "./acp-provider";

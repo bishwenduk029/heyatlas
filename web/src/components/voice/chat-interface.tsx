@@ -35,6 +35,10 @@ interface ChatInterfaceProps {
     agentId: string,
     apiKey?: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  // Mini Computer
+  isMiniComputerActive?: boolean;
+  isMiniComputerConnecting?: boolean;
+  onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
 }
 
 export function ChatInterface({
@@ -61,6 +65,9 @@ export function ChatInterface({
   selectedAgent,
   onDisconnectAgent,
   onConnectCloudAgent,
+  isMiniComputerActive,
+  isMiniComputerConnecting,
+  onToggleMiniComputer,
 }: ChatInterfaceProps) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -111,6 +118,9 @@ export function ChatInterface({
             selectedAgent={selectedAgent}
             onDisconnectAgent={onDisconnectAgent}
             onConnectCloudAgent={onConnectCloudAgent}
+            isMiniComputerActive={isMiniComputerActive}
+            isMiniComputerConnecting={isMiniComputerConnecting}
+            onToggleMiniComputer={onToggleMiniComputer}
           />
         </div>
       </div>
