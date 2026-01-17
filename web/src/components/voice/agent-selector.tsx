@@ -33,6 +33,8 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { REMOTE_AGENTS, type RemoteAgent } from "@/lib/cloudflare-sandbox";
 import { AgentApiKeyModal } from "./agent-api-key-modal";
+import { useRemoteAgent } from "./hooks/use-remote-agent";
+import { RemoteAgentList } from "./remote-agent-list";
 
 interface AgentSelectorProps {
   selectedAgent: { type: "cloud"; agentId: string } | null;
@@ -54,111 +56,30 @@ export function AgentSelector({
 }: AgentSelectorProps) {
   const [open, setOpen] = React.useState(false);
   const isMobile = useIsMobile();
-  const [apiKeyModalOpen, setApiKeyModalOpen] = React.useState(false);
-  const [pendingAgent, setPendingAgent] = React.useState<RemoteAgent | null>(
-    null,
-  );
-  const [apiKeyError, setApiKeyError] = React.useState<string | null>(null);
-  const [isSubmittingApiKey, setIsSubmittingApiKey] = React.useState(false);
-  const [connectingAgentId, setConnectingAgentId] = React.useState<
-    string | null
-  >(null);
-  const [isDisconnecting, setIsDisconnecting] = React.useState(false);
 
-  const selectedValue = selectedAgent?.agentId ?? "";
+  const {
+    apiKeyModalOpen,
+    pendingAgent,
+    apiKeyError,
+    isSubmittingApiKey,
+    connectingAgentId,
+    isDisconnecting,
+    isConnecting,
+    isConnected,
+    handleAgentSelect,
+    handleApiKeySubmit,
+    handleDisconnect,
+    handleApiKeyModalClose,
+  } = useRemoteAgent({
+    selectedAgent,
+    activeAgent,
+    onConnectCloudAgent,
+    onDisconnectAgent,
+  });
 
   const selectedAgentInfo = selectedAgent
     ? REMOTE_AGENTS.find((a) => a.id === selectedAgent.agentId)
     : null;
-
-  // Agent is "connecting" if we have a selectedAgent but no activeAgent yet (sandbox starting)
-  // OR if we're in the process of calling connectCloudAgent
-  const isConnecting =
-    connectingAgentId !== null ||
-    (selectedAgent !== null && activeAgent !== selectedAgent.agentId);
-
-  // Agent is fully connected when activeAgent matches selectedAgent
-  const isConnected =
-    activeAgent !== null && selectedAgent?.agentId === activeAgent;
-
-  // Reset connecting state when agent becomes active
-  React.useEffect(() => {
-    if (activeAgent && connectingAgentId === activeAgent) {
-      setConnectingAgentId(null);
-    }
-  }, [activeAgent, connectingAgentId]);
-
-  const handleAgentSelect = async (agent: RemoteAgent) => {
-    // Check if agent requires API key
-    if (agent.apiKey?.required) {
-      setPendingAgent(agent);
-      setApiKeyModalOpen(true);
-      setOpen(false);
-      return;
-    }
-
-    // No API key required - connect to cloud agent
-    if (onConnectCloudAgent) {
-      setOpen(false);
-      setConnectingAgentId(agent.id);
-      try {
-        const result = await onConnectCloudAgent(agent.id);
-        if (!result.success) {
-          console.error("Failed to connect cloud agent:", result.error);
-        }
-      } finally {
-        setConnectingAgentId(null);
-      }
-    }
-  };
-
-  const handleDisconnect = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Don't open dropdown
-    if (!onDisconnectAgent || isDisconnecting) return;
-
-    setIsDisconnecting(true);
-    try {
-      const result = await onDisconnectAgent();
-      if (!result.success) {
-        console.error("Failed to disconnect agent:", result.error);
-      }
-    } finally {
-      setIsDisconnecting(false);
-    }
-  };
-
-  const handleApiKeySubmit = async (apiKey: string) => {
-    if (!pendingAgent || !onConnectCloudAgent) return;
-
-    setApiKeyError(null);
-    setIsSubmittingApiKey(true);
-    setConnectingAgentId(pendingAgent.id);
-
-    try {
-      const result = await onConnectCloudAgent(pendingAgent.id, apiKey);
-      if (result.success) {
-        setApiKeyModalOpen(false);
-        setPendingAgent(null);
-      } else {
-        setApiKeyError(result.error ?? "Failed to connect agent");
-      }
-    } catch (error) {
-      setApiKeyError(
-        error instanceof Error ? error.message : "Failed to connect agent",
-      );
-    } finally {
-      setConnectingAgentId(null);
-      setIsSubmittingApiKey(false);
-    }
-  };
-
-  const handleApiKeyModalClose = (open: boolean) => {
-    if (!open) {
-      setPendingAgent(null);
-      setApiKeyError(null);
-    }
-    setApiKeyModalOpen(open);
-  };
 
   // Get the agent being connected (for display)
   const connectingAgent = connectingAgentId
@@ -190,7 +111,12 @@ export function AgentSelector({
     >
       {isConnecting ? (
         <>
-          <Loader2 className={cn("shrink-0 animate-spin", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+          <Loader2
+            className={cn(
+              "shrink-0 animate-spin",
+              isMobile ? "h-5 w-5" : "h-4 w-4",
+            )}
+          />
           {!isMobile && (
             <span className="truncate text-sm">
               {connectingAgent?.name || "Connecting..."}...
@@ -199,14 +125,21 @@ export function AgentSelector({
         </>
       ) : isDisconnecting ? (
         <>
-          <Loader2 className={cn("shrink-0 animate-spin", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+          <Loader2
+            className={cn(
+              "shrink-0 animate-spin",
+              isMobile ? "h-5 w-5" : "h-4 w-4",
+            )}
+          />
           {!isMobile && (
             <span className="truncate text-sm">Disconnecting...</span>
           )}
         </>
       ) : isConnected && selectedAgentInfo ? (
         <>
-          <selectedAgentInfo.icon className={cn("shrink-0", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+          <selectedAgentInfo.icon
+            className={cn("shrink-0", isMobile ? "h-5 w-5" : "h-4 w-4")}
+          />
           {!isMobile && (
             <>
               <span className="truncate text-sm">{selectedAgentInfo.name}</span>
@@ -216,7 +149,9 @@ export function AgentSelector({
         </>
       ) : (
         <>
-          <Computer className={cn("shrink-0", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+          <Computer
+            className={cn("shrink-0", isMobile ? "h-5 w-5" : "h-4 w-4")}
+          />
           {!isMobile && (
             <span className="text-muted-foreground truncate text-sm">
               Select agent
@@ -233,85 +168,6 @@ export function AgentSelector({
         />
       )}
     </Button>
-  );
-
-  const agentList = (
-    <Command>
-      <CommandList>
-        <CommandGroup heading="Cloud Agents">
-          {REMOTE_AGENTS.map((agent) => {
-            const isThisAgentActive = agent.id === activeAgent;
-            const isComingSoon = agent.comingSoon;
-            const isThisAgentConnecting =
-              connectingAgentId === agent.id ||
-              (selectedAgent?.agentId === agent.id && !isConnected);
-            const requiresApiKey = agent.apiKey?.required;
-
-            return (
-              <CommandItem
-                key={agent.id}
-                value={agent.id}
-                onSelect={() => {
-                  if (isComingSoon || isConnecting || isThisAgentConnecting)
-                    return;
-                  handleAgentSelect(agent);
-                }}
-                disabled={
-                  isComingSoon || isConnecting || isThisAgentConnecting
-                }
-                className={cn(
-                  "relative",
-                  isThisAgentActive && "bg-accent",
-                  (isComingSoon || isThisAgentConnecting) &&
-                    "cursor-not-allowed opacity-50",
-                )}
-              >
-                {isThisAgentConnecting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <agent.icon className="mr-2 h-4 w-4" />
-                )}
-                <div className="flex flex-1 flex-col">
-                  <span>{agent.name}</span>
-                  {agent.description && (
-                    <span className="text-muted-foreground text-[10px] leading-tight">
-                      {agent.description}
-                    </span>
-                  )}
-                </div>
-                {isThisAgentActive && !isThisAgentConnecting && (
-                  <Check className="ml-2 h-4 w-4 shrink-0 text-green-500" />
-                )}
-                {isThisAgentConnecting && (
-                  <span className="ml-2 text-xs text-amber-500">
-                    Connecting...
-                  </span>
-                )}
-                {isComingSoon && (
-                  <span className="text-muted-foreground ml-2 text-xs">
-                    Coming soon
-                  </span>
-                )}
-                {!isComingSoon &&
-                  !isThisAgentConnecting &&
-                  !isThisAgentActive &&
-                  requiresApiKey && (
-                    <span title="Requires API key">
-                      <Key className="text-muted-foreground ml-2 h-3 w-3" />
-                    </span>
-                  )}
-                {!isComingSoon &&
-                  !isThisAgentConnecting &&
-                  !isThisAgentActive &&
-                  !requiresApiKey && (
-                    <Cloud className="text-muted-foreground ml-2 h-3 w-3" />
-                  )}
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
-      </CommandList>
-    </Command>
   );
 
   return (
@@ -336,14 +192,37 @@ export function AgentSelector({
               <DrawerHeader>
                 <DrawerTitle>Select Agent</DrawerTitle>
               </DrawerHeader>
-              <div className="px-4 pb-4">{agentList}</div>
+              <div className="px-4 pb-4">
+                <RemoteAgentList
+                  onSelect={(agent) => {
+                    handleAgentSelect(agent);
+                    setOpen(false);
+                  }}
+                  selectedAgentId={selectedAgent?.agentId}
+                  activeAgentId={activeAgent}
+                  connectingAgentId={connectingAgentId}
+                  isConnecting={isConnecting}
+                />
+              </div>
             </DrawerContent>
           </Drawer>
         ) : (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
-            <PopoverContent className="w-[260px] p-0 sm:w-[280px]" align="start">
-              {agentList}
+            <PopoverContent
+              className="w-[260px] p-0 sm:w-[280px]"
+              align="start"
+            >
+              <RemoteAgentList
+                onSelect={(agent) => {
+                  handleAgentSelect(agent);
+                  setOpen(false);
+                }}
+                selectedAgentId={selectedAgent?.agentId}
+                activeAgentId={activeAgent}
+                connectingAgentId={connectingAgentId}
+                isConnecting={isConnecting}
+              />
             </PopoverContent>
           </Popover>
         )}
@@ -355,7 +234,9 @@ export function AgentSelector({
           onOpenChange={handleApiKeyModalClose}
           agentName={pendingAgent.name}
           apiKeyConfig={pendingAgent.apiKey}
-          onSubmit={handleApiKeySubmit}
+          onSubmit={async (key) => {
+            await handleApiKeySubmit(pendingAgent.id, key);
+          }}
           isLoading={isSubmittingApiKey}
           error={apiKeyError}
         />

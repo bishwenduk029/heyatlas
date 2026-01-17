@@ -12,13 +12,10 @@ export type ACPAgentType =
   | "openhands"
   | "cagent";
 
-// HTTP-based agents (non-ACP)
-export type HTTPAgentType = "agent-smith-py";
-
 // All supported agents
-export type AgentType = ACPAgentType | HTTPAgentType;
+export type AgentType = ACPAgentType | "smith";
 
-// Check if agent uses HTTP protocol
-export function isHTTPAgent(agent: string): agent is HTTPAgentType {
-  return agent === "agent-smith-py";
+// Check if agent is smith
+export function isSmith(agent: string): agent is "smith" {
+  return agent === "smith";
 }

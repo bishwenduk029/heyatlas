@@ -7,10 +7,11 @@ import { useState } from "react";
 import { TaskList } from "./task-list";
 import type { AtlasTask, SelectedAgent } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
+import type { FileUIPart } from "ai";
 
 interface ChatInterfaceProps {
   messages: UIMessage[];
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, files?: FileUIPart[]) => void;
   onStop?: () => void;
   isLoading?: boolean;
   isConnected?: boolean;
@@ -73,29 +74,27 @@ export function ChatInterface({
   const user = session?.user;
   const [viewMode, setViewMode] = useState<"chat" | "tasks">(initialViewMode);
 
-  const handleSend = async (text: string) => {
-    onSendMessage(text);
+  const handleSend = async (text: string, files?: FileUIPart[]) => {
+    onSendMessage(text, files);
   };
 
   return (
-    <div className="bg-background flex h-full w-full flex-col">
-      <div className="relative min-h-0 flex-1">
-        {viewMode === "chat" ? (
-          <MessageList
-            messages={messages}
-            userImage={user?.image || undefined}
-            onQuickAction={isConnected ? handleSend : undefined}
-            tasks={tasks}
-            onTaskSelect={onTaskSelect}
-            compact={compact}
-            selectedTask={selectedTask}
-          />
-        ) : (
-          <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
-        )}
-      </div>
+    <div className="bg-background relative flex h-full w-full flex-col">
+      {viewMode === "chat" ? (
+        <MessageList
+          messages={messages}
+          userImage={user?.image || undefined}
+          onQuickAction={isConnected ? handleSend : undefined}
+          tasks={tasks}
+          onTaskSelect={onTaskSelect}
+          compact={compact}
+          selectedTask={selectedTask}
+        />
+      ) : (
+        <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
+      )}
 
-      <div className="bg-background w-full shrink-0">
+      <div className="bg-background w-full shrink-0 pt-2">
         <div className={selectedTask ? "w-full" : "mx-auto md:w-1/2"}>
           <ChatInput
             onSend={handleSend}

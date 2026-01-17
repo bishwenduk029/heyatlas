@@ -27,15 +27,45 @@ import {
 
 export type ToolProps = ComponentProps<typeof Collapsible> & {
   defaultOpen?: boolean;
+  /** Force open for specific tool types like image generation */
+  forceOpen?: boolean;
 };
 
-export const Tool = ({ className, defaultOpen, ...props }: ToolProps) => (
+export const Tool = ({
+  className,
+  defaultOpen,
+  forceOpen,
+  ...props
+}: ToolProps) => (
   <Collapsible
     className={cn("not-prose mb-4 w-full rounded-md border", className)}
-    defaultOpen={defaultOpen}
+    defaultOpen={defaultOpen || forceOpen}
+    open={forceOpen ? true : undefined}
     {...props}
   />
 );
+
+/**
+ * Helper to detect if tool output contains an image
+ */
+export const isImageOutput = (output: unknown): boolean => {
+  if (typeof output === "string") {
+    return (
+      output.startsWith("data:image/") ||
+      (output.length > 1000 && !output.includes(" "))
+    );
+  }
+  if (typeof output === "object" && output !== null) {
+    const obj = output as Record<string, unknown>;
+    return (
+      typeof obj.imageDataUrl === "string" ||
+      (typeof obj.url === "string" &&
+        ((obj.url as string).includes("/generated-") ||
+          (obj.url as string).includes("/uploads/")))
+    );
+  }
+  return false;
+};
 
 export type ToolHeaderProps = {
   title?: string;
@@ -83,18 +113,18 @@ export const ToolHeader = ({
   <CollapsibleTrigger
     className={cn(
       "flex w-full items-center justify-between gap-4 p-3",
-      className
+      className,
     )}
     {...props}
   >
     <div className="flex items-center gap-2">
-      <WrenchIcon className="size-4 text-muted-foreground" />
-      <span className="font-medium text-sm">
+      <WrenchIcon className="text-muted-foreground size-4" />
+      <span className="text-sm font-medium">
         {title ?? type.split("-").slice(1).join("-")}
       </span>
       {getStatusBadge(state)}
     </div>
-    <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+    <ChevronDownIcon className="text-muted-foreground size-4 transition-transform group-data-[state=open]:rotate-180" />
   </CollapsibleTrigger>
 );
 
@@ -103,8 +133,8 @@ export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 export const ToolContent = ({ className, ...props }: ToolContentProps) => (
   <CollapsibleContent
     className={cn(
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
-      className
+      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in outline-none",
+      className,
     )}
     {...props}
   />
@@ -116,10 +146,10 @@ export type ToolInputProps = ComponentProps<"div"> & {
 
 export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
   <div className={cn("space-y-2 overflow-hidden p-4", className)} {...props}>
-    <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+    <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
       Parameters
     </h4>
-    <div className="rounded-md bg-muted/50">
+    <div className="bg-muted/50 rounded-md">
       <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
     </div>
   </div>
@@ -145,7 +175,11 @@ export const ToolOutput = ({
   if (diffInfo) {
     return (
       <div className={cn("p-4", className)} {...props}>
-        <DiffRenderer path={diffInfo.path} unifiedDiff={diffInfo.diff} defaultExpanded />
+        <DiffRenderer
+          path={diffInfo.path}
+          unifiedDiff={diffInfo.diff}
+          defaultExpanded
+        />
       </div>
     );
   }
@@ -156,12 +190,62 @@ export const ToolOutput = ({
     // Show before/after as text for simplicity
     return (
       <div className={cn("space-y-2 p-4", className)} {...props}>
-        <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
           {fileDiffInfo.path}
         </h4>
         <CodeBlock code={fileDiffInfo.newContent} language="tsx" />
       </div>
     );
+  }
+
+  // Check if output is a data URL (from generateImage tool)
+  if (typeof output === "string" && output.startsWith("data:image/")) {
+    return (
+      <div className={cn("p-4", className)} {...props}>
+        <img
+          src={output}
+          alt="Generated image"
+          className="max-w-full rounded-lg shadow-md"
+        />
+      </div>
+    );
+  }
+
+  // Check if output is raw base64 (fallback)
+  if (
+    typeof output === "string" &&
+    output.length > 1000 &&
+    !output.includes(" ")
+  ) {
+    return (
+      <div className={cn("p-4", className)} {...props}>
+        <img
+          src={`data:image/png;base64,${output}`}
+          alt="Generated image"
+          className="max-w-full rounded-lg shadow-md"
+        />
+      </div>
+    );
+  }
+
+  // Check if output contains an image URL (legacy support)
+  if (typeof output === "object" && output !== null && "url" in output) {
+    const imageUrl = (output as { url: string }).url;
+    if (
+      imageUrl &&
+      typeof imageUrl === "string" &&
+      (imageUrl.includes("/generated-") || imageUrl.includes("/uploads/"))
+    ) {
+      return (
+        <div className={cn("p-4", className)} {...props}>
+          <img
+            src={imageUrl}
+            alt="Generated image"
+            className="max-w-full rounded-lg shadow-md"
+          />
+        </div>
+      );
+    }
   }
 
   // Default: render as JSON or text
@@ -177,15 +261,15 @@ export const ToolOutput = ({
 
   return (
     <div className={cn("space-y-2 p-4", className)} {...props}>
-      <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+      <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
         {errorText ? "Error" : "Result"}
       </h4>
       <div
         className={cn(
-          "overflow-x-auto max-w-full rounded-md text-xs [&_table]:w-full",
+          "max-w-full overflow-x-auto rounded-md text-xs [&_table]:w-full",
           errorText
             ? "bg-destructive/10 text-destructive"
-            : "bg-muted/50 text-foreground"
+            : "bg-muted/50 text-foreground",
         )}
       >
         {errorText && <div>{errorText}</div>}

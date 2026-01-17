@@ -10,6 +10,7 @@ import { Header } from "../homepage/header";
 import { MCPUIHandler } from "./mcp-ui-handler";
 import { useAtlasAgent } from "./hooks/use-atlas-agent";
 import { SessionLayout } from "./session-layout";
+import type { FileUIPart } from "ai";
 
 interface InterfaceWithAgentProps {
   userId: string;
@@ -118,11 +119,8 @@ export function InterfaceWithAgent({
 
   // Send chat message (wraps agent's sendMessage)
   const handleSendMessage = useCallback(
-    async (text: string) => {
-      await atlasAgent.sendMessage({
-        role: "user",
-        parts: [{ type: "text", text }],
-      });
+    async (text: string, files?: FileUIPart[]) => {
+      await atlasAgent.sendMessage(text, files);
     },
     [atlasAgent],
   );
@@ -158,7 +156,7 @@ export function InterfaceWithAgent({
   return (
     <RoomContext.Provider value={room}>
       <MCPUIHandler />
-      <main className="bg-background flex h-screen flex-col supports-[height:100dvh]:h-[100dvh]">
+      <main className="bg-background flex h-screen flex-col overflow-hidden supports-[height:100dvh]:h-[100dvh]">
         <Header />
         <div className="my-2 flex min-h-0 flex-1 flex-col">
           <RoomAudioRenderer />

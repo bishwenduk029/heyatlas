@@ -17,10 +17,13 @@ export interface Env {
   ATLAS_CALLBACK_URL?: string;
   // For sandbox to connect back to Atlas
   ATLAS_AGENT_HOST?: string;
-  // Cloudflare Sandbox Durable Object namespace
+  // Cloudflare Sandbox Durable Object namespace (for coding agents)
   Sandbox: DurableObjectNamespace<Sandbox>;
-  // Mini-desktop worker service binding
-  MINI_DESKTOP: Fetcher;
+  // R2 bucket for file uploads
+  ATLAS_UPLOADS: R2Bucket;
+  ATLAS_UPLOADS_PUBLIC_URL: string;
+  // Workers AI binding for markdown conversion and AI models
+  AI: Ai;
 }
 
 export interface TaskUpdate {
@@ -98,7 +101,6 @@ export interface SandboxMetadata {
   sessionId?: string;
   vncUrl?: string;
   computerAgentUrl?: string;
-  logsUrl?: string;
   agentConnected?: boolean;
 }
 
@@ -118,6 +120,21 @@ export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
   tool_call_id?: string;
+  parts?: Array<{
+    type: "text" | "file";
+    text?: string;
+    data?: string;
+    mediaType?: string;
+    filename?: string;
+  }>;
+}
+
+export interface FileAttachment {
+  id: string;
+  type: "file";
+  url: string;
+  mediaType: string;
+  filename: string;
 }
 
 export interface AgentMessage {

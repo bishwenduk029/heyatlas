@@ -45,6 +45,15 @@ custom_domain = true
 [vars]
 ATLAS_AGENT_HOST = "agent.heyatlas.app"
 
+# R2 bucket for file uploads
+[[r2_buckets]]
+binding = "ATLAS_UPLOADS"
+bucket_name = "heyatlas-uploads"
+
+# Workers AI binding for markdown conversion
+[ai]
+binding = "AI"
+
 [observability]
 [observability.logs]
 enabled = true

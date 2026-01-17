@@ -72,7 +72,7 @@ const suggestions = [
   },
   {
     icon: Mic,
-    labels: ["Just talk", "Vent a little", "Practice Spanish"],
+    labels: ["Just talk", "Vent a little", "Practice Speech"],
     color: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
   },
 ];

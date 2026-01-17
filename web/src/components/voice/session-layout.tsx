@@ -17,6 +17,7 @@ import { ChatInput } from "./chat-input";
 import useChatAndTranscription from "@/hooks/useChatAndTranscription";
 import type { AtlasTask, SelectedAgent } from "./hooks/use-atlas-agent";
 import type { UIMessage } from "@ai-sdk/react";
+import type { FileUIPart } from "ai";
 
 interface SessionLayoutProps {
   mode: "local" | "sandbox";
@@ -29,7 +30,7 @@ interface SessionLayoutProps {
   logUrl?: string;
   userId?: string;
   messages: UIMessage[];
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, files?: FileUIPart[]) => void;
   onStopChat?: () => void;
   isChatLoading?: boolean;
   isChatConnected?: boolean;
@@ -221,7 +222,7 @@ export function SessionLayout({
 
   // Render the main chat/voice content
   const renderMainContent = (compact = false) => (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       <ChatInterface
         messages={isChatMode ? messages : getVoiceMessagesForChat()}
         onSendMessage={onSendMessage}
@@ -331,9 +332,9 @@ export function SessionLayout({
 
     // Single column (no task selected)
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-1 justify-center pb-2">
-          <div className="mx-auto h-full w-full px-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 justify-center overflow-hidden pb-2">
+          <div className="mx-auto flex h-full w-full flex-col overflow-hidden px-4">
             {renderMainContent()}
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "agents/ai-react";
 import type { UIMessage } from "@ai-sdk/react";
+import type { FileUIPart } from "ai";
 import { toast } from "sonner";
 
 // Type for UIMessage parts array element
@@ -170,7 +171,7 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
           });
         }
         
-        // Handle workforce events (from agent-smith-py via SSE → CLI → Atlas)
+        // Handle workforce events (from agent-smith via SSE → CLI → Atlas)
         if (taskEvent.type === "workforce_event" && taskEvent.data) {
           const workforceEvent = taskEvent.data as Record<string, unknown>;
           // Convert to UI chunk format for display
@@ -260,6 +261,46 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
 
   // Return UIMessage directly to preserve parts for ai-elements components
   const messages = chat.messages || [];
+
+  // Custom sendMessage wrapper to support file attachments
+  // Files should already be uploaded by chat-input.tsx with R2 URLs
+  // This function just passes them through to Atlas
+  const sendMessageWithFiles = useCallback(async function(
+    textOrMessage: string | { role: string; parts: Array<{ type: string; [key: string]: unknown }> },
+    files?: FileUIPart[]
+  ): Promise<void> {
+    // Handle legacy format: sendMessage({ role, "user", parts: [...] })
+    if (typeof textOrMessage === "object" && textOrMessage !== null) {
+      await chat.sendMessage(textOrMessage as Parameters<typeof chat.sendMessage>[0]);
+      return;
+    }
+
+    // New format: sendMessage(text, files)
+    // Files are already uploaded by chat-input.tsx with R2 public URLs
+    const text = textOrMessage as string;
+
+    const parts: UIMessagePart[] = [];
+    parts.push({ type: "text", text: text.trim() });
+
+    if (files && files.length > 0) {
+      console.log("[useAtlasAgent] Sending message with", files.length, "files (already uploaded):");
+      for (const file of files) {
+        console.log("  -", file.filename, file.mediaType, "URL:", file.url);
+        parts.push({
+          type: "file",
+          url: file.url,
+          mediaType: file.mediaType,
+          filename: file.filename,
+        });
+      }
+    }
+
+    // Send text + file parts to server for preprocessing
+    await chat.sendMessage({
+      role: "user",
+      parts,
+    });
+  }, [chat]);
 
   const getTask = useCallback((taskId: string): AtlasTask | undefined => {
     return tasks.find(t => t.id === taskId || t.id.startsWith(taskId));
@@ -391,7 +432,7 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     getTaskStreamingChunks,
     getTaskUIMessage,
     messages,
-    sendMessage: chat.sendMessage,
+    sendMessage: sendMessageWithFiles,
     clearHistory: chat.clearHistory,
     stop: chat.stop,
     activeAgent,

@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^2.0.118",
+    "@aws-sdk/client-s3": "^3.970.0",
     "@dodopayments/better-auth": "^1.4.1",
     "@hookform/resolvers": "^5.1.1",
     "@keystatic/core": "^0.5.47",

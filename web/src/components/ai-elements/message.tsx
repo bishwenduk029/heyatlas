@@ -412,10 +412,7 @@ export function MessageAttachments({
 
   return (
     <div
-      className={cn(
-        "ml-auto flex w-fit flex-wrap items-start gap-2",
-        className,
-      )}
+      className={cn("flex w-fit flex-wrap items-start gap-2", className)}
       {...props}
     >
       {children}

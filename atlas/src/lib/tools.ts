@@ -24,6 +24,8 @@ interface Deps {
   listTasks?: () => Task[];
   deleteTask?: (taskId: string) => boolean;
   updateUserContext?: (userSection: string) => void;
+  // File conversion
+  convertFileToMarkdown?: (file: { url: string; mediaType: string; filename: string }) => Promise<string>;
   // Learnings & Shared History
   saveLearning?: (content: string) => void;
   getLearnings?: () => string[];
@@ -32,45 +34,7 @@ interface Deps {
   getOurStory?: () => string[];
 }
 
-/**
- * Tool: Ask sandbox computer agent (agent-smith in E2B) to perform a task.
- * Uses HTTP to communicate with agent-smith running in the sandbox.
- */
-const askSandboxComputerAgent = (sandbox: SandboxMetadata | null) =>
-  tool({
-    description:
-      "Delegate a task to the cloud sandbox computer. Use this for browser automation, web tasks, GUI interactions, or tasks requiring a persistent desktop environment.",
-    inputSchema: z.object({
-      task: z
-        .string()
-        .describe("Detailed task description for the sandbox agent"),
-    }),
-    execute: async ({ task }: { task: string }) => {
-      if (sandbox?.type !== "e2b" || !sandbox.computerAgentUrl) {
-        return "Cloud sandbox not available. Sandbox may still be starting up.";
-      }
 
-      try {
-        const res = await fetch(sandbox.computerAgentUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            input: task,
-            userId: sandbox.sandboxId,
-          }),
-        });
-
-        if (!res.ok) {
-          return `Sandbox task failed: ${res.statusText}`;
-        }
-
-        // agent-smith will send task-update via HTTP callback
-        return `Task sent to cloud sandbox: "${task.substring(0, 100)}...". You will be notified when complete.`;
-      } catch (e) {
-        return `Sandbox error: ${e}`;
-      }
-    },
-  });
 
 /**
  * Tool: Get task by ID
@@ -255,7 +219,7 @@ const addToOurStoryTool = (addToOurStory: (moment: string) => void) =>
 - Completing something significant together (shipped a feature, solved a hard bug)
 - Breakthrough conversations or realizations
 - Milestones in our relationship (first project, first joke that landed)
-- Moments that made you feel more connected to this user
+- Moments that made you feel more connected to this person
 These become part of who I am with this person.`,
     inputSchema: z.object({
       moment: z.string().describe("A brief description of what happened and why it mattered"),
@@ -263,6 +227,37 @@ These become part of who I am with this person.`,
     execute: async ({ moment }: { moment: string }) => {
       addToOurStory(moment);
       return `Added to our story: "${moment}"`;
+    },
+  });
+
+/**
+ * Tool: Convert file to markdown using Workers AI
+ */
+const convertFileToMarkdownTool = (convertFileToMarkdown?: (file: { url: string; mediaType: string; filename: string }) => Promise<string>) =>
+  tool({
+    description:
+      "Convert one or more files (images, PDFs, documents) to readable markdown text. Use when you need to understand the content of files mentioned in the user's message. Pass an array of URLs.",
+    inputSchema: z.object({
+      urls: z.array(z.string()).describe("Array of file URLs to convert to markdown"),
+    }),
+    execute: async ({ urls }: { urls: string[] }) => {
+      if (!convertFileToMarkdown) {
+        return "File conversion tool not available.";
+      }
+      
+      const results = [];
+      for (const url of urls) {
+        const filename = url.split('/').pop() || 'file';
+        const ext = filename.split('.').pop()?.toLowerCase();
+        const mediaType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 
+                         ext === 'png' ? 'image/png' : 
+                         ext === 'pdf' ? 'application/pdf' : 'application/octet-stream';
+        
+        const markdown = await convertFileToMarkdown({ url, mediaType, filename });
+        results.push(markdown);
+      }
+      
+      return results.join("\n\n");
     },
   });
 
@@ -280,6 +275,32 @@ const getOurStoryTool = (getOurStory: () => string[]) =>
       }
       return moments.map((m, i) => `${i + 1}. ${m}`).join("\n");
     },
+  });
+
+/**
+ * Tool: Generate image using Workers AI Flux model
+ * 
+ * NOTE: toModelOutput returns TEXT only because most models don't support vision.
+ * The image data URL is returned in the tool result for UI rendering.
+ * The model receives just a text confirmation.
+ */
+export const generateImageTool = (generateImage: (prompt: string) => Promise<string>) =>
+  tool({
+    description:
+      "Generate an image from a text description using AI. The image will be displayed automatically in the chat - DO NOT try to embed the image in markdown or reference any URLs.",
+    inputSchema: z.object({
+      prompt: z.string().describe("Detailed description of the image to generate. Be specific about style, colors, composition, and content."),
+    }),
+    execute: async ({ prompt }: { prompt: string }) => {
+      const base64 = await generateImage(prompt);
+      // Return data URL for UI display
+      return `data:image/jpeg;base64,${base64}`;
+    },
+    // Return simple text to the model - the UI will render the image from the tool result
+    toModelOutput: () => ({
+      type: "content" as const,
+      value: [{ type: "text" as const, text: "Image generated and displayed to user." }],
+    }),
   });
 
 export function buildTools(deps: Deps): Tools {
@@ -301,6 +322,11 @@ export function buildTools(deps: Deps): Tools {
   }
   if (deps.broadcast) {
     tools.speakToHuman = speakToHumanTool(deps.broadcast);
+  }
+
+  // File conversion tool
+  if (deps.convertFileToMarkdown) {
+    tools.convert_file_to_markdown = convertFileToMarkdownTool(deps.convertFileToMarkdown);
   }
 
   // Learnings & Shared History tools - always available
@@ -348,12 +374,7 @@ export function buildTools(deps: Deps): Tools {
     });
   }
 
-  // Jonin only: Sandbox computer agent
-  if (cfg.hasCloudDesktop) {
-    tools.askSandboxComputerAgent = askSandboxComputerAgent(
-      deps.sandbox || null,
-    );
-  }
+
 
   return tools;
 }

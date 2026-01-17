@@ -23,7 +23,7 @@ from livekit.agents import (
     RoomInputOptions,
 )
 from livekit.agents.voice import room_io
-from livekit.plugins import deepgram, openai
+from livekit.plugins import openai
 
 from tunnel import AtlasTunnel
 from utils import parse_job_metadata
@@ -63,7 +63,7 @@ class VoiceAssistant(Agent):
 
         # Agent session with Atlas as LLM backend
         self.agent_session = AgentSession(
-            stt=deepgram.STTv2(model="flux-general-en", eager_eot_threshold=0.4),
+            stt="deepgram/flux-general:en",
             llm=openai.LLM(
                 model="atlas",
                 base_url=f"{atlas_url}/agents/atlas-agent/{user_id}/v1",

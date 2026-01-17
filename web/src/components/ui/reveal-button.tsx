@@ -48,6 +48,7 @@ interface RevealButtonProps {
   onClick: () => void;
   className?: string;
   "aria-label"?: string;
+  disabled?: boolean;
 }
 
 export function RevealButton({
@@ -56,6 +57,7 @@ export function RevealButton({
   onClick,
   className,
   "aria-label": ariaLabel,
+  disabled,
 }: RevealButtonProps) {
   const isMobile = useIsMobile();
 
@@ -64,8 +66,10 @@ export function RevealButton({
       {...(isMobile ? MOBILE_MOTION_CONFIG : BUTTON_MOTION_CONFIG)}
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "flex h-10 cursor-pointer items-center space-x-2 overflow-hidden rounded-full px-2.5 py-2 whitespace-nowrap transition-colors",
+        disabled && "opacity-50 cursor-not-allowed",
         className,
       )}
       aria-label={ariaLabel || label}

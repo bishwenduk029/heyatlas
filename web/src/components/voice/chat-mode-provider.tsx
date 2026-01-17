@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useAtlasAgent } from "./hooks/use-atlas-agent";
 import { SessionLayout } from "./session-layout";
+import type { FileUIPart } from "ai";
 
 interface ChatModeProviderProps {
   userId: string;
@@ -18,12 +19,9 @@ export function ChatModeProvider({ userId, token, mode, onToggleMode }: ChatMode
   });
 
   const handleSendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, files?: FileUIPart[]) => {
       if (!atlasAgent.isConnected) return;
-      await atlasAgent.sendMessage({
-        role: "user",
-        parts: [{ type: "text", text }],
-      });
+      await atlasAgent.sendMessage(text, files);
     },
     [atlasAgent]
   );

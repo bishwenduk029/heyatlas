@@ -169,7 +169,7 @@ function ReasoningEntry({ text, isStreaming }: { text: string; isStreaming: bool
   );
 }
 
-// Workforce event types from agent-smith-py
+// Workforce event types from agent-smith
 interface WorkforceEvent {
   event_type: string;
   timestamp: number;
@@ -377,7 +377,7 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
               );
             }
 
-            // Workforce events from agent-smith-py
+            // Workforce events from agent-smith
             const partType = (part as { type: string }).type;
             if (partType === "workforce_event") {
               // Event data can be nested under 'event' or 'data'

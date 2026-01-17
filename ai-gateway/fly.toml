@@ -1,0 +1,25 @@
+app = "nirmanus-bifrost-gateway"
+primary_region = "iad"
+
+[build]
+image = "maximhq/bifrost:v1.3.40"
+
+[env]
+APP_HOST = "0.0.0.0"
+APP_PORT = "8080"
+
+[http_service]
+auto_start_machines = true
+auto_stop_machines = true
+force_https = true
+internal_port = 8080
+min_machines_running = 0
+processes = ["app"]
+
+[[mounts]]
+destination = "/app/data"
+source = "bifrost_data"
+
+[[vm]]
+memory = "1gb"
+size = "shared-cpu-1x"

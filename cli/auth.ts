@@ -151,6 +151,17 @@ async function pollForToken(
 
 // Main login flow
 export async function login(): Promise<Credentials> {
+  // Check for env var credentials (used in e2b sandbox)
+  const envToken = process.env.HEYATLAS_ACCESS_TOKEN;
+  const envUserId = process.env.HEYATLAS_USER_ID;
+  if (envToken && envUserId) {
+    return {
+      accessToken: envToken,
+      userId: envUserId,
+      email: "sandbox@heyatlas.app",
+    };
+  }
+
   const existing = loadCredentials();
   if (existing) {
     return existing;

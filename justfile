@@ -45,38 +45,39 @@ deploy-voice-agent:
     @echo "Checking for changes in voice-agent..."
     @cd voice-agent && lk agent deploy
 
-# Agent Smith Python tasks
+# Agent Smith tasks (Node.js version in smith/)
 setup-agent-smith:
-    @echo "Setting up agent-smith-py..."
-    cd desktop-sandbox/agent-smith-py && uv sync
+    @echo "Setting up agent-smith..."
+    cd smith && bun install
 
 build-agent-smith: setup-agent-smith
-    @echo "Building agent-smith-py for sandbox..."
-    @mkdir -p desktop-sandbox/cloudflare/files/agent-smith-py
-    cp -r desktop-sandbox/agent-smith-py/src desktop-sandbox/cloudflare/files/agent-smith-py/
-    cp desktop-sandbox/agent-smith-py/main.py desktop-sandbox/cloudflare/files/agent-smith-py/
-    cp desktop-sandbox/agent-smith-py/pyproject.toml desktop-sandbox/cloudflare/files/agent-smith-py/
+    @echo "Building agent-smith..."
+    cd smith && bun run build
+    @echo "✅ Agent Smith built successfully"
+    @echo "   Copying to mini-computer files..."
+    cp smith/dist/agent-smith.cjs mini-computer/e2b/files/agent-smith.cjs
+    cp smith/dist/agent-smith.cjs mini-computer/cloudflare/files/agent-smith.cjs
 
 agent-smith-dev:
-    @echo "Running agent-smith-py in dev mode..."
-    cd desktop-sandbox/agent-smith-py && python main.py
+    @echo "Running agent-smith in dev mode..."
+    cd smith && bun run start
 
-# Desktop Sandbox tasks
-setup-desktop-sandbox:
-    @echo "Setting up desktop-sandbox template..."
-    cd desktop-sandbox/template && uv sync
+# Mini Computer tasks
+setup-mini-computer:
+    @echo "Setting up mini-computer template..."
+    cd mini-computer/template && uv sync
 
-build-desktop-sandbox: setup-desktop-sandbox build-agent-smith
-    cd desktop-sandbox/template && uv run python build_prod.py
-    @echo "✅ Desktop sandbox built successfully"
+build-mini-computer: setup-mini-computer build-agent-smith
+    cd mini-computer/template && uv run python build_prod.py
+    @echo "✅ Mini computer built successfully"
 
-desktop-sandbox-dev:
-    @echo "Running desktop-sandbox in dev mode..."
-    cd desktop-sandbox/template && uv run python build_dev.py
+mini-computer-dev:
+    @echo "Running mini-computer in dev mode..."
+    cd mini-computer/template && uv run python build_dev.py
 
-deploy-desktop-sandbox: build-agent-smith
-    @echo "Deploying desktop-sandbox..."
-    cd desktop-sandbox/cloudflare && pnpm run deploy
+deploy-mini-computer: build-agent-smith
+    @echo "Deploying mini-computer..."
+    cd mini-computer/cloudflare && pnpm run deploy
 
 # CLI tasks
 setup-cli:
@@ -118,7 +119,7 @@ deploy-bifrost:
     fi
 
 # Composite tasks
-setup: setup-web setup-atlas setup-voice-agent setup-cli setup-mcp-ui-server setup-agent-smith setup-desktop-sandbox
+setup: setup-web setup-atlas setup-voice-agent setup-cli setup-mcp-ui-server setup-agent-smith setup-mini-computer
     @echo "✅ Setup complete."
 
 # Kill any stray dev processes (workerd, next, etc.)
@@ -148,12 +149,12 @@ dev-voice-tui: dev-cleanup
     @echo "Starting voice pipeline with mprocs TUI..."
     mprocs "just atlas-dev" "just voice-agent-dev" "just cli-dev"
 
-# Desktop sandbox dev (for building/testing sandbox locally)
-desktop-dev:
-    @echo "Starting desktop development environment (agent-smith + desktop-sandbox)..."
+# Mini computer dev (for building/testing mini-computer locally)
+mini-dev:
+    @echo "Starting mini-computer development environment (agent-smith + mini-computer)..."
     npx -y concurrently \
         "just agent-smith-dev" \
-        "just desktop-sandbox-dev"
+        "just mini-computer-dev"
 
 deploy-all:
     @echo "Deploying all services..."
@@ -161,5 +162,5 @@ deploy-all:
     just deploy-atlas
     just deploy-voice-agent
     # just deploy-mcp-ui-server
-    # just deploy-desktop-sandbox
+    # just deploy-mini-computer
     @echo "✅ Deployment complete."

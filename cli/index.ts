@@ -21,11 +21,11 @@ const ACP_AGENTS = [
   "cagent",
 ];
 
-// HTTP-based agents
-const HTTP_AGENTS = ["agent-smith-py"];
+// Smith (AI SDK compatible multi-agent)
+const SMITH_AGENTS = ["smith"];
 
 // All supported agents
-const SUPPORTED_AGENTS = [...ACP_AGENTS, ...HTTP_AGENTS];
+const SUPPORTED_AGENTS = [...ACP_AGENTS, ...SMITH_AGENTS];
 
 const { positionals, values } = parseArgs({
   args: process.argv.slice(2),
@@ -46,7 +46,7 @@ Usage:
 
 Supported Agents:
   ACP Agents:    ${ACP_AGENTS.join(", ")}
-  HTTP Agents:   ${HTTP_AGENTS.join(", ")}
+  Smith:         ${SMITH_AGENTS.join(", ")}
 
 Options:
   -h, --help        Show this help message
@@ -54,8 +54,8 @@ Options:
   --no-browser      Don't open browser automatically
 
 Examples:
-  heyatlas connect opencode         Connect OpenCode via ACP
-  heyatlas connect agent-smith-py   Connect Agent Smith (CAMEL-AI workforce)
+  heyatlas connect opencode    Connect OpenCode via ACP
+  heyatlas connect smith       Connect Smith
 `);
 }
 

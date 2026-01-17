@@ -1,9 +1,9 @@
 /**
  * Connect command - Connect local agent to Atlas
  *
- * Supports two types of agents:
- * 1. ACP agents - Use @mcpc-tech/acp-ai-provider for streaming
- * 2. HTTP agents - Use HTTP API for task execution (agent-smith-py)
+ * Supports:
+ * - ACP agents using @mcpc-tech/acp-ai-provider for streaming
+ * - VoltAgent agents (smith) using AI SDK compatible streaming
  */
 
 import { login } from "../auth";
@@ -14,8 +14,8 @@ import {
   getACPCommand,
   type ACPAgentType,
 } from "../agents/acp-provider";
-import { isHTTPAgent, type AgentType, type HTTPAgentType } from "../agents/config";
-import { HTTPAgent } from "../agents/http-agent";
+import { type AgentType, isSmith } from "../agents/config";
+import { Smith, type SmithStreamPart } from "../agents/smith";
 
 interface ConnectOptions {
   openBrowser?: boolean;
@@ -33,8 +33,8 @@ export async function connect(
   const credentials = await login();
 
   // Route to appropriate handler
-  if (isHTTPAgent(agentType)) {
-    return connectHTTPAgent(agentType, credentials, options);
+  if (isSmith(agentType)) {
+    return connectSmith(credentials, options);
   }
   
   if (isACPAgent(agentType)) {
@@ -46,122 +46,163 @@ export async function connect(
 }
 
 /**
- * Connect HTTP-based agent (agent-smith-py)
+ * Connect smith
  */
-async function connectHTTPAgent(
-  agentType: HTTPAgentType,
+async function connectSmith(
   credentials: { userId: string; accessToken: string },
   options: ConnectOptions,
 ) {
-  const agent = new HTTPAgent(agentType, { cwd: process.cwd() });
+  const agent = new Smith({ cwd: process.cwd() });
 
-  // Check availability
   const available = await agent.isAvailable();
   if (!available) {
-    console.error(`Error: Python not found. Install Python 3.11+ to use ${agentType}`);
+    console.error("Error: npx not found. Install Node.js to use smith");
     process.exit(1);
   }
 
-  console.log(`Agent: ${agentType} (HTTP mode)`);
+  console.log("Agent: smith");
 
-  // Start the agent server
   try {
-    console.log("Starting agent server...");
+    console.log("Starting smith server...");
     await agent.start();
-    console.log(`Agent server running on port ${agent.port}`);
+    console.log(`Smith server running on port ${agent.port}`);
   } catch (error) {
     console.error(`Failed to start agent: ${error}`);
     process.exit(1);
   }
 
-  // Create Atlas tunnel
   const tunnel = new AtlasTunnel({
     host: process.env.ATLAS_AGENT_HOST || "agent.heyatlas.app",
     token: credentials.accessToken,
     interactive: true,
   });
 
-  // Handle tasks from Atlas
   tunnel.onNewTask(async (task: Task) => {
-    const prompt = task.description || "Hello";
-    console.log(`Task: ${prompt.slice(0, 50)}...`);
+    const { prompt, latestUserMessage } = buildPromptWithContext(task);
+    const isNewTask = task.state === "new";
+    console.log(`${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`);
 
     await tunnel.updateTask(task.id, { state: "in-progress" });
     await tunnel.appendContext(task.id, [
       {
         type: "message",
         timestamp: Date.now(),
-        data: { role: "user", content: prompt },
+        data: { role: "user", content: latestUserMessage },
       },
     ]);
 
-    // Broadcast that agent-smith-py is processing
-    await tunnel.broadcastTaskEvent(task.id, {
-      type: "workforce_event",
-      timestamp: Date.now(),
-      data: { event_type: "task_started", task_content: prompt },
-    });
-
     try {
-      // Use streaming to get real-time workforce events
-      let finalResult = "Task completed";
-      let finalStatus = "completed";
       const parts: UIMessagePart[] = [];
+      const toolCalls = new Map<string, UIMessagePart>();
+      const activeReasoningParts = new Map<string, UIMessagePart>();
 
-      for await (const event of agent.executeTaskStream(prompt, task.id)) {
-        // Broadcast workforce event to UI
+      for await (const chunk of agent.streamChat(prompt)) {
+        // Broadcast to UI
         await tunnel.broadcastTaskEvent(task.id, {
-          type: "workforce_event",
+          type: "ui_stream_chunk",
           timestamp: Date.now(),
-          data: event,
+          data: chunk as Record<string, unknown>,
         });
 
-        // Track final result
-        if (event.event_type === "result") {
-          finalResult = event.result || event.error || "Task completed";
-          finalStatus = event.status || "completed";
-        }
+        // Process chunk for final message
+        switch (chunk.type) {
+          case "text-delta": {
+            const existingText = parts.find((p) => p.type === "text");
+            if (existingText && "text" in existingText) {
+              existingText.text += chunk.delta || "";
+            } else {
+              parts.push({ type: "text", text: chunk.delta || "" });
+            }
+            break;
+          }
 
-        // Log progress
-        if (event.event_type === "task_assigned") {
-          console.log(`  → Assigned to: ${event.worker_name?.slice(0, 40)}...`);
-        } else if (event.event_type === "task_decomposed") {
-          console.log(`  → Decomposed into ${event.subtasks?.length || 0} subtasks`);
+          case "reasoning-start": {
+            const reasoningPart = {
+              type: "reasoning" as const,
+              text: "",
+              state: "streaming" as const,
+            };
+            activeReasoningParts.set(chunk.id || "default", reasoningPart);
+            parts.push(reasoningPart);
+            break;
+          }
+
+          case "reasoning-delta":
+          case "reasoning": {
+            const id = chunk.id || "default";
+            let reasoningPart = activeReasoningParts.get(id);
+            if (!reasoningPart) {
+              reasoningPart = { type: "reasoning", text: "", state: "streaming" };
+              activeReasoningParts.set(id, reasoningPart);
+              parts.push(reasoningPart);
+            }
+            reasoningPart.text += chunk.delta || chunk.text || "";
+            break;
+          }
+
+          case "reasoning-end": {
+            const id = chunk.id || "default";
+            const reasoningPart = activeReasoningParts.get(id);
+            if (reasoningPart) {
+              reasoningPart.state = "done";
+              activeReasoningParts.delete(id);
+            }
+            break;
+          }
+
+          case "tool-input-available": {
+            const input = chunk.input as Record<string, unknown> | undefined;
+            const realToolName = (input?.toolName as string) || chunk.toolName || "tool";
+            const realArgs = (input?.args as Record<string, unknown>) || input || {};
+            
+            toolCalls.set(chunk.toolCallId || "", {
+              type: "dynamic-tool",
+              toolCallId: chunk.toolCallId,
+              toolName: realToolName,
+              state: "input-available",
+              input: realArgs,
+              subAgentName: chunk.subAgentName,
+            });
+            parts.push(toolCalls.get(chunk.toolCallId || "")!);
+            break;
+          }
+
+          case "tool-output-available": {
+            const existing = toolCalls.get(chunk.toolCallId || "");
+            if (existing) {
+              const updated = { ...existing, state: "output-available", output: chunk.output };
+              toolCalls.set(chunk.toolCallId || "", updated);
+              const idx = parts.findIndex(
+                (p) => p.type === "dynamic-tool" && p.toolCallId === chunk.toolCallId
+              );
+              if (idx >= 0) parts[idx] = updated;
+            }
+            break;
+          }
         }
       }
 
-      // Store final result
-      await tunnel.appendContext(task.id, [
-        {
-          type: "ui_message",
-          timestamp: Date.now(),
-          data: {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            parts: [{ type: "text", text: finalResult }],
+      if (parts.length > 0) {
+        await tunnel.appendContext(task.id, [
+          {
+            type: "ui_message",
+            timestamp: Date.now(),
+            data: { id: crypto.randomUUID(), role: "assistant", parts },
           },
-        },
-      ]);
+        ]);
+      }
 
-      await tunnel.updateTask(task.id, {
-        state: finalStatus === "completed" ? "completed" : "failed",
-        result: finalResult,
-      });
-      console.log(`Task ${finalStatus}`);
+      await tunnel.updateTask(task.id, { state: "completed", result: "end_turn" });
+      console.log("Task completed");
     } catch (error) {
       console.error(`Task failed: ${error}`);
-      await tunnel.updateTask(task.id, {
-        state: "failed",
-        result: String(error),
-      });
+      await tunnel.updateTask(task.id, { state: "failed", result: String(error) });
     }
   });
 
-  // Connect to Atlas
-  await tunnel.connect(credentials.userId, agentType);
+  await tunnel.connect(credentials.userId, "smith");
   console.log("Tunnel established");
 
-  // Open browser
   const voiceUrl = `${process.env.HEYATLAS_API || "https://heyatlas.app"}/chat`;
   if (options.openBrowser !== false) {
     try {
@@ -176,11 +217,10 @@ async function connectHTTPAgent(
     } catch {}
   }
 
-  console.log(`\nHeyAtlas connected to ${agentType}`);
+  console.log("\nHeyAtlas connected to smith");
   console.log(`Continue here: ${voiceUrl}`);
   console.log("\nPress Ctrl+C to disconnect\n");
 
-  // Cleanup on exit
   process.on("SIGINT", async () => {
     console.log("\nDisconnecting...\n");
     agent.stop();

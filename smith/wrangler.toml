@@ -1,0 +1,19 @@
+# PartyKit / Cloudflare Workers configuration for VoltAgent PartyServer
+name = "agent-smith-party"
+main = "src/partyserver.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Durable Objects configuration for PartyServer
+[[durable_objects.bindings]]
+name = "VOLT_AGENT_PARTY"
+class_name = "VoltAgentPartyServer"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["VoltAgentPartyServer"]
+
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"

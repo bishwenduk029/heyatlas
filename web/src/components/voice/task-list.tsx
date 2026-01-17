@@ -23,7 +23,11 @@ function getTaskDescription(task: AtlasTask): string {
 
 function getLiveOutput(task: AtlasTask): string | null {
   // For in-progress/pending tasks, just show "Processing..."
-  if (task.state === "in-progress" || task.state === "pending" || task.state === "new") {
+  if (
+    task.state === "in-progress" ||
+    task.state === "pending" ||
+    task.state === "new"
+  ) {
     return "Processing...";
   }
   return null;
@@ -45,7 +49,7 @@ function getStatusStyle(state: AtlasTask["state"]) {
 
 export function TaskList({ tasks, onTaskClick }: TaskListProps) {
   return (
-    <div className="my-2 h-[calc(100vh-250px)] w-full overflow-y-auto transition-all duration-300 ease-in-out">
+    <div className="w-full flex-1 overflow-y-auto transition-all duration-300 ease-in-out">
       <div className="mx-auto w-full max-w-4xl space-y-3 px-4 pb-4">
         <AnimatePresence mode="popLayout">
           {tasks.length === 0 ? (

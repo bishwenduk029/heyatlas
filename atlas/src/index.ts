@@ -61,10 +61,14 @@ app.post("/agents/atlas-agent/:userId/chat", async (c) => {
   if (!userId) return c.json({ error: "Missing userId" }, 400);
 
   const agent = await getAgent(c, userId);
-  const body = await c.req.json<{ prompt: string; tier?: Tier }>();
+  const body = await c.req.json<{ 
+    prompt: string; 
+    files?: Array<{ url: string; mediaType: string; filename: string }>;
+    tier?: Tier 
+  }>();
   const tier = (c.req.query("tier") || body.tier) as Tier | undefined;
   
-  const response = await agent.handleChat(body.prompt, tier);
+  const response = await agent.handleChat(body.prompt, body.files, tier);
   return c.json({ response });
 });
 
@@ -137,6 +141,56 @@ app.post("/agents/:userId/mini-computer", async (c) => {
   } catch (error) {
     console.error("[mini-computer] Error:", error);
     return c.json({ success: false, error: "Failed to toggle mini computer" }, 500);
+  }
+});
+
+// File upload endpoint
+app.post("/upload", async (c) => {
+  const uploads = c.env.ATLAS_UPLOADS;
+  if (!uploads) {
+    return c.json({ error: "Upload storage not configured" }, 500);
+  }
+
+  try {
+    const { filename, contentType, content } = await c.req.json<{
+      filename: string;
+      contentType: string;
+      content: string;
+    }>();
+
+    if (!filename || !contentType || !content) {
+      return c.json({ error: "Missing required fields" }, 400);
+    }
+
+    // Generate unique key
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 8);
+    const ext = filename.split(".").pop() || "";
+    const key = `uploads/${timestamp}-${randomId}.${ext}`;
+
+    // Decode base64 content (compatible with Cloudflare Workers)
+    const base64Data = content.split(",")[1] || content;
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Upload to R2
+    await uploads.put(key, bytes, {
+      httpMetadata: {
+        contentType,
+      },
+    });
+
+    // Return public URL
+    const publicUrl = `${c.env.ATLAS_UPLOADS_PUBLIC_URL}/${key}`;
+    console.log("[Atlas] File uploaded:", publicUrl);
+
+    return c.json({ url: publicUrl, key });
+  } catch (error) {
+    console.error("[Atlas] Upload error:", error);
+    return c.json({ error: "Upload failed" }, 500);
   }
 });
 
