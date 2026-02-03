@@ -1,9 +1,0 @@
-# Copy this to .dev.vars and fill in your values
-# Wrangler uses .dev.vars for local development environment variables
-
-HEYATLAS_PROVIDER_API_URL=https://your-api-url-here
-
-# Optional: PartyKit callback configuration
-SANDBOX_CALLBACK_TOKEN=
-SANDBOX_USER_ID=
-PARTY_HOST=
