@@ -8,8 +8,6 @@ import type { Tier } from "./prompts";
 
 // Export Durable Objects
 export { AtlasAgent };
-// Re-export Sandbox from Cloudflare SDK for Durable Object registration
-export { Sandbox } from "@cloudflare/sandbox";
 
 const app = new Hono<{ Bindings: Env }>();
 

@@ -5,41 +5,17 @@ compatibility_flags = ["nodejs_compat"]
 
 [durable_objects]
 bindings = [
-  { name = "atlas-agent", class_name = "AtlasAgent" },
-  { name = "Sandbox", class_name = "Sandbox" }
+  { name = "atlas-agent", class_name = "AtlasAgent" }
 ]
 
 [[migrations]]
-tag = "v1"
-new_sqlite_classes = ["AtlasAgent"]
-
-[[migrations]]
 tag = "v2"
-new_sqlite_classes = ["Sandbox"]
-
-# Cloudflare Sandbox container configuration
-[[containers]]
-class_name = "Sandbox"
-image = "./src/sandboxes/coding-agent/Dockerfile"
-instance_type = "lite"
-max_instances = 50
-
-# Development settings
-[env.dev]
-name = "atlas-agent-dev"
-
-[env.dev.vars]
-AUTH_API_BASE = "http://host.docker.internal:3000"
-ATLAS_AGENT_HOST = "host.docker.internal:8787"
-
-# Service binding to mini-desktop worker
-[[services]]
-binding = "MINI_DESKTOP"
-service = "mini-desktop"
+new_sqlite_classes = ["AtlasAgent"]
 
 [[routes]]
 pattern = "agent.heyatlas.app"
 custom_domain = true
+zone_name = "heyatlas.app"
 
 # Production settings (no env prefix needed for main)
 [vars]
@@ -60,3 +36,11 @@ enabled = true
 head_sampling_rate = 1
 invocation_logs = true
 persist = false
+
+# Development settings
+[env.dev]
+name = "atlas-agent-dev"
+
+[env.dev.vars]
+AUTH_API_BASE = "http://host.docker.internal:3000"
+ATLAS_AGENT_HOST = "host.docker.internal:8787"
