@@ -29,6 +29,7 @@ interface ChatInterfaceProps {
   initialViewMode?: "chat" | "tasks";
   activeAgent?: string | null;
   compressing?: boolean;
+  tokensUsed?: number;
   selectedTask?: boolean;
   selectedAgent?: SelectedAgent | null;
   onDisconnectAgent?: () => Promise<{ success: boolean; error?: string }>;
@@ -62,6 +63,7 @@ export function ChatInterface({
   initialViewMode = "chat",
   activeAgent,
   compressing,
+  tokensUsed,
   selectedTask = false,
   selectedAgent,
   onDisconnectAgent,
@@ -89,13 +91,14 @@ export function ChatInterface({
           onTaskSelect={onTaskSelect}
           compact={compact}
           selectedTask={selectedTask}
+          fullWidth={isMiniComputerActive}
         />
       ) : (
         <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
       )}
 
       <div className="bg-background w-full shrink-0 pt-2">
-        <div className={selectedTask ? "w-full" : "mx-auto md:w-1/2"}>
+        <div className={selectedTask || isMiniComputerActive ? "w-full" : "mx-auto md:w-1/2"}>
           <ChatInput
             onSend={handleSend}
             onStop={onStop}
@@ -114,6 +117,7 @@ export function ChatInterface({
             mediaStream={mediaStream}
             activeAgent={activeAgent}
             compressing={compressing}
+            tokensUsed={tokensUsed}
             selectedAgent={selectedAgent}
             onDisconnectAgent={onDisconnectAgent}
             onConnectCloudAgent={onConnectCloudAgent}

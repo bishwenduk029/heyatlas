@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Terminal, Loader2, CheckCircle2, XCircle, Users, GitBranch, Play, ArrowRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Terminal, Loader2, CheckCircle2, XCircle, Users, GitBranch, Play, ArrowRight, Monitor } from "lucide-react";
 import {
   Artifact,
   ArtifactHeader,
@@ -22,6 +22,7 @@ import type { UIMessage } from "@ai-sdk/react";
 interface TaskArtifactProps {
   task: AtlasTask;
   uiMessage?: UIMessage | null;
+  vncUrl?: string;
   onClose: () => void;
 }
 
@@ -282,22 +283,23 @@ function WorkforceEventEntry({ event }: { event: WorkforceEvent }) {
   );
 }
 
-export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
+export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { id: taskId, agentId: agentName, state: taskState } = task;
   const status = getTaskStatus(taskState);
   const isRunning = taskState === "in-progress" || taskState === "pending";
+  const [activeTab, setActiveTab] = useState<"task" | "desktop">("task");
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (contentRef.current && uiMessage?.parts?.length) {
+    if (contentRef.current && uiMessage?.parts?.length && activeTab === "task") {
       const el = contentRef.current;
       const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
       if (wasAtBottom) {
         el.scrollTop = el.scrollHeight;
       }
     }
-  }, [uiMessage?.parts]);
+  }, [uiMessage?.parts, activeTab]);
 
   return (
     <Artifact className="h-full w-full max-w-full">
@@ -323,81 +325,127 @@ export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
           <ArtifactClose onClick={onClose} />
         </div>
       </ArtifactHeader>
-      <ArtifactContent className="flex flex-col overflow-hidden p-0">
-        <div ref={contentRef} className="min-w-0 flex-1 space-y-3 overflow-auto p-4">
-          {uiMessage?.parts?.map((part, i) => {
-            const key = `${uiMessage.id}-${i}`;
 
-            // Reasoning/thinking
-            if (part.type === "reasoning") {
-              return (
-                <ReasoningEntry
-                  key={key}
-                  text={part.text || ""}
-                  isStreaming={part.state === "streaming"}
-                />
-              );
-            }
-
-            // Text response
-            if (part.type === "text") {
-              return <MessageResponse key={key}>{part.text}</MessageResponse>;
-            }
-
-            // Dynamic tool (from ACP)
-            if (part.type === "dynamic-tool") {
-              return (
-                <ToolEntry
-                  key={key}
-                  name={part.toolName || "tool"}
-                  state={part.state}
-                  output={part.state === "output-available" ? part.output : undefined}
-                  errorText={part.state === "output-error" ? part.errorText : undefined}
-                />
-              );
-            }
-
-            // Legacy tool-* parts
-            if (typeof part.type === "string" && part.type.startsWith("tool-")) {
-              const toolPart = part as {
-                type: string;
-                state: string;
-                output?: unknown;
-                errorText?: string;
-              };
-              const toolName = toolPart.type.replace("tool-", "");
-              return (
-                <ToolEntry
-                  key={key}
-                  name={toolName}
-                  state={toolPart.state}
-                  output={toolPart.state === "output-available" ? toolPart.output : undefined}
-                  errorText={toolPart.state === "output-error" ? toolPart.errorText : undefined}
-                />
-              );
-            }
-
-            // Workforce events from agent-smith
-            const partType = (part as { type: string }).type;
-            if (partType === "workforce_event") {
-              // Event data can be nested under 'event' or 'data'
-              const eventPart = part as unknown as { event?: WorkforceEvent; data?: WorkforceEvent };
-              const event = eventPart.event || eventPart.data;
-              if (event && event.event_type !== "result") {
-                return <WorkforceEventEntry key={key} event={event} />;
-              }
-              return null;
-            }
-
-            return null;
-          })}
-
-          {isRunning && !uiMessage?.parts?.length && (
-            <div className="text-muted-foreground animate-pulse">
-              <Shimmer>Processing...</Shimmer>
-            </div>
-          )}
+      {/* Tabs - only show if VNC is available */}
+      {vncUrl && (
+        <div className="flex border-b border-border px-4">
+          <button
+            onClick={() => setActiveTab("task")}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              activeTab === "task"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Terminal className="h-4 w-4" />
+            Task
+          </button>
+          <button
+            onClick={() => setActiveTab("desktop")}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              activeTab === "desktop"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Monitor className="h-4 w-4" />
+            Desktop
+          </button>
         </div>
+      )}
+
+      <ArtifactContent className="flex flex-col overflow-hidden p-0">
+        {/* Task View */}
+        {activeTab === "task" && (
+          <div ref={contentRef} className="min-w-0 flex-1 space-y-3 overflow-auto p-4">
+            {uiMessage?.parts?.map((part, i) => {
+              const key = `${uiMessage.id}-${i}`;
+
+              // Reasoning/thinking
+              if (part.type === "reasoning") {
+                return (
+                  <ReasoningEntry
+                    key={key}
+                    text={part.text || ""}
+                    isStreaming={part.state === "streaming"}
+                  />
+                );
+              }
+
+              // Text response
+              if (part.type === "text") {
+                return <MessageResponse key={key}>{part.text}</MessageResponse>;
+              }
+
+              // Dynamic tool (from ACP)
+              if (part.type === "dynamic-tool") {
+                return (
+                  <ToolEntry
+                    key={key}
+                    name={part.toolName || "tool"}
+                    state={part.state}
+                    output={part.state === "output-available" ? part.output : undefined}
+                    errorText={part.state === "output-error" ? part.errorText : undefined}
+                  />
+                );
+              }
+
+              // Legacy tool-* parts
+              if (typeof part.type === "string" && part.type.startsWith("tool-")) {
+                const toolPart = part as {
+                  type: string;
+                  state: string;
+                  output?: unknown;
+                  errorText?: string;
+                };
+                const toolName = toolPart.type.replace("tool-", "");
+                return (
+                  <ToolEntry
+                    key={key}
+                    name={toolName}
+                    state={toolPart.state}
+                    output={toolPart.state === "output-available" ? toolPart.output : undefined}
+                    errorText={toolPart.state === "output-error" ? toolPart.errorText : undefined}
+                  />
+                );
+              }
+
+              // Workforce events from agent-smith
+              const partType = (part as { type: string }).type;
+              if (partType === "workforce_event") {
+                // Event data can be nested under 'event' or 'data'
+                const eventPart = part as unknown as { event?: WorkforceEvent; data?: WorkforceEvent };
+                const event = eventPart.event || eventPart.data;
+                if (event && event.event_type !== "result") {
+                  return <WorkforceEventEntry key={key} event={event} />;
+                }
+                return null;
+              }
+
+              return null;
+            })}
+
+            {isRunning && !uiMessage?.parts?.length && (
+              <div className="text-muted-foreground animate-pulse">
+                <Shimmer>Processing...</Shimmer>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Desktop View - iframe with VNC stream */}
+        {activeTab === "desktop" && vncUrl && (
+          <div className="flex-1 min-h-0">
+            <iframe
+              src={vncUrl}
+              className="w-full h-full border-0"
+              allow="clipboard-read; clipboard-write"
+              title="Desktop Stream"
+            />
+          </div>
+        )}
       </ArtifactContent>
     </Artifact>
   );

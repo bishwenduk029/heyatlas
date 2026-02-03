@@ -72,6 +72,7 @@ export interface AtlasAgentState {
   activeAgent?: string | null;
   // Note: selectedAgent is a legacy field - we derive it from activeAgent instead
   compressing?: boolean;
+  tokensUsed?: number;
 }
 
 /** Selected agent type for the UI - null means no agent connected */
@@ -101,6 +102,7 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>(null);
   const [compressing, setCompressing] = useState(false);
+  const [tokensUsed, setTokensUsed] = useState(0);
   const [miniComputer, setMiniComputer] = useState<{ active: boolean; sandboxId?: string; vncUrl?: string } | null>(null);
   const [miniComputerConnecting, setMiniComputerConnecting] = useState(false);
   
@@ -141,8 +143,13 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     if (state.compressing !== undefined) {
       setCompressing(state.compressing);
     }
+    // Token usage
+    if (state.tokensUsed !== undefined) {
+      setTokensUsed(state.tokensUsed);
+    }
     // Mini computer state
     if (state.miniComputer !== undefined) {
+      console.log("[useAtlasAgent] Mini-computer state update:", state.miniComputer);
       setMiniComputer(state.miniComputer);
       setMiniComputerConnecting(false);
     }
@@ -164,6 +171,13 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
           setStreamingChunks(prev => {
             const newMap = new Map(prev);
             const chunks = newMap.get(taskId) || [];
+            
+            // Simple deduplication: skip if last chunk is identical
+            const lastChunk = chunks[chunks.length - 1];
+            if (lastChunk && JSON.stringify(lastChunk) === JSON.stringify(chunk)) {
+              return prev; // Skip duplicate
+            }
+            
             // Keep last N chunks per task to prevent memory bloat
             const updated = [...chunks, chunk].slice(-MAX_UI_CHUNKS_PER_TASK);
             newMap.set(taskId, updated);
@@ -205,6 +219,9 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
       console.error("Atlas Connection Error:", event);
       toast.error("Failed to connect to Atlas agent. Please check your connection.");
     },
+    // Increase timeout to handle DO cold starts and onConnect auth fetch
+    connectionTimeout: 15000,
+    maxRetries: 5,
   });
 
   // Listen for broadcast messages (ephemeral task events)
@@ -440,6 +457,7 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     connectCloudAgent,
     disconnectAgent,
     compressing,
+    tokensUsed,
     // Mini computer
     isMiniComputerActive: miniComputer?.active ?? false,
     isMiniComputerConnecting: miniComputerConnecting,
@@ -521,7 +539,9 @@ function chunksToMessageParts(chunks: UIStreamChunk[]): UIMessagePart[] {
         break;
       }
 
-      case "tool-input-available": {
+      case "tool-input-available":
+      case "tool-call": {
+        // Handle both ACP format (tool-input-available) and VoltAgent format (tool-call)
         currentTextPart = null; // Break text accumulation
         const input = chunk.input as Record<string, unknown> | undefined;
         const realToolName = (input?.toolName as string) || (chunk.toolName as string);
@@ -540,7 +560,9 @@ function chunksToMessageParts(chunks: UIStreamChunk[]): UIMessagePart[] {
         break;
       }
 
-      case "tool-output-available": {
+      case "tool-output-available":
+      case "tool-result": {
+        // Handle both ACP format (tool-output-available) and VoltAgent format (tool-result)
         const entry = toolCalls.get(chunk.toolCallId as string);
         if (entry) {
           const updated = {

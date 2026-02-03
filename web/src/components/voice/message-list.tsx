@@ -40,6 +40,7 @@ interface MessageListProps {
   onTaskSelect?: (task: AtlasTask) => void;
   compact?: boolean;
   selectedTask?: boolean;
+  fullWidth?: boolean;
 }
 
 export function MessageList({
@@ -50,6 +51,7 @@ export function MessageList({
   onTaskSelect,
   compact = false,
   selectedTask = false,
+  fullWidth = false,
 }: MessageListProps) {
   // Ref to control scroll behavior
   const scrollContextRef = useRef<StickToBottomContext | null>(null);
@@ -76,7 +78,7 @@ export function MessageList({
     >
       <ConversationContent
         className={
-          selectedTask
+          selectedTask || fullWidth
             ? "h-full w-full gap-4 p-0 md:gap-6 md:p-6"
             : "mx-auto h-full gap-4 p-0 md:w-1/2 md:gap-6 md:p-6"
         }

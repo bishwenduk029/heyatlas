@@ -38,6 +38,7 @@ interface SessionLayoutProps {
   getTaskUIMessage?: (taskId: string) => UIMessage | null;
   activeAgent?: string | null;
   compressing?: boolean;
+  tokensUsed?: number;
   selectedAgent?: SelectedAgent | null;
   onDisconnectAgent?: () => Promise<{ success: boolean; error?: string }>;
   onConnectCloudAgent?: (
@@ -47,6 +48,7 @@ interface SessionLayoutProps {
   // Mini Computer
   isMiniComputerActive?: boolean;
   isMiniComputerConnecting?: boolean;
+  miniComputerVncUrl?: string;
   onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
 }
 
@@ -69,11 +71,13 @@ export function SessionLayout({
   getTaskUIMessage,
   activeAgent,
   compressing,
+  tokensUsed,
   selectedAgent,
   onDisconnectAgent,
   onConnectCloudAgent,
   isMiniComputerActive,
   isMiniComputerConnecting,
+  miniComputerVncUrl,
   onToggleMiniComputer,
 }: SessionLayoutProps) {
   const room = useRoomContext();
@@ -246,6 +250,7 @@ export function SessionLayout({
         initialViewMode={initialViewMode}
         activeAgent={activeAgent}
         compressing={compressing}
+        tokensUsed={tokensUsed}
         selectedTask={!!selectedTask}
         selectedAgent={selectedAgent}
         onDisconnectAgent={onDisconnectAgent}
@@ -257,8 +262,76 @@ export function SessionLayout({
     </div>
   );
 
-  // Local mode: split view when task selected
+  // Debug mini-computer state
+  console.log("[SessionLayout] Mini-computer state:", {
+    isMiniComputerActive,
+    miniComputerVncUrl,
+    selectedTask: !!selectedTask,
+    mode,
+  });
+
+  // Local mode: split view when task selected OR mini-computer active
   if (mode === "local") {
+    // Split view: chat/voice on left, desktop viewer on right (mini-computer active)
+    if (isMiniComputerActive && miniComputerVncUrl && !selectedTask) {
+      return (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-1 gap-4 overflow-hidden px-2 pb-2 md:px-6">
+            {/* Desktop: Left column - Chat/Voice (narrower) */}
+            <div className="hidden h-full w-2/5 flex-col md:flex">
+              {renderMainContent(true)}
+            </div>
+
+            {/* Desktop: Right column - Desktop Viewer (wider) */}
+            <div className="hidden h-full w-3/5 flex-1 flex-col md:flex">
+              <div className="bg-card flex h-full flex-col overflow-hidden rounded-lg border shadow-sm">
+                <DesktopViewer vncUrl={miniComputerVncUrl} />
+              </div>
+            </div>
+
+            {/* Mobile: Full width tabbed view (Chat + Desktop) */}
+            <div className="flex h-full w-full flex-1 flex-col md:hidden">
+              <div className="bg-card flex h-full flex-col overflow-hidden rounded-lg border shadow-sm">
+                <DesktopViewer
+                  vncUrl={miniComputerVncUrl}
+                  mobileChatContent={
+                    <div className="flex h-full flex-col p-2">
+                      <ChatInterface
+                        messages={isChatMode ? messages : getVoiceMessagesForChat()}
+                        onSendMessage={onSendMessage}
+                        onStop={onStopChat}
+                        isLoading={isChatLoading}
+                        isConnected={isChatMode ? isChatConnected : voiceSessionStarted}
+                        onToggleVoice={onToggleMode}
+                        onToggleMute={handleToggleMute}
+                        showVoiceToggle
+                        tasks={tasks}
+                        isVoiceMode={!isChatMode && voiceSessionStarted}
+                        isMicEnabled={isMicEnabled}
+                        agentState={agentState}
+                        mediaStream={mediaStream}
+                        disabled={!isChatMode}
+                        initialViewMode={initialViewMode}
+                        activeAgent={activeAgent}
+                        compressing={compressing}
+                        tokensUsed={tokensUsed}
+                        selectedAgent={selectedAgent}
+                        onDisconnectAgent={onDisconnectAgent}
+                        onConnectCloudAgent={onConnectCloudAgent}
+                        isMiniComputerActive={isMiniComputerActive}
+                        isMiniComputerConnecting={isMiniComputerConnecting}
+                        onToggleMiniComputer={onToggleMiniComputer}
+                      />
+                    </div>
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // Split view: chat/voice on left, task viewer on right
     if (selectedTask) {
       return (
@@ -275,6 +348,7 @@ export function SessionLayout({
               <TaskArtifact
                 task={selectedTask}
                 uiMessage={getTaskUIMessage?.(selectedTask.id)}
+                vncUrl={miniComputerVncUrl}
                 onClose={() => {
                   setUserDismissedTaskId(selectedTask.id);
                   setSelectedTaskId(null);
@@ -366,6 +440,7 @@ export function SessionLayout({
             initialViewMode={initialViewMode}
             activeAgent={activeAgent}
             compressing={compressing}
+            tokensUsed={tokensUsed}
             selectedAgent={selectedAgent}
             onDisconnectAgent={onDisconnectAgent}
             onConnectCloudAgent={onConnectCloudAgent}
@@ -379,7 +454,6 @@ export function SessionLayout({
         <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm">
           <DesktopViewer
             vncUrl={vncUrl}
-            logUrl={logUrl}
             mobileChatContent={
               <div className="flex h-full flex-col p-2">
                 <ChatInterface
@@ -402,6 +476,7 @@ export function SessionLayout({
                   initialViewMode={initialViewMode}
                   activeAgent={activeAgent}
                   compressing={compressing}
+                  tokensUsed={tokensUsed}
                   selectedAgent={selectedAgent}
                   onDisconnectAgent={onDisconnectAgent}
                   onConnectCloudAgent={onConnectCloudAgent}

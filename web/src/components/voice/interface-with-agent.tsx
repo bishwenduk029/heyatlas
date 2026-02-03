@@ -179,11 +179,13 @@ export function InterfaceWithAgent({
             getTaskUIMessage={atlasAgent.getTaskUIMessage}
             activeAgent={atlasAgent.activeAgent}
             compressing={atlasAgent.compressing}
+            tokensUsed={atlasAgent.tokensUsed}
             selectedAgent={atlasAgent.selectedAgent}
             onDisconnectAgent={atlasAgent.disconnectAgent}
             onConnectCloudAgent={atlasAgent.connectCloudAgent}
             isMiniComputerActive={atlasAgent.isMiniComputerActive}
             isMiniComputerConnecting={atlasAgent.isMiniComputerConnecting}
+            miniComputerVncUrl={atlasAgent.miniComputerVncUrl}
             onToggleMiniComputer={atlasAgent.toggleMiniComputer}
           />
         </div>

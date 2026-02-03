@@ -19,7 +19,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BarVisualizer } from "@/components/ui/bar-visualizer";
 import { VoiceIcon } from "@/components/ui/voice-icon";
 import { AgentSelector } from "./agent-selector";
-import { MiniComputerToggle } from "./mini-computer-toggle";
+
 import { MobileToolsDrawer } from "./mobile-tools-drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getAgentDisplayName } from "@/lib/cloudflare-sandbox";
@@ -45,6 +45,7 @@ interface ChatInputProps {
   onRequireAuth?: () => void;
   activeAgent?: string | null;
   compressing?: boolean;
+  tokensUsed?: number;
   selectedAgent?: { type: "cloud"; agentId: string } | null;
   onDisconnectAgent?: () => Promise<{ success: boolean; error?: string }>;
   onConnectCloudAgent?: (
@@ -74,6 +75,7 @@ export function ChatInput({
   onRequireAuth,
   activeAgent,
   compressing = false,
+  tokensUsed = 0,
   selectedAgent = null,
   onDisconnectAgent,
   onConnectCloudAgent,
@@ -217,6 +219,57 @@ export function ChatInput({
 
   return (
     <div className="relative w-full">
+      {/* Token Usage - Pie chart showing percentage of 1M free tokens */}
+      {tokensUsed > 0 && (
+        <div className="absolute -top-6 right-2 z-10">
+          <div className="text-muted-foreground/70 flex items-center gap-1.5 text-[10px] font-medium">
+            {/* Mini pie chart */}
+            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5">
+              {/* Background circle */}
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                opacity="0.2"
+              />
+              {/* Progress arc */}
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={`${Math.min((tokensUsed / 1_000_000) * 50.27, 50.27)} 50.27`}
+                transform="rotate(-90 10 10)"
+                className={
+                  tokensUsed >= 1_000_000
+                    ? "text-red-500"
+                    : tokensUsed >= 800_000
+                      ? "text-amber-500"
+                      : "text-current"
+                }
+              />
+            </svg>
+            <span
+              className={
+                tokensUsed >= 1_000_000
+                  ? "text-red-500"
+                  : tokensUsed >= 800_000
+                    ? "text-amber-500"
+                    : ""
+              }
+            >
+              {Math.min(Math.round((tokensUsed / 1_000_000) * 100), 100)}% used
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Status Banner - Only show when compressing memory */}
       <div
         className={cn(
@@ -318,8 +371,11 @@ export function ChatInput({
               disabled={disabled || isLoading || isUploading}
             />
 
-            {/* Agent Selector */}
-            {onConnectCloudAgent &&
+            {/* Agent Selector - TEMPORARILY DISABLED
+             * Coding agents (opencode, goose, etc.) are hidden until ready.
+             * Mini computer is auto-managed by the agent.
+             */}
+            {/* {onConnectCloudAgent &&
               (isMobile ? (
                 <MobileToolsDrawer
                   selectedAgent={selectedAgent}
@@ -339,7 +395,7 @@ export function ChatInput({
                   onConnectCloudAgent={onConnectCloudAgent}
                   disabled={disabled || isLoading}
                 />
-              ))}
+              ))} */}
 
             {onToggleTasks && (
               <RevealButton
@@ -445,16 +501,6 @@ export function ChatInput({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mini Computer Toggle */}
-            {onToggleMiniComputer && !isMobile && (
-              <MiniComputerToggle
-                isActive={isMiniComputerActive}
-                isConnecting={isMiniComputerConnecting}
-                onToggle={onToggleMiniComputer}
-                disabled={disabled || isLoading}
-              />
-            )}
-
             {isLoading ? (
               <Button
                 type="button"

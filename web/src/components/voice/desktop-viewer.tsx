@@ -3,19 +3,14 @@
 import { Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { MatrixLogs } from "./matrix-logs";
-import { toast } from "sonner";
 
 interface DesktopViewerProps {
   vncUrl?: string;
-  logUrl?: string;
   mobileChatContent?: React.ReactNode;
 }
 
 export function DesktopViewer({
   vncUrl,
-  logUrl,
   mobileChatContent,
 }: DesktopViewerProps) {
   const [isMobile, setIsMobile] = useState(() => {
@@ -36,8 +31,19 @@ export function DesktopViewer({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const defaultTab = mobileChatContent && isMobile ? "chat" : "computer";
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768 && mobileChatContent) {
+      return "chat";
+    }
+    return "computer";
+  });
+
+  // Update default tab when mobile state or mobileChatContent changes
+  useEffect(() => {
+    if (isMobile && mobileChatContent && activeTab === "computer") {
+      setActiveTab("chat");
+    }
+  }, [isMobile, mobileChatContent, activeTab]);
 
   const renderDesktopPane = () => {
     if (!vncUrl) {
@@ -66,25 +72,19 @@ export function DesktopViewer({
   };
 
   const renderTabs = () => {
-    const getGridColsClass = () => {
-      if (isMobile) return mobileChatContent ? "grid-cols-3" : "grid-cols-2";
-      return "grid-cols-2";
-    };
-
     return (
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
         className="flex h-full w-full flex-col"
       >
-        <TabsList className={`grid w-full ${getGridColsClass()}`}>
+        <TabsList className={`grid w-full ${mobileChatContent ? "grid-cols-2" : "grid-cols-1"}`}>
           <TabsTrigger value="computer">Computer</TabsTrigger>
           {mobileChatContent && (
             <TabsTrigger value="chat" className="md:hidden">
               Chat
             </TabsTrigger>
           )}
-          <TabsTrigger value="logs">Under Hood</TabsTrigger>
         </TabsList>
 
         <TabsContent value="computer" className="h-full flex-1 overflow-hidden">
@@ -96,10 +96,6 @@ export function DesktopViewer({
             {mobileChatContent}
           </TabsContent>
         )}
-
-        <TabsContent value="logs" className="h-full flex-1 overflow-hidden">
-          <MatrixLogs logsUrl={logUrl} />
-        </TabsContent>
       </Tabs>
     );
   };

@@ -10,7 +10,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { MiniComputerToggle } from "./mini-computer-toggle";
 import { RemoteAgentList } from "./remote-agent-list";
 import { useRemoteAgent } from "./hooks/use-remote-agent";
 import { AgentApiKeyModal } from "./agent-api-key-modal";
@@ -25,11 +24,6 @@ interface MobileToolsDrawerProps {
   ) => Promise<{ success: boolean; error?: string }>;
   onDisconnectAgent?: () => Promise<{ success: boolean; error?: string }>;
 
-  // Mini Computer props
-  isMiniComputerActive?: boolean;
-  isMiniComputerConnecting?: boolean;
-  onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
-
   disabled?: boolean;
 }
 
@@ -38,9 +32,6 @@ export function MobileToolsDrawer({
   activeAgent,
   onConnectCloudAgent,
   onDisconnectAgent,
-  isMiniComputerActive,
-  isMiniComputerConnecting,
-  onToggleMiniComputer,
   disabled,
 }: MobileToolsDrawerProps) {
   const [open, setOpen] = useState(false);
@@ -83,23 +74,6 @@ export function MobileToolsDrawer({
             <DrawerTitle>Tools</DrawerTitle>
           </DrawerHeader>
           <div className="flex flex-col gap-6 px-4 pb-8">
-            {onToggleMiniComputer && (
-              <div className="flex flex-col gap-2">
-                <span className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
-                  Mini Computer
-                </span>
-                <div className="bg-secondary/20 border-border/50 flex items-center justify-between rounded-lg border p-3">
-                  <span className="text-sm font-medium">Cloud Sandbox</span>
-                  <MiniComputerToggle
-                    isActive={isMiniComputerActive}
-                    isConnecting={isMiniComputerConnecting}
-                    onToggle={onToggleMiniComputer}
-                    disabled={disabled}
-                  />
-                </div>
-              </div>
-            )}
-
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm font-medium tracking-wider uppercase">

@@ -155,6 +155,9 @@ export function AssistantChat({ userId, token, agentUrl, onToggleMode }: Assista
     host: agentUrl || env.NEXT_PUBLIC_ATLAS_AGENT_URL,
     query: { token },
     onStateUpdate: handleStateUpdate,
+    // Increase timeout to handle DO cold starts and onConnect auth fetch
+    connectionTimeout: 15000,
+    maxRetries: 5,
   });
 
   // Use the chat hook with initial messages from agent
