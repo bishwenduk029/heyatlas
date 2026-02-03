@@ -1,8 +1,8 @@
-from e2b import CopyItem, Template
+from e2b import CopyItem, Template, wait_for_port
 
 template = (
     Template(file_context_path="files")
-    .from_image("ubuntu:22.04")
+    .from_image("ubuntu:24.04")
     .set_user("root")
     .set_workdir("/")
     .set_envs(
@@ -16,8 +16,8 @@ template = (
             "PIP_NO_CACHE_DIR": "1",
             # Node.js setup
             "NODE_VERSION": "20",
-            # PATH setup for user
-            "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/user/.local/bin",
+            # PATH setup for user (includes uv/uvx location)
+            "PATH": "/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/user/.local/bin",
         }
     )
     # Initial system setup and packages
@@ -31,11 +31,13 @@ template = (
             "xauth",
             "xfce4",
             "xfce4-goodies",
+            "dbus-x11",
             "util-linux",
             "sudo",
             "curl",
             "git",
             "wget",
+            "software-properties-common",
             "python3-pip",
             "python3-venv",
             "xdotool",
@@ -43,7 +45,7 @@ template = (
             "ffmpeg",
             "x11vnc",
             "net-tools",
-            "netcat",
+            "netcat-openbsd",
             "x11-apps",
             "libreoffice",
             "xpdf",
@@ -52,7 +54,6 @@ template = (
             "tint2",
             "galculator",
             "pcmanfm",
-            "software-properties-common",
             "apt-transport-https",
             "libgtk-3-bin",
             "ca-certificates",
@@ -60,7 +61,8 @@ template = (
             "lsb-release",
         ]
     )
-    .pip_install(["numpy", "uv"])
+    # Install numpy via apt (PEP 668 prevents global pip installs in 24.04)
+    .apt_install(["python3-numpy"])
     # Install Node.js 20 using NodeSource
     .run_cmd(
         [
@@ -68,12 +70,21 @@ template = (
             "apt-get install -y nodejs",
         ]
     )
-    # Install heyatlas CLI globally
-    .run_cmd("npm install -g heyatlas")
-    # Install uv
+    # Install uv and make uvx globally available
     .run_cmd(
         [
             "curl -LsSf https://astral.sh/uv/install.sh | sh",
+            # Move uv and uvx to /usr/local/bin for global access and fix permissions
+            "cp /root/.local/bin/uv /usr/local/bin/uv",
+            "cp /root/.local/bin/uvx /usr/local/bin/uvx",
+            "chmod +x /usr/local/bin/uv /usr/local/bin/uvx",
+        ]
+    )
+    .run_cmd(
+        [
+            "curl -fsSL https://bun.sh/install | bash",
+            "cp /root/.bun/bin/bun /usr/local/bin/bun",
+            "chmod +x /usr/local/bin/bun",
         ]
     )
     # Setup NoVNC and websockify
@@ -85,6 +96,13 @@ template = (
         "https://github.com/novnc/websockify.git",
         "/opt/noVNC/utils/websockify",
         branch="v0.12.0",
+    )
+    # Make novnc_proxy executable and install websockify dependencies
+    .run_cmd(
+        [
+            "chmod +x /opt/noVNC/utils/novnc_proxy",
+            "pip3 install --break-system-packages websockify",
+        ]
     )
     # Install browsers and set up repositories
     .run_cmd(
@@ -104,12 +122,13 @@ template = (
         [
             # Setup user directories
             "mkdir -p /home/user/.local/bin",
-            "mkdir -p /home/user/.local/lib/python3.10/site-packages",
-            # Setup uv for user
-            "cp /root/.cargo/bin/uv /home/user/.local/bin/ || true",
-            "cp /root/.cargo/bin/uvx /home/user/.local/bin/ || true",
+            "mkdir -p /home/user/.local/lib/python3.12/site-packages",
+            # Setup uv for user (copying from known location)
+            "cp /usr/local/bin/uv /home/user/.local/bin/ || true",
+            "cp /usr/local/bin/uvx /home/user/.local/bin/ || true",
+            "cp /usr/local/bin/bun /home/user/.local/bin/ || true",
             # Copy installed Python packages to user
-            "cp -r /root/.local/lib/python*/site-packages/* /home/user/.local/lib/python3.10/site-packages/ 2>/dev/null || true",
+            "cp -r /root/.local/lib/python*/site-packages/* /home/user/.local/lib/python3.12/site-packages/ 2>/dev/null || true",
             # Set permissions
             "chown -R user:user /home/user/.local",
         ]
@@ -161,12 +180,19 @@ template = (
             ),
             CopyItem(src="firefox.cfg", dest="/usr/lib/firefox-esr/firefox.cfg"),
             CopyItem(
-                src="agent-smith.cjs",
-                dest="/home/user/agents/agent-smith.cjs",
+                src="start_command.sh",
+                dest="/start_command.sh",
             ),
         ]
     )
+    # Make start command executable
+    .run_cmd("chmod +x /start_command.sh")
+    # Set user and workdir before finalizing
+    .set_user("user")
+    .set_workdir("/home/user")
+    # Set start command (finalizes template)
+    .set_start_cmd("/start_command.sh", wait_for_port(6080))
 )
 
-# Template with user and workdir set
-template_with_user_workdir = template.set_user("user").set_workdir("/home/user")
+# Alias for backwards compatibility
+template_with_user_workdir = template
