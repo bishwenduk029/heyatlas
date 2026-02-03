@@ -28,6 +28,15 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.initial_env/
+**/.initial_env/
+
+# Generated/temp files
+*.png
+*.wav
+*.pptx
+*.docx
+*-report.md
 
 # IDEs
 .vscode/
