@@ -1,110 +1,107 @@
-import 'dotenv/config'
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { PlanAgent, VoltAgent, NodeFilesystemBackend } from '@voltagent/core'
-import { createPinoLogger } from '@voltagent/logger'
-import { honoServer } from '@voltagent/server-hono'
-import { mcpConfig } from './config'
+import "dotenv/config";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { NodeFilesystemBackend, PlanAgent, VoltAgent } from "@voltagent/core";
+import { createPinoLogger } from "@voltagent/logger";
+import { honoServer } from "@voltagent/server-hono";
+import { mcpConfig } from "./config";
 import {
-  BROWSER_AUTOMATION_PROMPT,
-  DOCUMENT_WRITER_PROMPT,
-  FORMAT_CONVERTER_PROMPT,
-  MARKDOWN_CONVERTER_PROMPT,
-  ORCHESTRATOR_PROMPT,
-  PLANNING_PROMPT,
-  PRESENTATION_CREATOR_PROMPT,
-  FILESYSTEM_PROMPT,
-  RESEARCHER_PROMPT,
-} from './prompts'
-import { sendTaskUpdateTool } from './tools'
+	DOCUMENT_AGENT_PROMPT,
+	ORCHESTRATOR_PROMPT,
+	PLANNING_PROMPT,
+	RESEARCH_AGENT_PROMPT,
+	WEB_AND_BROWSER_PROMPT,
+} from "./prompts";
 
-const providerApiKey = process.env.HEYATLAS_PROVIDER_API_KEY
+const providerApiKey = process.env.HEYATLAS_PROVIDER_API_KEY;
 if (!providerApiKey) {
-  throw new Error('Missing env var: HEYATLAS_PROVIDER_API_KEY')
+	throw new Error("Missing env var: HEYATLAS_PROVIDER_API_KEY");
 }
 
-const providerAPI = process.env.HEYATLAS_PROVIDER_API_URL
+const providerAPI = process.env.HEYATLAS_PROVIDER_API_URL;
 if (!providerAPI) {
-  throw new Error('Missing env var: HEYATLAS_PROVIDER_API_URL')
+	throw new Error("Missing env var: HEYATLAS_PROVIDER_API_URL");
 }
 
 const heyatlasProvider = createOpenAICompatible({
-  name: 'heyatlas-ai-gateway',
-  apiKey: providerApiKey,
-  baseURL: providerAPI,
-  includeUsage: false,
-})
+	name: "heyatlas-ai-gateway",
+	apiKey: providerApiKey,
+	baseURL: providerAPI,
+	includeUsage: false,
+});
 
 const logger = createPinoLogger({
-  name: 'agent-smith',
-  level: 'debug',
-})
-;(async () => {
-  const toolsets = await mcpConfig.getToolsets()
+	name: "agent-smith",
+	level: "debug",
+});
 
-  const workflowAgent = new PlanAgent({
-    name: 'workflow-orchestrator',
-    systemPrompt: ORCHESTRATOR_PROMPT,
-    model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
-    tools: [sendTaskUpdateTool],
-    filesystem: {
-      backend: new NodeFilesystemBackend({
-        rootDir: process.cwd(),
-        virtualMode: false,
-      }),
-    },
-    subagents: [
-      {
-        name: 'markdown-converter',
-        purpose:
-          'Convert documents (PDF, Word, Excel, images, audio) to Markdown format',
-        systemPrompt: MARKDOWN_CONVERTER_PROMPT,
-        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
-        tools: toolsets.markitdown?.getTools() || [],
-      },
-      {
-        name: 'browser-automation',
-        purpose:
-          'Research topics live on google.com and also execute web automation workflows including form filling, data extraction, navigation, and research tasks',
-        systemPrompt: BROWSER_AUTOMATION_PROMPT,
-        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
-        tools: toolsets.browser?.getTools() || [],
-      },
-      {
-        name: 'presentation-creator',
-        purpose: 'Create and edit PowerPoint presentations',
-        systemPrompt: PRESENTATION_CREATOR_PROMPT,
-        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
-        tools: toolsets.powerpoint?.getTools() || [],
-      },
-      {
-        name: 'word-document-writer',
-        purpose: 'Create and edit Word documents',
-        systemPrompt: DOCUMENT_WRITER_PROMPT,
-        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
-        tools: toolsets.word?.getTools() || [],
-      },
-      {
-        name: 'document-format-converter',
-        purpose: 'Convert between various document formats using Pandoc',
-        systemPrompt: FORMAT_CONVERTER_PROMPT,
-        model: heyatlasProvider('accounts/fireworks/models/minimax-m2p1'),
-        tools: toolsets.pandoc?.getTools() || [],
-      },
-    ],
-    planning: {
-      systemPrompt: PLANNING_PROMPT,
-    },
-    summarization: {
-      triggerTokens: 150_000,
-      keepMessages: 10,
-    },
-  })
+(async () => {
+	const toolsets = await mcpConfig.getToolsets();
 
-  new VoltAgent({
-    agents: {
-      'workflow-orchestrator': workflowAgent,
-    },
-    server: honoServer(),
-    logger,
-  })
-})()
+	const workflowAgent = new PlanAgent({
+		name: "workflow-orchestrator",
+		systemPrompt: ORCHESTRATOR_PROMPT,
+		model: heyatlasProvider("cerebras/zai-glm-4.7"),
+		filesystem: {
+			backend: new NodeFilesystemBackend({
+				rootDir: process.cwd(),
+				virtualMode: false,
+			}),
+		},
+		subagents: [
+			{
+				name: "browser-agent",
+				purpose:
+					"Expert in web navigation, search and data extraction. Capable of visiting websites, filling forms, and submitting them. Has file and terminal access.",
+				systemPrompt: WEB_AND_BROWSER_PROMPT,
+				model: heyatlasProvider("cerebras/zai-glm-4.7"),
+				tools: [
+					...(toolsets.browser?.getTools() || []),
+					...(toolsets.arxiv?.getTools() || []),
+					...(toolsets.file?.getTools() || []),
+					...(toolsets.terminal?.getTools() || []),
+				],
+			},
+			{
+				name: "web-research-agent",
+				purpose:
+					"Specialized research agent with powerful web search capabilities. Gathers comprehensive information from the internet, performs deep research, searches academic sources, and extracts structured data. Ideal for gathering facts, statistics, news, and detailed research on any topic.",
+				systemPrompt: RESEARCH_AGENT_PROMPT,
+				model: heyatlasProvider("cerebras/zai-glm-4.7"),
+				tools: [
+					...(toolsets.websearch?.getTools() || []),
+					...(toolsets.file?.getTools() || []),
+					...(toolsets.terminal?.getTools() || []),
+				],
+			},
+			{
+				name: "document-agent",
+				purpose:
+					"Document processing specialist for creating Excel (.xlsx), PowerPoint (.pptx), HTML files, and converting documents to Markdown. Has file and terminal access.",
+				systemPrompt: DOCUMENT_AGENT_PROMPT,
+				model: heyatlasProvider("cerebras/zai-glm-4.7"),
+				tools: [
+					...(toolsets.pptx?.getTools() || []),
+					...(toolsets.excel?.getTools() || []),
+					...(toolsets.markitdown?.getTools() || []),
+					...(toolsets.file?.getTools() || []),
+					...(toolsets.terminal?.getTools() || []),
+				],
+			},
+		],
+		planning: {
+			systemPrompt: PLANNING_PROMPT,
+		},
+		summarization: {
+			triggerTokens: 150_000,
+			keepMessages: 10,
+		},
+	});
+
+	new VoltAgent({
+		agents: {
+			"workflow-orchestrator": workflowAgent,
+		},
+		server: honoServer(),
+		logger,
+	});
+})();

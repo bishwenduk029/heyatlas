@@ -1,13 +1,16 @@
 {
-  "name": "agent-smith",
-  "version": "0.1.0",
+  "name": "@bishk029/agent-smith",
+  "version": "1.7.0",
+  "bin": {
+    "agent-smith": "./dist/agent-smith.cjs"
+  },
   "description": "A VoltAgent application",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file=.env ./src",
     "dev:party": "wrangler dev src/partyserver.ts",
     "deploy:party": "wrangler deploy src/partyserver.ts",
-    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/agent-smith.cjs --target=node20",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/agent-smith.cjs --target=node20 --banner:js='#!/usr/bin/env node'",
     "start": "node dist/agent-smith.cjs",
     "lint": "biome check ./src",
     "lint:fix": "biome check --write ./src",
@@ -15,17 +18,18 @@
     "volt": "volt"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.2",
-    "@ai-sdk/openai-compatible": "^2.0.2",
+    "@ai-sdk/google": "^3.0.18",
+    "@ai-sdk/openai": "^3.0.23",
+    "@ai-sdk/openai-compatible": "^2.0.24",
     "@voltagent/cli": "^0.1.20",
-    "@voltagent/core": "^2.0.11",
+    "@voltagent/core": "^2.3.1",
     "@voltagent/logger": "^2.0.2",
-    "@voltagent/server-hono": "^2.0.3",
-    "@voltagent/serverless-hono": "^2.0.5",
-    "ai": "^6.0.6",
+    "@voltagent/server-hono": "^2.0.4",
+    "@voltagent/serverless-hono": "^2.0.6",
+    "ai": "^6.0.64",
     "dotenv": "^16.4.7",
     "partyserver": "^0.1.0",
-    "zod": "^4.3.4"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
