@@ -17,40 +17,45 @@ import {
   tool,
   type StreamTextOnFinishCallback,
   type ToolSet,
+  type Tool,
   UIMessage,
 } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { Sandbox } from "@e2b/desktop";
 import type { Env, AgentState, Task, SelectedAgent, SandboxMetadata, ChatMessage, FileAttachment } from "./types";
 import type { Tier } from "./prompts";
-import { getSystemPrompt, getTierConfig } from "./prompts";
+import { getSystemPrompt, getTierConfig, SPEECH_GENERATION_PROMPT } from "./prompts";
 import { buildTools, generateImageTool } from "./lib/tools";
 import { createStreamResponse } from "./lib/completions";
 import { createFSTools, type CloudflareStorage } from "./lib/agentfs";
+import { createWebSearchTool } from "./lib/web-search";
 import {
-  createCloudflareSandbox,
+  createCodingSandbox,
   connectAgentInSandbox,
-  destroyCloudflareSandbox,
-  exposeSandboxPort,
-} from "./lib/cloudflare-sandbox";
+  destroySandbox,
+  connectToSandbox,
+  getSandboxPublicUrl,
+  type Sandbox as CodingSandbox,
+} from "./lib/coding-sandbox";
 
 const SMITH_CONFIG = {
   template: "heyatlas-desktop",
-  port: 3030,
-  startupCommand:
-    "bash -lc 'npx heyatlas connect smith --no-browser'",
+  port: 3141,
+  startupCommand: "bash -lc 'npx -y heyatlas connect smith --no-browser' > ~/agents/smith.log 2>&1",
 };
 
 export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   initialState: AgentState = {
     credentials: null,
     tier: "genin",
+    tokensUsed: 0,
     persona: null,
     personaUpdatedAt: null,
     sandbox: null,
     miniComputer: null,
     tasks: {},
-    activeAgent: null,
+    agents: [],
+    activeAgent: null, // deprecated, kept for backward compat
     interactiveMode: false,
     interactiveTaskId: null,
     systemPrompt: null,
@@ -60,6 +65,19 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     sharedHistory: [],
   };
   private sandboxInstance: Sandbox | null = null;
+  private sandboxCreating = false;
+  private codingAgentSandbox: CodingSandbox | null = null;
+  private _webSearchTool: ReturnType<typeof createWebSearchTool> | null = null;
+
+  /**
+   * Get web search tool, lazily initialized with API key
+   */
+  private get webSearchTool() {
+    if (!this._webSearchTool && this.env.PARALLEL_API_KEY) {
+      this._webSearchTool = createWebSearchTool(this.env.PARALLEL_API_KEY);
+    }
+    return this._webSearchTool;
+  }
 
   /**
    * Clean legacy fields from state before setting.
@@ -81,48 +99,37 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     return this.name;
   }
 
-  private async ensureSandbox() {
+  private async createSandbox() {
     if (!this.env.E2B_API_KEY || !this.state.credentials) {
       return;
     }
 
-    // Check if we already have a running sandbox state
-    if (this.state.sandbox) {
-      // Optimistic check - in a real persistent DO, we might want to check liveness
-      // But for now, we assume if state exists, it's running or we'll reconnect later
-      // Ideally we would re-attach to the sandbox ID, but @e2b/desktop JS SDK might not support re-attach easily in this context
-      // without the instance.
-      // If we have the instance in memory (this.sandboxInstance), we are good.
-      if (this.sandboxInstance) return;
-
-      // If we have state but no instance (e.g. DO woke up), we try to reconnect or recreate
-      try {
-        this.sandboxInstance = await Sandbox.connect(
-          this.state.sandbox.sandboxId,
-          { apiKey: this.env.E2B_API_KEY },
-        );
-        return;
-      } catch (e) {
-        console.warn(
-          "[Atlas] Failed to reconnect to sandbox, creating new one:",
-          e,
-        );
-        this.setState({ ...this.state, sandbox: null });
-      }
+    // Prevent concurrent sandbox creation
+    if (this.sandboxCreating) {
+      console.log("[Atlas] Sandbox creation already in progress, skipping...");
+      return;
     }
 
+    this.sandboxCreating = true;
+
+    // Destroy existing sandbox if any
+    if (this.sandboxInstance) {
+      try {
+        console.log("[Atlas] Destroying existing sandbox...");
+        await this.sandboxInstance.kill();
+      } catch (e) {
+        console.warn("[Atlas] Failed to destroy existing sandbox:", e);
+      }
+      this.sandboxInstance = null;
+    }
+    this.setState({ ...this.state, sandbox: null });
     try {
-      const sandboxCallbackToken = crypto.randomUUID();
-
-      // Construct Atlas callback URL for sandbox to send task updates
-      const atlasCallbackUrl = this.env.ATLAS_CALLBACK_URL || "";
-
       const envs = {
         DISPLAY: ":0",
         // For smith (AI gateway)
         HEYATLAS_PROVIDER_API_KEY: this.state.credentials.providerApiKey,
         HEYATLAS_PROVIDER_API_URL:
-          this.state.credentials.providerApiUrl + "/litellm",
+          this.state.credentials.providerApiUrl,
         // For heyatlas CLI auth
         HEYATLAS_ACCESS_TOKEN: this.state.credentials.atlasAccessToken || "",
         HEYATLAS_USER_ID: this.userId,
@@ -133,11 +140,47 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
         apiKey: this.env.E2B_API_KEY,
         envs,
         timeoutMs: 3600 * 1000, // 1 hour
+        resolution: [1024, 768],
+        dpi: 96,
       });
 
       this.sandboxInstance = sandbox;
 
+      // Write credentials file for heyatlas CLI (same as coding sandbox)
+      const credentialsJson = JSON.stringify(
+        {
+          accessToken: this.state.credentials.atlasAccessToken,
+          userId: this.userId,
+          email: this.state.credentials.email || "sandbox@heyatlas.app",
+        },
+        null,
+        2,
+      );
+      // Write credentials to user home directory (sandbox runs as non-root user)
+      await sandbox.commands.run("mkdir -p /home/user/.heyatlas");
+      await sandbox.files.write("/home/user/.heyatlas/credentials.json", credentialsJson);
+      console.log(`[Atlas] Wrote credentials for smith sandbox`);
+
+      // Start streaming using the SDK's built-in VNC server
+      let vncUrl = "";
+      try {
+        console.log("[Atlas] Starting VNC stream...");
+        // Stop any existing stream first to ensure clean state
+        try {
+          await sandbox.stream.stop();
+        } catch {
+          // Ignore errors if stream wasn't running
+        }
+        await sandbox.stream.start();
+        console.log("[Atlas] VNC stream started");
+        vncUrl = sandbox.stream.getUrl();
+        console.log(`[Atlas] VNC URL: ${vncUrl}`);
+      } catch (streamError: unknown) {
+        console.error("[Atlas] Failed to start VNC stream:", streamError);
+      }
+
       // Start smith (volt-agent)
+      console.log("[Atlas] Starting smith agent...");
       await sandbox.commands.run(SMITH_CONFIG.startupCommand, {
         background: true,
         envs,
@@ -145,15 +188,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
 
       const agentHost = sandbox.getHost(SMITH_CONFIG.port);
       const computerAgentUrl = `https://${agentHost}/agents/workflow-orchestrator/chat`;
-
-      let vncUrl = "";
-      // @ts-ignore
-      if (sandbox.stream) {
-        // @ts-ignore
-        await sandbox.stream.start();
-        // @ts-ignore
-        vncUrl = sandbox.stream.getUrl();
-      }
+      console.log(`[Atlas] Smith URL: ${computerAgentUrl}`);
 
       const sandboxState: SandboxMetadata = {
         type: "e2b",
@@ -163,53 +198,14 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       };
 
       this.setState({ ...this.state, sandbox: sandboxState });
-
-      // Broadcast sandbox info to client
-      this.broadcast(
-        JSON.stringify({
-          type: "sandbox_ready",
-          vncUrl,
-        }),
-      );
     } catch (e) {
       console.error("[Atlas] Failed to create sandbox:", e);
+    } finally {
+      this.sandboxCreating = false;
     }
   }
 
   private mcpAdding = false;
-
-  private async buildMCPServers() {
-    const url = this.env.PARALLELS_WEB_SEARCH_API;
-    if (!url || this.mcpAdding) return;
-
-    // Check if MCP is available (may not be initialized yet)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mcp = (this as any).mcp;
-    if (!mcp || typeof mcp.getMcpServers !== "function") {
-      return;
-    }
-
-    // Check if already connected (persisted in storage)
-    const { servers } = this.getMcpServers();
-    if (Object.values(servers).find((s) => s.name === "Web Search")) return;
-
-    this.mcpAdding = true;
-    try {
-      const response = await this.addMcpServer("Web Search", url, undefined, undefined, {
-        transport: {
-          type: "streamable-http",
-          headers: { authorization: `Bearer ${this.env.PARALLELS_WEB_SEARCH_API_KEY || ""}` },
-        },
-      });
-      if (response.state !== "ready") {
-        console.warn("[Atlas] MCP requires auth:", response.authUrl);
-      }
-    } catch (e) {
-      console.error("[Atlas] MCP init failed:", e);
-    } finally {
-      this.mcpAdding = false;
-    }
-  }
 
   private get llm() {
     const apiKey = this.state.credentials?.providerApiKey;
@@ -235,8 +231,11 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       tier: this.state.tier,
       broadcast: (msg: string) => this.broadcast(msg),
       sandbox: this.state.sandbox,
-      askLocalComputerAgent: (description, existingTaskId) =>
-        this.askLocalComputerAgent(description, existingTaskId),
+      handOffToAgent: (task, assignedAgent, existingTaskId) =>
+        this.handOffToAgent(task, assignedAgent, existingTaskId),
+      getConnectedAgents: () => this.getConnectedAgents(),
+      toggleMiniComputer: (enabled) => this.toggleMiniComputer(enabled),
+      isMiniComputerActive: () => this.state.miniComputer?.active === true,
       getTask: (taskId) => this.getTask(taskId),
       listTasks: () => this.listTasks(),
       deleteTask: (taskId) => this.deleteTask(taskId),
@@ -249,6 +248,9 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       forgetLearning: (content: string) => this.forgetLearning(content),
       addToOurStory: (moment: string) => this.addToOurStory(moment),
       getOurStory: () => this.getOurStory(),
+      // Sandbox URL
+      getSandboxPortUrl: (port: number) => this.getSandboxPortUrl(port),
+      getSandboxFileDownloadUrl: (path: string) => this.getSandboxFileDownloadUrl(path),
     });
   }
 
@@ -257,31 +259,69 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     const storage = (this as any).ctx?.storage as CloudflareStorage | undefined;
     const fsTools = storage ? await createFSTools(storage) : {};
 
-    // MCP tools may not be initialized yet - safely try to get them
-    let mcpTools = {};
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mcp = (this as any).mcp;
-      if (mcp && typeof mcp.getAITools === "function") {
-        mcpTools = mcp.getAITools();
-      }
-    } catch {
-      // MCP not ready yet, continue without
-    }
-
-    return { ...this.tools, ...mcpTools, ...fsTools };
+    return { ...this.tools, ...fsTools };
   }
 
   // --- Task Management ---
 
-  askLocalComputerAgent(task: string, existingTaskId?: string): string {
-    if (existingTaskId) {
-      this.updateTask(existingTaskId, task);
-      return `Updated existing task ${existingTaskId} with new instructions.`;
+  /**
+   * Hand off task to a specific connected agent
+   */
+  async handOffToAgent(task: string, assignedAgent: string, existingTaskId?: string): Promise<string> {
+    // Check if agent is connected
+    const agents = this.state.agents || [];
+    const agent = agents.find(a => a.id === assignedAgent);
+    
+    if (!agent) {
+      const available = agents.map(a => a.id).join(", ") || "none";
+      return `Agent '${assignedAgent}' is not connected. Available: ${available}`;
     }
 
-    const newTask = this.createTask(task);
-    return `Created new task ${newTask.id} for local computer agent.`;
+    // If smith, auto-start mini-computer
+    if (assignedAgent === "smith" && !this.state.miniComputer?.active) {
+      console.log("[Atlas] Starting mini-computer for Smith...");
+      const result = await this.toggleMiniComputer(true);
+      if (!result.success) {
+        return `Failed to start mini-computer: ${result.error || "Unknown error"}`;
+      }
+    }
+
+    if (existingTaskId) {
+      this.updateTask(existingTaskId, task);
+      return `Updated task ${existingTaskId} for ${assignedAgent}.`;
+    }
+
+    const newTask = this.createTaskForAgent(task, assignedAgent);
+    return `Created task ${newTask.id} for ${assignedAgent} (${agent.type}).`;
+  }
+
+  /**
+   * Get list of connected agents
+   */
+  getConnectedAgents(): Array<{ id: string; type: "local" | "sandbox" }> {
+    return (this.state.agents || []).map(a => ({ id: a.id, type: a.type }));
+  }
+
+  /**
+   * Create task assigned to a specific agent
+   */
+  createTaskForAgent(description: string, assignedAgent: string): Task {
+    const id = crypto.randomUUID();
+    const task: Task = {
+      id,
+      assignedAgent,
+      description,
+      state: "new",
+      context: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    this.setState({
+      ...this.state,
+      tasks: { ...this.state.tasks, [id]: task },
+    });
+    return task;
   }
 
   async createTaskWithSandbox(
@@ -290,14 +330,16 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   ): Promise<Task> {
     const currentTasks = this.state.tasks || {};
 
-    // If remote agent selected, create Cloudflare sandbox first
-    if (selectedAgent.type === "cloud" && this.state.credentials) {
+    // If remote agent selected, create E2B sandbox first
+    if (selectedAgent.type === "cloud" && this.state.credentials && this.env.E2B_API_KEY) {
       const agentId = selectedAgent.agentId;
       try {
-        const { sandboxId, sessionId } = await createCloudflareSandbox(
-          this.env.Sandbox,
-          { idleTimeout: 600000 },
+        const { sandboxId, sandbox } = await createCodingSandbox(
+          this.env.E2B_API_KEY,
+          agentId,
+          { timeoutMs: 3600 * 1000 },
         );
+        this.codingAgentSandbox = sandbox;
 
         // Build environment variables for the agent
         const envVars: Record<string, string> = {
@@ -306,16 +348,11 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
           ATLAS_AGENT_HOST: this.env.ATLAS_AGENT_HOST || "localhost:8787",
         };
 
-        // Agent-specific configuration
-        if (agentId === "goose" || agentId === "opencode") {
-          envVars.GOOSE_PROVIDER = "litellm";
-          envVars.GOOSE_MODEL = this.env.LLM_MODEL || "gpt-4o-mini";
-        }
+        envVars.GOOSE_PROVIDER = "litellm";
+        envVars.GOOSE_MODEL = this.env.LLM_MODEL || "gpt-4o-mini";
 
         const connected = await connectAgentInSandbox(
-          this.env.Sandbox,
-          sandboxId,
-          sessionId,
+          sandbox,
           agentId,
           envVars,
           {
@@ -327,29 +364,18 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
           },
         );
 
-        // Store Cloudflare sandbox state at agent level (no VNC - terminal only)
+        // Store E2B sandbox state at agent level
         this.setState(this.cleanState({
           ...this.state,
           sandbox: {
-            type: "cloudflare",
+            type: "e2b",
             sandboxId,
-            sessionId,
             agentConnected: connected,
           },
           activeAgent: connected ? agentId : null,
         }));
-
-        // Broadcast sandbox ready (no VNC for Cloudflare Sandbox)
-        this.broadcast(
-          JSON.stringify({
-            type: "sandbox_ready",
-            sandboxId,
-            sessionId,
-            agentId,
-          }),
-        );
       } catch (e) {
-        console.error("[Atlas] Failed to create Cloudflare sandbox:", e);
+        console.error("[Atlas] Failed to create E2B sandbox:", e);
         this.setState(this.cleanState({ ...this.state }));
       }
     } else {
@@ -511,17 +537,14 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     apiKey?: string,
   ): Promise<{ success: boolean; error?: string }> {
     // Destroy previous cloud sandbox if switching agents
-    if (this.state.sandbox?.type === "cloudflare") {
+    if (this.state.sandbox && this.codingAgentSandbox) {
       const prevAgentId = this.state.activeAgent;
       const newAgentId = agent.type === "cloud" ? agent.agentId : "local";
 
       if (prevAgentId && prevAgentId !== newAgentId) {
-        await destroyCloudflareSandbox(
-          this.env.Sandbox,
-          this.state.sandbox.sandboxId,
-        );
-        // Add delay to ensure cleanup propagates to prevent zombie instances
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await destroySandbox(this.codingAgentSandbox);
+        this.codingAgentSandbox = null;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -540,17 +563,22 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       if (!this.state.credentials) {
         return { success: false, error: "No credentials available" };
       }
+      if (!this.env.E2B_API_KEY) {
+        return { success: false, error: "E2B API key not configured" };
+      }
 
       try {
         const agentId = agent.agentId;
 
-        // Create Cloudflare sandbox
-        const { sandboxId, sessionId } = await createCloudflareSandbox(
-          this.env.Sandbox,
-          { idleTimeout: 600000 },
+        // Create coding agent sandbox
+        const { sandboxId, sandbox } = await createCodingSandbox(
+          this.env.E2B_API_KEY,
+          agentId,
+          { timeoutMs: 3600 * 1000 },
         );
+        this.codingAgentSandbox = sandbox;
 
-        // Build environment variables - API key is passed directly to sandbox, never stored
+        // Build environment variables
         const envVars: Record<string, string> = {
           HEYATLAS_PROVIDER_API_KEY: this.state.credentials.providerApiKey,
           HEYATLAS_PROVIDER_API_URL: this.state.credentials.providerApiUrl,
@@ -560,7 +588,7 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
         // Agent-specific configuration
         if (agentId === "goose" || agentId === "opencode") {
           envVars.GOOSE_PROVIDER = "litellm";
-          envVars.GOOSE_MODEL = this.env.LLM_MODEL || "gpt-4o-mini";
+          envVars.GOOSE_MODEL = "Baseten/zai-org/GLM-4.7";
         }
 
         // Add user's API key for agents that require it
@@ -576,11 +604,9 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
           }
         }
 
-        // Connect agent in sandbox with credentials for CLI auth
+        // Connect agent in sandbox
         const connected = await connectAgentInSandbox(
-          this.env.Sandbox,
-          sandboxId,
-          sessionId,
+          sandbox,
           agentId,
           envVars,
           {
@@ -593,23 +619,12 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
         this.setState(this.cleanState({
           ...this.state,
           sandbox: {
-            type: "cloudflare",
+            type: "e2b",
             sandboxId,
-            sessionId,
             agentConnected: connected,
           },
           activeAgent: agentId,
         }));
-
-        // Broadcast sandbox ready
-        this.broadcast(
-          JSON.stringify({
-            type: "sandbox_ready",
-            sandboxId,
-            sessionId,
-            agentId,
-          }),
-        );
 
         return { success: connected };
       } catch (e) {
@@ -642,13 +657,9 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
    */
   async disconnectAgent(): Promise<{ success: boolean; error?: string }> {
     // Destroy existing sandbox if any
-    if (this.state.sandbox?.type === "cloudflare" && this.state.sandbox.sandboxId) {
-      await destroyCloudflareSandbox(
-        this.env.Sandbox,
-        this.state.sandbox.sandboxId,
-      );
-      // Add delay to ensure cleanup propagates
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (this.codingAgentSandbox) {
+      await destroySandbox(this.codingAgentSandbox);
+      this.codingAgentSandbox = null;
     }
 
     // Clear state
@@ -674,21 +685,21 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     const systemPrompt = await this.getSystemPrompt();
     const allTools = await this.getAllTools();
 
+    const generateImage = generateImageTool((prompt) => this.generateImage(prompt));
+    const tools = {
+      ...(this.webSearchTool ? { 'web-search': this.webSearchTool } : {}),
+      ...allTools,
+      generateImage,
+    };
+
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const result = streamText({
           model: this.model,
           system: systemPrompt,
-          messages: await this.prepareModelMessages({
-            "generateImage": generateImageTool((prompt) => this.generateImage(prompt))
-          }),
-          tools: {
-            ...allTools,
-            generateImage: generateImageTool((prompt) => this.generateImage(prompt))
-          },
+          messages: await this.prepareModelMessages(tools),
+          tools,
           onFinish: async (event) => {
-            // Call original onFinish - caller handles adding message
-            // Cast event through unknown to satisfy ToolSet generic
             await onFinish(event as unknown as Parameters<StreamTextOnFinishCallback<ToolSet>>[0]);
           },
           stopWhen: stepCountIs(10),
@@ -988,12 +999,13 @@ Write your first-person summary:`;
     // Streaming: use the existing createStreamResponse with AI SDK streaming
     const { textStream } = streamText({
       model: this.model,
-      system: await this.getSystemPrompt(),
+      system: (await this.getSystemPrompt()) + SPEECH_GENERATION_PROMPT,
       messages: await this.prepareModelMessages({
         "generateImage": generateImageTool((prompt) => this.generateImage(prompt))
       }),
       tools: {
         ...allTools,
+        ...(this.webSearchTool ? { 'web-search': this.webSearchTool } : {}),
         generateImage: generateImageTool((prompt) => this.generateImage(prompt))
       },
       stopWhen: stepCountIs(10),
@@ -1023,40 +1035,110 @@ Write your first-person summary:`;
         : "genin"
     ) as Tier;
 
-    const atlasAccessToken =
-      h.get("X-Atlas-Access-Token") || queryToken || undefined;
-    const providerApiKey =
-      h.get("X-Provider-API-Key") || this.env.HEYATLAS_PROVIDER_API_KEY || "";
-    const apiUrl =
-      h.get("X-Provider-API-URL") || this.env.HEYATLAS_PROVIDER_API_URL || "";
+    // Extract token for auth validation
+    const authHeader = h.get("Authorization");
+    const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const token = tokenFromHeader || queryToken;
 
-    if (providerApiKey && apiUrl) {
-      this.setState({
-        ...this.state,
-        credentials: {
-          userId: h.get("X-User-ID") || this.name || "",
-          email: h.get("X-User-Email") || undefined,
-          providerApiKey,
-          providerApiUrl: apiUrl,
-          atlasAccessToken,
-        },
-        tier,
-      });
-    } else {
-      this.setState({ ...this.state, tier });
+    // Try to fetch fresh credentials from /api/me if we have a token
+    if (token) {
+      try {
+        const apiBase = this.env.AUTH_API_BASE || "https://www.heyatlas.app";
+        const res = await fetch(`${apiBase}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const user = await res.json() as { 
+            id: string; 
+            email?: string; 
+            tier?: string;
+            virtualKey?: { apiKey: string; apiUrl: string };
+          };
+          
+          const userTier = (
+            ["genin", "chunin", "jonin"].includes(user.tier || "")
+              ? user.tier
+              : tier
+          ) as Tier;
+
+          if (user.virtualKey?.apiKey && user.virtualKey?.apiUrl) {
+            console.log("[Atlas] onConnect: refreshed credentials for user:", user.id);
+            this.setState({
+              ...this.state,
+              credentials: {
+                userId: user.id,
+                email: user.email || undefined,
+                providerApiKey: user.virtualKey.apiKey,
+                providerApiUrl: user.virtualKey.apiUrl,
+                atlasAccessToken: token,
+              },
+              tier: userTier,
+            });
+          } else {
+            console.log("[Atlas] onConnect: user has no virtualKey, using env fallback");
+            this.setState({ ...this.state, tier: userTier });
+          }
+        } else {
+          console.log("[Atlas] onConnect: token validation failed:", res.status);
+        }
+      } catch (e) {
+        console.log("[Atlas] onConnect: error validating token:", e);
+      }
+    }
+
+    // Fallback to header-based credentials (for CLI agents passing explicit headers)
+    if (!this.state.credentials?.providerApiKey) {
+      const providerApiKey =
+        h.get("X-Provider-API-Key") || this.env.HEYATLAS_PROVIDER_API_KEY || "";
+      const apiUrl =
+        h.get("X-Provider-API-URL") || this.env.HEYATLAS_PROVIDER_API_URL || "";
+
+      if (providerApiKey && apiUrl) {
+        this.setState({
+          ...this.state,
+          credentials: {
+            userId: h.get("X-User-ID") || this.name || "",
+            email: h.get("X-User-Email") || undefined,
+            providerApiKey,
+            providerApiUrl: apiUrl,
+            atlasAccessToken: token || undefined,
+          },
+          tier,
+        });
+      } else {
+        this.setState({ ...this.state, tier });
+      }
     }
 
     const activeAgentId = h.get("X-Agent-Id");
+    const agentType = (h.get("X-Agent-Type") || "local") as "local" | "sandbox";
     const interactiveMode = h.get("X-Interactive-Mode") === "true";
+    
     if (activeAgentId) {
+      // Store agentId on connection for onClose cleanup
+      (conn as unknown as { agentId?: string }).agentId = activeAgentId;
+      
+      // Add agent to agents array (or update if exists)
+      const existingAgents = this.state.agents || [];
+      const otherAgents = existingAgents.filter(a => a.id !== activeAgentId);
+      const newAgent = {
+        id: activeAgentId,
+        type: agentType,
+        connectedAt: Date.now(),
+      };
+      
       this.setState({
         ...this.state,
-        activeAgent: activeAgentId,
+        agents: [...otherAgents, newAgent],
+        activeAgent: activeAgentId, // deprecated, kept for backward compat
         interactiveMode,
         interactiveTaskId: interactiveMode
           ? this.state.interactiveTaskId
           : null,
       });
+      
+      console.log(`[Atlas] Agent connected: ${activeAgentId} (${agentType})`);
     } else if (this.state.interactiveMode) {
       this.setState({
         ...this.state,
@@ -1065,12 +1147,34 @@ Write your first-person summary:`;
       });
     }
 
-    const cfg = getTierConfig(tier);
-    if (cfg.hasCloudDesktop) this.ensureSandbox().catch(() => {});
-
-    await this.buildMCPServers();
-
     conn.send(JSON.stringify({ type: "connected", userId: this.userId }));
+  }
+
+  /**
+   * Handle agent disconnection - remove from agents array
+   * Note: We track connected agents by storing agentId on the connection
+   */
+  onClose(conn: Connection, code: number, reason: string, wasClean: boolean) {
+    // Get agentId from connection state (set during onConnect)
+    const agentId = (conn as unknown as { agentId?: string }).agentId;
+    
+    if (agentId) {
+      const existingAgents = this.state.agents || [];
+      const remainingAgents = existingAgents.filter(a => a.id !== agentId);
+      
+      // Update activeAgent for backward compat
+      const newActiveAgent = remainingAgents.length > 0 
+        ? remainingAgents[remainingAgents.length - 1].id 
+        : null;
+      
+      this.setState({
+        ...this.state,
+        agents: remainingAgents,
+        activeAgent: newActiveAgent,
+      });
+      
+      console.log(`[Atlas] Agent disconnected: ${agentId}`);
+    }
   }
 
   // --- Public API (called from Hono router) ---
@@ -1118,14 +1222,6 @@ Write your first-person summary:`;
     tier?: Tier,
   ): Promise<Response> {
     if (tier) this.setTier(tier);
-
-    const cfg = getTierConfig(this.state.tier);
-    if (this.state.credentials && cfg.hasCloudDesktop) {
-      this.ensureSandbox().catch(() => {});
-    }
-
-    // Ensure MCP servers are initialized for HTTP requests (voice mode)
-    await this.buildMCPServers();
 
     return this.chatCompletions(messages, stream, tier);
   }
@@ -1193,19 +1289,33 @@ Write your first-person summary:`;
   }
 
   /**
-   * Expose a port from the Cloudflare sandbox and return a shareable URL
+   * Get public URL for a port exposed from the coding agent sandbox
+   * Use this when the agent runs a server (e.g., dev server on port 3000)
    */
-  @callable({ description: "Expose a port from the Cloudflare sandbox" })
-  async exposeSandboxPort(port: number, hostname?: string): Promise<{ url: string } | null> {
-    if (this.state.sandbox?.type !== "cloudflare") {
+  @callable({ description: "Get public URL for a port in the coding agent sandbox" })
+  async getSandboxPortUrl(port: number): Promise<{ url: string; sandboxId: string } | null> {
+    if (!this.codingAgentSandbox || !this.state.sandbox) {
       return null;
     }
-    return exposeSandboxPort(
-      this.env.Sandbox,
-      this.state.sandbox.sandboxId,
-      port,
-      hostname || "heyatlas.app",
-    );
+    const url = getSandboxPublicUrl(this.codingAgentSandbox, port);
+    return { url, sandboxId: this.state.sandbox.sandboxId };
+  }
+
+  /**
+   * Get download URL for a file from the mini-computer sandbox
+   */
+  @callable({ description: "Get download URL for a file in the mini-computer sandbox" })
+  async getSandboxFileDownloadUrl(path: string): Promise<string | null> {
+    if (!this.sandboxInstance) {
+      return null;
+    }
+    try {
+      const url = await this.sandboxInstance.downloadUrl(path);
+      return url;
+    } catch (e) {
+      console.error("[Atlas] Failed to get file download URL:", e);
+      return null;
+    }
   }
 
   /**
@@ -1214,15 +1324,19 @@ Write your first-person summary:`;
   async toggleMiniComputer(enabled: boolean): Promise<{ success: boolean; vncUrl?: string; error?: string }> {
     if (enabled) {
       try {
-        await this.ensureSandbox();
+        await this.createSandbox();
         
-        const vncUrl = this.state.sandbox?.vncUrl;
+        // Get VNC URL directly from sandbox instance (state update may be async)
+        const vncUrl = this.sandboxInstance?.stream?.getUrl() || this.state.sandbox?.vncUrl;
+        const sandboxId = this.sandboxInstance?.sandboxId || this.state.sandbox?.sandboxId;
+        
+        console.log("[Atlas] toggleMiniComputer - vncUrl:", vncUrl, "sandboxId:", sandboxId);
         
         this.setState({
           ...this.state,
           miniComputer: {
             active: true,
-            sandboxId: this.state.sandbox?.sandboxId,
+            sandboxId,
             vncUrl,
           },
         });
@@ -1233,8 +1347,20 @@ Write your first-person summary:`;
         return { success: false, error: "Failed to start mini-computer" };
       }
     } else {
+      // Destroy the sandbox when turning off mini-computer
+      if (this.sandboxInstance) {
+        try {
+          await this.sandboxInstance.kill();
+          console.log("[Atlas] Mini-computer sandbox destroyed");
+        } catch (error) {
+          console.error("[Atlas] Failed to destroy mini-computer sandbox:", error);
+        }
+        this.sandboxInstance = null;
+      }
+
       this.setState({
         ...this.state,
+        sandbox: null,
         miniComputer: { active: false },
       });
 
