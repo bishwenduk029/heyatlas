@@ -24,6 +24,7 @@ from livekit.agents import (
 )
 from livekit.agents.voice import room_io
 from livekit.plugins import openai
+from livekit.plugins import soniox
 
 from tunnel import AtlasTunnel
 from utils import parse_job_metadata
@@ -63,7 +64,7 @@ class VoiceAssistant(Agent):
 
         # Agent session with Atlas as LLM backend
         self.agent_session = AgentSession(
-            stt="deepgram/flux-general:en",
+            stt=soniox.STT(params=soniox.STTOptions(model="stt-rt-v3")),
             llm=openai.LLM(
                 model="atlas",
                 base_url=f"{atlas_url}/agents/atlas-agent/{user_id}/v1",

@@ -2,7 +2,7 @@ app = "nirmanus-bifrost-gateway"
 primary_region = "iad"
 
 [build]
-image = "maximhq/bifrost:v1.3.40"
+image = "maximhq/bifrost:v1.4.2"
 
 [env]
 APP_HOST = "0.0.0.0"
