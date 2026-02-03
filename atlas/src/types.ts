@@ -1,5 +1,5 @@
 import type { AgentNamespace } from "agents";
-import type { Sandbox } from "@cloudflare/sandbox";
+
 import type { AtlasAgent } from "./agent";
 import type { Tier } from "./prompts";
 
@@ -13,12 +13,13 @@ export interface Env {
   AI_GATEWAY_API_KEY: string;
   PARALLELS_WEB_SEARCH_API?: string;
   PARALLELS_WEB_SEARCH_API_KEY?: string;
+  GOOGLE_GENERATIVE_AI_API_KEY?: string;
   E2B_API_KEY?: string;
   ATLAS_CALLBACK_URL?: string;
+  PARALLEL_API_KEY: string;
   // For sandbox to connect back to Atlas
   ATLAS_AGENT_HOST?: string;
-  // Cloudflare Sandbox Durable Object namespace (for coding agents)
-  Sandbox: DurableObjectNamespace<Sandbox>;
+
   // R2 bucket for file uploads
   ATLAS_UPLOADS: R2Bucket;
   ATLAS_UPLOADS_PUBLIC_URL: string;
@@ -41,15 +42,27 @@ export interface SyncedMessage {
   timestamp: number;
 }
 
+/** Agent connected to Atlas via CLI tunnel */
+export interface ConnectedAgent {
+  id: string;              // "smith", "opencode", "amp"
+  type: "local" | "sandbox";
+  connectedAt: number;
+  capabilities?: string[]; // ["coding", "browser", "computer-use"]
+}
+
 export interface AgentState {
   credentials: UserCredentials | null;
   tier: Tier;
   persona: string | null;
+  tokensUsed: number;
   personaUpdatedAt: number | null;
   sandbox: SandboxMetadata | null;
   /** Mini computer - cloud sandbox with browser & agent-smith tools */
   miniComputer: MiniComputerMetadata | null;
   tasks: Record<string, Task>;
+  /** Connected agents (multiple can be connected simultaneously) */
+  agents: ConnectedAgent[];
+  /** @deprecated Use agents array instead */
   activeAgent: string | null;
   interactiveMode: boolean;
   interactiveTaskId: string | null;
@@ -70,7 +83,10 @@ export interface MiniComputerMetadata {
 
 export interface Task {
   id: string;
+  /** @deprecated Use assignedAgent instead */
   agentId?: string;
+  /** Agent assigned to handle this task */
+  assignedAgent?: string;
   description: string; // Brief description of the task for listing
   // Task lifecycle:
   // - new: Fresh task, CLI should pick up and execute
@@ -96,9 +112,8 @@ export interface Task {
 }
 
 export interface SandboxMetadata {
-  type: "e2b" | "cloudflare";
+  type: string; // Provider type (e.g., "e2b")
   sandboxId: string;
-  sessionId?: string;
   vncUrl?: string;
   computerAgentUrl?: string;
   agentConnected?: boolean;
