@@ -1,24 +1,41 @@
 /**
  * Connect command - Connect local agent to Atlas
  *
- * Supports:
- * - ACP agents using @mcpc-tech/acp-ai-provider for streaming
- * - VoltAgent agents (smith) using AI SDK compatible streaming
+ * Unified handler for all agent types (ACP and VoltAgent).
  */
 
 import { login } from "../auth";
 import { AtlasTunnel, type Task } from "../tunnel";
-import {
-  ACPProviderAgent,
-  isACPAgent,
-  getACPCommand,
-  type ACPAgentType,
-} from "../agents/acp-provider";
+import { ACPProviderAgent, isACPAgent, getACPCommand, type ACPAgentType } from "../agents/acp-provider";
 import { type AgentType, isSmith } from "../agents/config";
-import { Smith, type SmithStreamPart } from "../agents/smith";
+import { Smith } from "../agents/smith";
 
 interface ConnectOptions {
   openBrowser?: boolean;
+  /** Agent type: local (user's machine) or sandbox (e2b/cloud) */
+  agentType?: "local" | "sandbox";
+}
+
+/** Common interface for all agents */
+interface Agent {
+  name: string;
+  isAvailable(): Promise<boolean>;
+  init(): Promise<void>;
+  stream(prompt: string, taskId?: string): AsyncIterable<StreamChunk>;
+  cleanup(): void;
+}
+
+interface StreamChunk {
+  type: string;
+  id?: string;
+  delta?: string;
+  text?: string;
+  toolCallId?: string;
+  toolName?: string;
+  input?: unknown;
+  output?: unknown;
+  subAgentName?: string;
+  [key: string]: unknown;
 }
 
 interface UIMessagePart {
@@ -26,387 +43,65 @@ interface UIMessagePart {
   [key: string]: unknown;
 }
 
-export async function connect(
-  agentType: AgentType,
-  options: ConnectOptions = {},
-) {
+export async function connect(agentType: AgentType, options: ConnectOptions = {}) {
   const credentials = await login();
-
-  // Route to appropriate handler
-  if (isSmith(agentType)) {
-    return connectSmith(credentials, options);
-  }
   
-  if (isACPAgent(agentType)) {
-    return connectACPAgent(agentType, credentials, options);
-  }
-
-  console.error(`Error: Unknown agent type '${agentType}'`);
-  process.exit(1);
-}
-
-/**
- * Connect smith
- */
-async function connectSmith(
-  credentials: { userId: string; accessToken: string },
-  options: ConnectOptions,
-) {
-  const agent = new Smith({ cwd: process.cwd() });
-
-  const available = await agent.isAvailable();
-  if (!available) {
-    console.error("Error: npx not found. Install Node.js to use smith");
+  // Create the appropriate agent wrapper
+  const agent = createAgent(agentType);
+  if (!agent) {
+    console.error(`Error: Unknown agent type '${agentType}'`);
     process.exit(1);
   }
 
-  console.log("Agent: smith");
-
-  try {
-    console.log("Starting smith server...");
-    await agent.start();
-    console.log(`Smith server running on port ${agent.port}`);
-  } catch (error) {
-    console.error(`Failed to start agent: ${error}`);
-    process.exit(1);
-  }
-
-  const tunnel = new AtlasTunnel({
-    host: process.env.ATLAS_AGENT_HOST || "agent.heyatlas.app",
-    token: credentials.accessToken,
-    interactive: true,
-  });
-
-  tunnel.onNewTask(async (task: Task) => {
-    const { prompt, latestUserMessage } = buildPromptWithContext(task);
-    const isNewTask = task.state === "new";
-    console.log(`${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`);
-
-    await tunnel.updateTask(task.id, { state: "in-progress" });
-    await tunnel.appendContext(task.id, [
-      {
-        type: "message",
-        timestamp: Date.now(),
-        data: { role: "user", content: latestUserMessage },
-      },
-    ]);
-
-    try {
-      const parts: UIMessagePart[] = [];
-      const toolCalls = new Map<string, UIMessagePart>();
-      const activeReasoningParts = new Map<string, UIMessagePart>();
-
-      for await (const chunk of agent.streamChat(prompt)) {
-        // Broadcast to UI
-        await tunnel.broadcastTaskEvent(task.id, {
-          type: "ui_stream_chunk",
-          timestamp: Date.now(),
-          data: chunk as Record<string, unknown>,
-        });
-
-        // Process chunk for final message
-        switch (chunk.type) {
-          case "text-delta": {
-            const existingText = parts.find((p) => p.type === "text");
-            if (existingText && "text" in existingText) {
-              existingText.text += chunk.delta || "";
-            } else {
-              parts.push({ type: "text", text: chunk.delta || "" });
-            }
-            break;
-          }
-
-          case "reasoning-start": {
-            const reasoningPart = {
-              type: "reasoning" as const,
-              text: "",
-              state: "streaming" as const,
-            };
-            activeReasoningParts.set(chunk.id || "default", reasoningPart);
-            parts.push(reasoningPart);
-            break;
-          }
-
-          case "reasoning-delta":
-          case "reasoning": {
-            const id = chunk.id || "default";
-            let reasoningPart = activeReasoningParts.get(id);
-            if (!reasoningPart) {
-              reasoningPart = { type: "reasoning", text: "", state: "streaming" };
-              activeReasoningParts.set(id, reasoningPart);
-              parts.push(reasoningPart);
-            }
-            reasoningPart.text += chunk.delta || chunk.text || "";
-            break;
-          }
-
-          case "reasoning-end": {
-            const id = chunk.id || "default";
-            const reasoningPart = activeReasoningParts.get(id);
-            if (reasoningPart) {
-              reasoningPart.state = "done";
-              activeReasoningParts.delete(id);
-            }
-            break;
-          }
-
-          case "tool-input-available": {
-            const input = chunk.input as Record<string, unknown> | undefined;
-            const realToolName = (input?.toolName as string) || chunk.toolName || "tool";
-            const realArgs = (input?.args as Record<string, unknown>) || input || {};
-            
-            toolCalls.set(chunk.toolCallId || "", {
-              type: "dynamic-tool",
-              toolCallId: chunk.toolCallId,
-              toolName: realToolName,
-              state: "input-available",
-              input: realArgs,
-              subAgentName: chunk.subAgentName,
-            });
-            parts.push(toolCalls.get(chunk.toolCallId || "")!);
-            break;
-          }
-
-          case "tool-output-available": {
-            const existing = toolCalls.get(chunk.toolCallId || "");
-            if (existing) {
-              const updated = { ...existing, state: "output-available", output: chunk.output };
-              toolCalls.set(chunk.toolCallId || "", updated);
-              const idx = parts.findIndex(
-                (p) => p.type === "dynamic-tool" && p.toolCallId === chunk.toolCallId
-              );
-              if (idx >= 0) parts[idx] = updated;
-            }
-            break;
-          }
-        }
-      }
-
-      if (parts.length > 0) {
-        await tunnel.appendContext(task.id, [
-          {
-            type: "ui_message",
-            timestamp: Date.now(),
-            data: { id: crypto.randomUUID(), role: "assistant", parts },
-          },
-        ]);
-      }
-
-      await tunnel.updateTask(task.id, { state: "completed", result: "end_turn" });
-      console.log("Task completed");
-    } catch (error) {
-      console.error(`Task failed: ${error}`);
-      await tunnel.updateTask(task.id, { state: "failed", result: String(error) });
+  // Check availability
+  if (!(await agent.isAvailable())) {
+    if (isACPAgent(agentType)) {
+      const cmd = getACPCommand(agentType);
+      console.error(`Error: Agent '${agentType}' is not installed or not in PATH`);
+      console.error(`Command: ${cmd.join(" ")}`);
+    } else {
+      console.error(`Error: Agent '${agentType}' is not available`);
     }
-  });
-
-  await tunnel.connect(credentials.userId, "smith");
-  console.log("Tunnel established");
-
-  const voiceUrl = `${process.env.HEYATLAS_API || "https://heyatlas.app"}/chat`;
-  if (options.openBrowser !== false) {
-    try {
-      const { execSync } = await import("child_process");
-      const cmd =
-        process.platform === "darwin"
-          ? "open"
-          : process.platform === "win32"
-            ? 'start ""'
-            : "xdg-open";
-      execSync(`${cmd} "${voiceUrl}"`, { stdio: "ignore" });
-    } catch {}
-  }
-
-  console.log("\nHeyAtlas connected to smith");
-  console.log(`Continue here: ${voiceUrl}`);
-  console.log("\nPress Ctrl+C to disconnect\n");
-
-  process.on("SIGINT", async () => {
-    console.log("\nDisconnecting...\n");
-    agent.stop();
-    await tunnel.disconnect();
-    process.exit(0);
-  });
-
-  await new Promise(() => {});
-}
-
-/**
- * Connect ACP-based agent (opencode, goose, etc.)
- */
-async function connectACPAgent(
-  agentType: ACPAgentType,
-  credentials: { userId: string; accessToken: string },
-  options: ConnectOptions,
-) {
-  const agent = new ACPProviderAgent(agentType, { cwd: process.cwd() });
-
-  const available = await agent.isAvailable();
-  if (!available) {
-    const cmd = getACPCommand(agentType);
-    console.error(`Error: Agent '${agentType}' is not installed or not in PATH`);
-    console.error(`Command: ${cmd.join(" ")}`);
     process.exit(1);
   }
 
-  console.log(`Agent: ${agentType} (via ACP AI Provider)`);
+  console.log(`Agent: ${agent.name}`);
 
+  // Initialize
   try {
     await agent.init();
-    console.log("ACP provider initialized");
+    console.log("Agent initialized");
   } catch (error) {
     console.error(`Failed to initialize agent: ${error}`);
     process.exit(1);
   }
 
+  // Connect tunnel
   const tunnel = new AtlasTunnel({
     host: process.env.ATLAS_AGENT_HOST || "agent.heyatlas.app",
     token: credentials.accessToken,
     interactive: true,
+    agentType: options.agentType || "local",
   });
 
   tunnel.onNewTask(async (task: Task) => {
-    const { prompt, latestUserMessage } = buildPromptWithContext(task);
-    const isNewTask = task.state === "new";
-    console.log(`${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`);
-
-    await tunnel.updateTask(task.id, { state: "in-progress" });
-    await tunnel.appendContext(task.id, [
-      {
-        type: "message",
-        timestamp: Date.now(),
-        data: { role: "user", content: latestUserMessage },
-      },
-    ]);
-
-    try {
-      const result = agent.stream(prompt);
-      const parts: UIMessagePart[] = [];
-      const toolCalls = new Map<string, UIMessagePart>();
-      const activeReasoningParts = new Map<string, UIMessagePart>();
-
-      for await (const chunk of result.toUIMessageStream()) {
-        await tunnel.broadcastTaskEvent(task.id, {
-          type: "ui_stream_chunk",
-          timestamp: Date.now(),
-          data: chunk as Record<string, unknown>,
-        });
-
-        switch (chunk.type) {
-          case "text-delta": {
-            const existingText = parts.find((p) => p.type === "text");
-            if (existingText && "text" in existingText) {
-              existingText.text += chunk.delta || "";
-            } else {
-              parts.push({ type: "text", text: chunk.delta || "" });
-            }
-            break;
-          }
-
-          case "reasoning-start": {
-            const reasoningPart = {
-              type: "reasoning" as const,
-              text: "",
-              state: "streaming" as const,
-            };
-            activeReasoningParts.set(chunk.id || "default", reasoningPart);
-            parts.push(reasoningPart);
-            break;
-          }
-
-          case "reasoning-delta":
-          case "reasoning": {
-            const id = chunk.id || "default";
-            let reasoningPart = activeReasoningParts.get(id);
-            if (!reasoningPart) {
-              reasoningPart = { type: "reasoning", text: "", state: "streaming" };
-              activeReasoningParts.set(id, reasoningPart);
-              parts.push(reasoningPart);
-            }
-            reasoningPart.text += chunk.delta || (chunk as any).text || "";
-            break;
-          }
-
-          case "reasoning-end": {
-            const id = chunk.id || "default";
-            const reasoningPart = activeReasoningParts.get(id);
-            if (reasoningPart) {
-              reasoningPart.state = "done";
-              activeReasoningParts.delete(id);
-            }
-            break;
-          }
-
-          case "tool-input-available": {
-            const input = chunk.input as Record<string, unknown> | undefined;
-            const realToolName = (input?.toolName as string) || chunk.toolName;
-            const realArgs = (input?.args as Record<string, unknown>) || input || {};
-            
-            toolCalls.set(chunk.toolCallId, {
-              type: "dynamic-tool",
-              toolCallId: chunk.toolCallId,
-              toolName: realToolName,
-              state: "input-available",
-              input: realArgs,
-            });
-            parts.push(toolCalls.get(chunk.toolCallId)!);
-            break;
-          }
-
-          case "tool-output-available": {
-            const existing = toolCalls.get(chunk.toolCallId);
-            if (existing) {
-              const updated = { ...existing, state: "output-available", output: chunk.output };
-              toolCalls.set(chunk.toolCallId, updated);
-              const idx = parts.findIndex(
-                (p) => p.type === "dynamic-tool" && p.toolCallId === chunk.toolCallId
-              );
-              if (idx >= 0) parts[idx] = updated;
-            }
-            break;
-          }
-        }
-      }
-
-      if (parts.length > 0) {
-        await tunnel.appendContext(task.id, [
-          {
-            type: "ui_message",
-            timestamp: Date.now(),
-            data: { id: crypto.randomUUID(), role: "assistant", parts },
-          },
-        ]);
-      }
-
-      await tunnel.updateTask(task.id, { state: "completed", result: "end_turn" });
-      console.log("Task completed");
-    } catch (error) {
-      console.error(`Task failed: ${error}`);
-      await tunnel.updateTask(task.id, { state: "failed", result: String(error) });
-    }
+    await handleTask(task, agent, tunnel);
   });
 
-  await tunnel.connect(credentials.userId, agentType);
+  await tunnel.connect(credentials.userId, agent.name);
   console.log("Tunnel established");
 
+  // Open browser
   const voiceUrl = `${process.env.HEYATLAS_API || "https://heyatlas.app"}/chat`;
   if (options.openBrowser !== false) {
-    try {
-      const { execSync } = await import("child_process");
-      const cmd =
-        process.platform === "darwin"
-          ? "open"
-          : process.platform === "win32"
-            ? 'start ""'
-            : "xdg-open";
-      execSync(`${cmd} "${voiceUrl}"`, { stdio: "ignore" });
-    } catch {}
+    openBrowser(voiceUrl);
   }
 
-  console.log(`\nHeyAtlas connected to ${agentType}`);
+  console.log(`\nHeyAtlas connected to ${agent.name}`);
   console.log(`Continue here: ${voiceUrl}`);
   console.log("\nPress Ctrl+C to disconnect\n");
 
+  // Cleanup on exit
   process.on("SIGINT", async () => {
     console.log("\nDisconnecting...\n");
     agent.cleanup();
@@ -417,29 +112,190 @@ async function connectACPAgent(
   await new Promise(() => {});
 }
 
-/**
- * Build prompt with context for ACP agent
- */
-function buildPromptWithContext(task: Task): {
-  prompt: string;
-  latestUserMessage: string;
-} {
+/** Create agent wrapper based on type */
+function createAgent(agentType: AgentType): Agent | null {
+  if (isSmith(agentType)) {
+    return createSmithAgent();
+  }
+  if (isACPAgent(agentType)) {
+    return createACPAgent(agentType);
+  }
+  return null;
+}
+
+/** Smith agent wrapper */
+function createSmithAgent(): Agent {
+  const smith = new Smith({ cwd: process.cwd() });
+  
+  return {
+    name: "smith",
+    isAvailable: () => smith.isAvailable(),
+    async init() {
+      console.log("Starting smith server...");
+      await smith.start();
+      console.log(`Smith server running on port ${smith.port}`);
+    },
+    stream: (prompt: string, taskId?: string) => smith.streamChat(prompt, undefined, taskId),
+    cleanup: () => smith.stop(),
+  };
+}
+
+/** ACP agent wrapper */
+function createACPAgent(agentType: ACPAgentType): Agent {
+  const acp = new ACPProviderAgent(agentType, { cwd: process.cwd() });
+  
+  return {
+    name: agentType,
+    isAvailable: () => acp.isAvailable(),
+    init: () => acp.init(),
+    async *stream(prompt: string, _taskId?: string) {
+      const result = acp.stream(prompt);
+      for await (const chunk of result.toUIMessageStream()) {
+        yield chunk as StreamChunk;
+      }
+    },
+    cleanup: () => acp.cleanup(),
+  };
+}
+
+/** Handle a task from the tunnel */
+async function handleTask(task: Task, agent: Agent, tunnel: AtlasTunnel) {
+  const { prompt, latestUserMessage } = buildPromptWithContext(task);
+  const isNewTask = task.state === "new";
+  console.log(`${isNewTask ? "New" : "Continue"}: ${latestUserMessage.slice(0, 50)}...`);
+
+  await tunnel.updateTask(task.id, { state: "in-progress" });
+  await tunnel.appendContext(task.id, [
+    { type: "message", timestamp: Date.now(), data: { role: "user", content: latestUserMessage } },
+  ]);
+
+  try {
+    const parts = await processStream(task.id, agent.stream(prompt, task.id), tunnel);
+
+    if (parts.length > 0) {
+      await tunnel.appendContext(task.id, [
+        { type: "ui_message", timestamp: Date.now(), data: { id: crypto.randomUUID(), role: "assistant", parts } },
+      ]);
+    }
+
+    await tunnel.updateTask(task.id, { state: "completed", result: "end_turn" });
+    console.log("Task completed");
+  } catch (error) {
+    console.error(`Task failed: ${error}`);
+    await tunnel.updateTask(task.id, { state: "failed", result: String(error) });
+  }
+}
+
+/** Process stream chunks and build UI message parts */
+async function processStream(
+  taskId: string,
+  stream: AsyncIterable<StreamChunk>,
+  tunnel: AtlasTunnel
+): Promise<UIMessagePart[]> {
+  const parts: UIMessagePart[] = [];
+  const toolCalls = new Map<string, UIMessagePart>();
+  const reasoningParts = new Map<string, UIMessagePart>();
+
+  for await (const chunk of stream) {
+    // Broadcast to UI
+    await tunnel.broadcastTaskEvent(taskId, {
+      type: "ui_stream_chunk",
+      timestamp: Date.now(),
+      data: chunk as Record<string, unknown>,
+    });
+
+    // Build final message parts
+    switch (chunk.type) {
+      case "text-delta": {
+        const deltaText = chunk.delta || chunk.text || "";
+        const existing = parts.find((p) => p.type === "text");
+        if (existing && "text" in existing) {
+          existing.text += deltaText;
+        } else {
+          parts.push({ type: "text", text: deltaText });
+        }
+        break;
+      }
+
+      case "reasoning-start": {
+        const part = { type: "reasoning", text: "", state: "streaming" };
+        reasoningParts.set(chunk.id || "default", part);
+        parts.push(part);
+        break;
+      }
+
+      case "reasoning-delta":
+      case "reasoning": {
+        const id = chunk.id || "default";
+        let part = reasoningParts.get(id);
+        if (!part) {
+          part = { type: "reasoning", text: "", state: "streaming" };
+          reasoningParts.set(id, part);
+          parts.push(part);
+        }
+        part.text += chunk.delta || chunk.text || "";
+        break;
+      }
+
+      case "reasoning-end": {
+        const part = reasoningParts.get(chunk.id || "default");
+        if (part) {
+          part.state = "done";
+          reasoningParts.delete(chunk.id || "default");
+        }
+        break;
+      }
+
+      case "tool-input-available":
+      case "tool-call": {
+        const input = chunk.input as Record<string, unknown> | undefined;
+        const toolName = (input?.toolName as string) || chunk.toolName || "tool";
+        const args = (input?.args as Record<string, unknown>) || input || {};
+        const toolCallId = chunk.toolCallId || "";
+
+        const part = {
+          type: "dynamic-tool",
+          toolCallId,
+          toolName,
+          state: "input-available",
+          input: args,
+          subAgentName: chunk.subAgentName,
+        };
+        toolCalls.set(toolCallId, part);
+        parts.push(part);
+        break;
+      }
+
+      case "tool-output-available":
+      case "tool-result": {
+        const toolCallId = chunk.toolCallId || "";
+        const existing = toolCalls.get(toolCallId);
+        if (existing) {
+          existing.state = "output-available";
+          existing.output = chunk.output;
+        }
+        break;
+      }
+    }
+  }
+
+  return parts;
+}
+
+/** Build prompt with conversation context */
+function buildPromptWithContext(task: Task): { prompt: string; latestUserMessage: string } {
   const context = task.context || [];
   const messages: { role: string; content: string }[] = [];
 
   for (const event of context) {
     const e = event as unknown as Record<string, unknown>;
+    
     if (e.type === "ui_message" && e.data) {
       const data = e.data as Record<string, unknown>;
       const parts = data.parts as Array<Record<string, unknown>> | undefined;
-      if (parts) {
-        const textPart = parts.find((p) => p.type === "text");
-        if (textPart && textPart.text) {
-          messages.push({
-            role: String(data.role || "assistant"),
-            content: String(textPart.text),
-          });
-        }
+      const textPart = parts?.find((p) => p.type === "text");
+      if (textPart?.text) {
+        messages.push({ role: String(data.role || "assistant"), content: String(textPart.text) });
       }
     } else if (e.type === "message" && e.data) {
       const data = e.data as Record<string, unknown>;
@@ -452,26 +308,32 @@ function buildPromptWithContext(task: Task): {
   }
 
   const userMessages = messages.filter((m) => m.role === "user");
-  const latestUserMessage =
-    userMessages[userMessages.length - 1]?.content || task.description || "Hello";
+  const latestUserMessage = userMessages[userMessages.length - 1]?.content || task.description || "Hello";
 
   if (task.state === "new" || messages.length === 0) {
     return { prompt: task.description || latestUserMessage, latestUserMessage };
   }
 
-  let prompt = "";
-  if (task.description) {
-    prompt += `Original task: ${task.description}\n\n`;
-  }
-
+  let prompt = task.description ? `Original task: ${task.description}\n\n` : "";
+  
   if (messages.length > 0) {
     prompt += "Conversation history:\n";
     for (const msg of messages) {
-      const prefix = msg.role === "user" ? "User" : "Assistant";
-      prompt += `${prefix}: ${msg.content}\n`;
+      prompt += `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}\n`;
     }
     prompt += "\nPlease continue based on the above context.";
   }
 
   return { prompt, latestUserMessage };
+}
+
+/** Open URL in browser */
+function openBrowser(url: string) {
+  try {
+    const { execSync } = require("child_process");
+    const cmd = process.platform === "darwin" ? "open" 
+              : process.platform === "win32" ? 'start ""' 
+              : "xdg-open";
+    execSync(`${cmd} "${url}"`, { stdio: "ignore" });
+  } catch {}
 }
