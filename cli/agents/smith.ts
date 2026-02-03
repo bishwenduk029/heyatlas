@@ -3,18 +3,22 @@
  *
  * Handles communication with smith (AI SDK compatible multi-agent).
  * Uses /agents/:id/chat endpoint for streaming.
+ * 
+ * VoltAgent's /chat endpoint is AI SDK compatible, so we pass the stream through directly.
  */
 
 import { spawn, type ChildProcess } from "child_process";
 
+// Check if running in sandbox (pre-built bundle exists)
+const SANDBOX_BUNDLE_PATH = "@bishk029/agent-smith";
+
 const SMITH_CONFIG = {
-  port: 3030,
+  port: 3141,
   agentId: "workflow-orchestrator",
-  healthPath: "/health",
+  healthPath: "/agents",
   chatPath: "/agents/workflow-orchestrator/chat",
   command: "npx",
-  args: ["tsx", "src/index.ts"],
-  cwd: "smith",
+  args: [SANDBOX_BUNDLE_PATH],
 };
 
 export interface SmithOptions {
@@ -51,10 +55,13 @@ export class Smith {
    */
   async isRunning(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}${SMITH_CONFIG.healthPath}`, {
-        method: "GET",
-        signal: AbortSignal.timeout(2000),
-      });
+      const response = await fetch(
+        `${this.baseUrl}${SMITH_CONFIG.healthPath}`,
+        {
+          method: "GET",
+          signal: AbortSignal.timeout(2000),
+        },
+      );
       return response.ok;
     } catch {
       return false;
@@ -80,19 +87,20 @@ export class Smith {
    */
   async start(): Promise<void> {
     if (await this.isRunning()) {
-      console.log(`[smith] Server already running on port ${SMITH_CONFIG.port}`);
+      console.log(
+        `[smith] Server already running on port ${SMITH_CONFIG.port}`,
+      );
       return;
     }
-
-    const cwd = `${this.options.cwd || process.cwd()}/${SMITH_CONFIG.cwd}`;
 
     const env = {
       ...process.env,
       PORT: String(SMITH_CONFIG.port),
     };
 
+    console.log(`[smith] Starting ${SMITH_CONFIG.command} ${SMITH_CONFIG.args.join(" ")}`);
+
     this.process = spawn(SMITH_CONFIG.command, SMITH_CONFIG.args, {
-      cwd,
       env,
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -136,14 +144,28 @@ export class Smith {
   }
 
   /**
-   * Stream a chat request to smith
+   * Get the chat endpoint URL
    */
-  async *streamChat(prompt: string): AsyncGenerator<SmithStreamPart> {
-    const response = await fetch(`${this.baseUrl}${SMITH_CONFIG.chatPath}`, {
+  getChatUrl(): string {
+    return `${this.baseUrl}${SMITH_CONFIG.chatPath}`;
+  }
+
+  /**
+   * Stream a chat request to smith
+   * Returns an async generator that yields parsed SSE events
+   */
+  async *streamChat(prompt: string, userId?: string, conversationId?: string): AsyncGenerator<SmithStreamPart> {
+    const response = await fetch(this.getChatUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: [{ role: "user", content: prompt }],
+        input: prompt,
+        options: {
+          userId: userId || "default-user",
+          conversationId: conversationId || `conv-${Date.now()}`,
+          temperature: 0.2,
+          maxSteps: 35,
+        },
       }),
     });
 
@@ -190,6 +212,32 @@ export class Smith {
         }
       }
     }
+  }
+
+  /**
+   * Get a raw SSE stream from smith (AI SDK compatible)
+   * Returns the Response object with the raw stream for direct passthrough
+   */
+  async streamRaw(prompt: string, userId?: string, conversationId?: string): Promise<Response> {
+    const response = await fetch(this.getChatUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: prompt,
+        options: {
+          userId: userId || "default-user",
+          conversationId: conversationId || `conv-${Date.now()}`,
+          temperature: 0.2,
+          maxSteps: 35,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Chat request failed: ${response.statusText}`);
+    }
+
+    return response;
   }
 }
 

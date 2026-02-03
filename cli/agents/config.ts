@@ -10,6 +10,7 @@ export type ACPAgentType =
   | "auggie"
   | "stakpak"
   | "openhands"
+  | "copilot"
   | "cagent";
 
 // All supported agents

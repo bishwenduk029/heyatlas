@@ -19,6 +19,7 @@ const ACP_AGENTS = [
   "stakpak",
   "openhands",
   "cagent",
+  "copilot",
 ];
 
 // Smith (AI SDK compatible multi-agent)

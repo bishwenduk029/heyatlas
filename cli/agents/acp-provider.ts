@@ -21,6 +21,7 @@ const ACP_COMMANDS: Record<string, { command: string; args: string[] }> = {
   stakpak: { command: "stakpak", args: ["acp"] },
   openhands: { command: "openhands", args: ["acp"] },
   cagent: { command: "cagent", args: ["acp"] },
+  copilot: { command: "copilot", args: ["--acp", "--port", "3000"] },
 };
 
 export type ACPAgentType = keyof typeof ACP_COMMANDS;
