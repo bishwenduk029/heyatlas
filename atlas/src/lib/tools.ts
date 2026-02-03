@@ -18,7 +18,12 @@ interface Deps {
   tier: Tier;
   broadcast?: BroadcastFn;
   sandbox?: SandboxMetadata | null;
-  askLocalComputerAgent?: (task: string, existingTaskId?: string) => string;
+  /** @deprecated Use handOffToAgent */
+  handOffToSmith?: (task: string, existingTaskId?: string) => Promise<string>;
+  /** Hand off task to a specific agent */
+  handOffToAgent?: (task: string, assignedAgent: string, existingTaskId?: string) => Promise<string>;
+  /** Get list of connected agents */
+  getConnectedAgents?: () => Array<{ id: string; type: "local" | "sandbox" }>;
   updateTask?: (taskId: string, updates: string) => Task | null;
   getTask?: (taskId: string) => Task | null;
   listTasks?: () => Task[];
@@ -32,6 +37,12 @@ interface Deps {
   forgetLearning?: (content: string) => boolean;
   addToOurStory?: (moment: string) => void;
   getOurStory?: () => string[];
+  // Sandbox URL
+  getSandboxPortUrl?: (port: number) => Promise<{ url: string; sandboxId: string } | null>;
+  getSandboxFileDownloadUrl?: (path: string) => Promise<string | null>;
+  // Mini Computer
+  toggleMiniComputer?: (enabled: boolean) => Promise<{ success: boolean; vncUrl?: string; error?: string }>;
+  isMiniComputerActive?: () => boolean;
 }
 
 
@@ -346,35 +357,73 @@ export function buildTools(deps: Deps): Tools {
     tools.getOurStory = getOurStoryTool(deps.getOurStory);
   }
 
-  if (deps.askLocalComputerAgent) {
-    tools.askLocalComputerAgent = tool({
+  // Hand off task to a specific connected agent
+  if (deps.handOffToAgent && deps.getConnectedAgents) {
+    tools.handOffToAgent = tool({
       description:
-        "Delegate a task to the local computer agent. Describe the task in detail. Take note that task can be existing or new, accordingly set the existingTaskId parameter.",
+        "Hand off a task to a connected agent. Use listConnectedAgents first to see available agents. Local agents control the user's computer, sandbox agents run in isolated cloud environments.",
       inputSchema: z.object({
-        task: z
-          .string()
-          .describe("Detailed task description for the local computer agent"),
-        existingTaskId: z
-          .string()
-          .optional()
-          .describe(
-            "Optional existing task ID to continue an existing task instead of creating a new task",
-          ),
+        task: z.string().describe("Detailed task description for the agent"),
+        assignedAgent: z.string().describe("Agent ID (e.g., 'smith', 'opencode')"),
+        existingTaskId: z.string().optional().describe("Optional task ID to continue"),
       }),
-      execute: async ({
-        task,
-        existingTaskId,
-      }: {
-        task: string;
-        existingTaskId?: string;
-      }) => {
-        const response = deps.askLocalComputerAgent!(task, existingTaskId);
-        return response;
+      execute: async ({ task, assignedAgent, existingTaskId }) => {
+        return deps.handOffToAgent!(task, assignedAgent, existingTaskId);
+      },
+    });
+
+    tools.listConnectedAgents = tool({
+      description: "List all agents currently connected to Atlas.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const agents = deps.getConnectedAgents!();
+        if (agents.length === 0) {
+          return "No agents connected. Run 'npx heyatlas connect <agent>' to connect.";
+        }
+        return agents.map(a => `- ${a.id} (${a.type})`).join("\n");
       },
     });
   }
 
+  // Sandbox URL tool - get public URL for a port in the coding agent sandbox
+  if (deps.getSandboxPortUrl) {
+    tools.getSandboxUrl = tool({
+      description:
+        "Get the public URL for a port exposed by the coding agent sandbox. Use when the agent runs a dev server or any service on a specific port and you need to share the URL with the user.",
+      inputSchema: z.object({
+        port: z
+          .number()
+          .describe("The port number to get the public URL for (e.g., 3000 for dev server, 8080 for API)"),
+      }),
+      execute: async ({ port }: { port: number }) => {
+        const result = await deps.getSandboxPortUrl!(port);
+        if (!result) {
+          return "No active coding agent sandbox. Please start a cloud agent first.";
+        }
+        return `Public URL for port ${port}: ${result.url} (sandbox: ${result.sandboxId})`;
+      },
+    });
+  }
 
+  // Sandbox file download tool - get download URL for a file in the sandbox
+  if (deps.getSandboxFileDownloadUrl) {
+    tools.getSandboxFileDownloadUrl = tool({
+      description:
+        "Get a download URL for a file from the mini-computer sandbox. Use when Smith creates a file (document, image, export, etc.) that the user needs to download.",
+      inputSchema: z.object({
+        path: z
+          .string()
+          .describe("The absolute path to the file in the sandbox (e.g., /home/user/output.pdf, /home/user/report.docx)"),
+      }),
+      execute: async ({ path }: { path: string }) => {
+        const url = await deps.getSandboxFileDownloadUrl!(path);
+        if (!url) {
+          return "No active mini-computer sandbox. The file cannot be accessed.";
+        }
+        return `Download URL: ${url}`;
+      },
+    });
+  }
 
   return tools;
 }
