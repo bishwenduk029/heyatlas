@@ -22,12 +22,17 @@ export interface AtlasTunnelOptions {
   host?: string;
   token?: string;
   interactive?: boolean;
+  /** Agent type: local (user's machine) or sandbox (e2b/cloud) */
+  agentType?: "local" | "sandbox";
 }
 
 // Task from Atlas agent state
 export interface Task {
   id: string;
-  agentId: string;
+  /** @deprecated Use assignedAgent instead */
+  agentId?: string;
+  /** Agent assigned to handle this task */
+  assignedAgent?: string;
   description: string; // Brief description of the task
   // Task lifecycle:
   // - new: Fresh task, CLI should pick up and execute
@@ -52,9 +57,20 @@ export interface Task {
   updatedAt: number;
 }
 
+/** Agent connected to Atlas */
+export interface ConnectedAgent {
+  id: string;
+  type: "local" | "sandbox";
+  connectedAt: number;
+  capabilities?: string[];
+}
+
 // Agent state from Atlas
 export interface AgentState {
   tasks: Record<string, Task>;
+  /** Connected agents array */
+  agents: ConnectedAgent[];
+  /** @deprecated Use agents array */
   activeAgent: string | null;
   interactiveMode: boolean;
   interactiveTaskId: string | null;
@@ -106,6 +122,7 @@ export class AtlasTunnel {
       }
       // Pass agent headers as query params - the server extracts these
       query["X-Agent-Id"] = agentId;
+      query["X-Agent-Type"] = this.options.agentType || "local";
       if (this.options.interactive) {
         query["X-Interactive-Mode"] = "true";
       }
@@ -122,6 +139,9 @@ export class AtlasTunnel {
         ),
         onStateUpdate: (state, source) => this.handleStateUpdate(state, source),
         query,
+        // Increase timeout to handle DO cold starts and onConnect auth fetch
+        connectionTimeout: 15000,
+        maxRetries: 5,
       });
 
       const timeout = setTimeout(() => {
@@ -148,7 +168,7 @@ export class AtlasTunnel {
 
   /**
    * Handle state updates from Atlas agent.
-   * Only processes tasks with state "new" or "continue".
+   * Only processes tasks with state "new" or "continue" assigned to this agent.
    */
   private handleStateUpdate(
     state: AgentState,
@@ -156,20 +176,24 @@ export class AtlasTunnel {
   ): void {
     // Always store the latest state from server
     if (source === "server") {
-      // Check if incoming state has our updates
       this.currentState = state;
     }
 
     if (!state.tasks) return;
 
     for (const task of Object.values(state.tasks)) {
-      // Only process tasks with "new" or "continue" state, and only once
-      if (task.state === "new" || task.state === "continue") {
-        const taskKey = `${task.id}:${task.state}`;
-        if (!this.seenTaskIds.has(taskKey)) {
-          this.seenTaskIds.add(taskKey);
-          this.taskCallback?.(task);
-        }
+      // Only process tasks with "new" or "continue" state
+      if (task.state !== "new" && task.state !== "continue") continue;
+      
+      // Filter by assignedAgent - only pick up tasks assigned to this agent
+      // If no assignedAgent, fall back to legacy behavior (any agent picks it up)
+      const assignedTo = task.assignedAgent || task.agentId;
+      if (assignedTo && assignedTo !== this.agentId) continue;
+      
+      const taskKey = `${task.id}:${task.state}`;
+      if (!this.seenTaskIds.has(taskKey)) {
+        this.seenTaskIds.add(taskKey);
+        this.taskCallback?.(task);
       }
     }
   }
