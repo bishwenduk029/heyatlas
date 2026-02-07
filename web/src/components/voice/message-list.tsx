@@ -53,16 +53,36 @@ export function MessageList({
   selectedTask = false,
   fullWidth = false,
 }: MessageListProps) {
-  // Ref to control scroll behavior
   const scrollContextRef = useRef<StickToBottomContext | null>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Filter out assistant messages with no visible content (empty streaming placeholders)
+  const visibleMessages = messages.filter((msg) => {
+    if (msg.role !== "assistant") return true;
+    return msg.parts.some(
+      (p) => (p.type === "text" && p.text) || p.type === "file" || p.type === "reasoning" || p.type === "dynamic-tool" || p.type.startsWith("tool-"),
+    );
+  });
+
+  const shouldStickRef = useRef(true);
+
+  // New visible message → re-enable sticking
   useEffect(() => {
-    if (scrollContextRef.current && messages.length > 0) {
-      // Scroll to bottom whenever messages change
-      scrollContextRef.current.scrollToBottom();
+    shouldStickRef.current = true;
+    scrollContextRef.current?.scrollToBottom();
+  }, [visibleMessages.length]);
+
+  // During streaming, keep scrolling as content grows
+  // (messages ref changes on every streaming chunk from useAgentChat)
+  useEffect(() => {
+    if (!shouldStickRef.current) return;
+    const ctx = scrollContextRef.current;
+    if (!ctx) return;
+    if (ctx.isAtBottom === false) {
+      shouldStickRef.current = false;
+      return;
     }
-  }, [messages.length]); // Trigger on message count change
+    ctx.scrollToBottom();
+  }, [messages]);
 
   const handleCopy = (text: string) => {
     if (!text) return;
@@ -74,6 +94,7 @@ export function MessageList({
     <Conversation
       className="w-full flex-1 transition-all duration-300 ease-in-out"
       initial="instant"
+      resize="smooth"
       contextRef={scrollContextRef}
     >
       <ConversationContent
@@ -83,13 +104,13 @@ export function MessageList({
             : "mx-auto h-full gap-4 p-0 md:w-1/2 md:gap-6 md:p-6"
         }
       >
-        {messages.length === 0 ? (
+        {visibleMessages.length === 0 ? (
           <ConversationEmptyState>
             <ChatWelcome onAction={onQuickAction} />
           </ConversationEmptyState>
         ) : (
           <>
-            {messages.map((msg) => (
+            {visibleMessages.map((msg) => (
               <div
                 key={msg.id}
                 className="border-border hover:bg-muted/30 group flex items-start gap-4 border-b p-4 transition-colors last:border-0"
