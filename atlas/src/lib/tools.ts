@@ -31,18 +31,16 @@ interface Deps {
   updateUserContext?: (userSection: string) => void;
   // File conversion
   convertFileToMarkdown?: (file: { url: string; mediaType: string; filename: string }) => Promise<string>;
-  // Learnings & Shared History
-  saveLearning?: (content: string) => void;
-  getLearnings?: () => string[];
-  forgetLearning?: (content: string) => boolean;
-  addToOurStory?: (moment: string) => void;
-  getOurStory?: () => string[];
+  // Memory
+  remember?: (type: "user_detail" | "user_preference", content: string) => void;
   // Sandbox URL
   getSandboxPortUrl?: (port: number) => Promise<{ url: string; sandboxId: string } | null>;
   getSandboxFileDownloadUrl?: (path: string) => Promise<string | null>;
   // Mini Computer
   toggleMiniComputer?: (enabled: boolean) => Promise<{ success: boolean; vncUrl?: string; error?: string }>;
   isMiniComputerActive?: () => boolean;
+  // Self-healing: trigger memory compression + state reset
+  compressMemory?: () => Promise<string>;
 }
 
 
@@ -172,72 +170,20 @@ const speakToHumanTool = (broadcast?: BroadcastFn) =>
   });
 
 /**
- * Tool: Remember something about the user
+ * Tool: Remember user details or preferences
  */
-const rememberTool = (saveLearning: (content: string) => void) =>
+const rememberTool = (remember: (type: "user_detail" | "user_preference", content: string) => void) =>
   tool({
-    description: `Remember something about the user. Use when they:
-- Tell you their name or how to address them ("call me the King")
-- Share a preference ("I like concise answers")
-- Give behavioral instructions ("always be direct with me")
-- Share facts about themselves (job, interests, projects)`,
+    description: `Remember something about the user. Use this to persist:
+- user_detail: Facts about the user (name, job, family, relationships, interests, personal info)
+- user_preference: How the user wants you to behave (style, instructions, do's and don'ts)`,
     inputSchema: z.object({
-      what: z.string().describe("What to remember about the user"),
+      type: z.enum(["user_detail", "user_preference"]).describe("Type of memory"),
+      what: z.string().describe("What to remember"),
     }),
-    execute: async ({ what }: { what: string }) => {
-      saveLearning(what);
-      return `Remembered: "${what}"`;
-    },
-  });
-
-/**
- * Tool: Recall what you know about the user
- */
-const recallTool = (getLearnings: () => string[]) =>
-  tool({
-    description: "Recall everything you know about the user.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      const learnings = getLearnings();
-      if (learnings.length === 0) {
-        return "I don't know anything about this user yet.";
-      }
-      return learnings.map((l) => `• ${l}`).join("\n");
-    },
-  });
-
-/**
- * Tool: Forget something about the user
- */
-const forgetTool = (forgetLearning: (content: string) => boolean) =>
-  tool({
-    description: "Forget something about the user if they ask you to.",
-    inputSchema: z.object({
-      what: z.string().describe("What to forget (partial match works)"),
-    }),
-    execute: async ({ what }: { what: string }) => {
-      const success = forgetLearning(what);
-      return success ? `Forgot: "${what}"` : "Couldn't find that to forget.";
-    },
-  });
-
-/**
- * Tool: Add a moment to our shared story
- */
-const addToOurStoryTool = (addToOurStory: (moment: string) => void) =>
-  tool({
-    description: `Record a meaningful moment in our story together. Use for:
-- Completing something significant together (shipped a feature, solved a hard bug)
-- Breakthrough conversations or realizations
-- Milestones in our relationship (first project, first joke that landed)
-- Moments that made you feel more connected to this person
-These become part of who I am with this person.`,
-    inputSchema: z.object({
-      moment: z.string().describe("A brief description of what happened and why it mattered"),
-    }),
-    execute: async ({ moment }: { moment: string }) => {
-      addToOurStory(moment);
-      return `Added to our story: "${moment}"`;
+    execute: async ({ type, what }: { type: "user_detail" | "user_preference"; what: string }) => {
+      remember(type, what);
+      return `Remembered ${type}: "${what}"`;
     },
   });
 
@@ -269,22 +215,6 @@ const convertFileToMarkdownTool = (convertFileToMarkdown?: (file: { url: string;
       }
       
       return results.join("\n\n");
-    },
-  });
-
-/**
- * Tool: Recall our shared story
- */
-const getOurStoryTool = (getOurStory: () => string[]) =>
-  tool({
-    description: "Recall our shared history together. Use to reference past experiences naturally.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      const moments = getOurStory();
-      if (moments.length === 0) {
-        return "We haven't made any memories together yet.";
-      }
-      return moments.map((m, i) => `${i + 1}. ${m}`).join("\n");
     },
   });
 
@@ -340,21 +270,9 @@ export function buildTools(deps: Deps): Tools {
     tools.convert_file_to_markdown = convertFileToMarkdownTool(deps.convertFileToMarkdown);
   }
 
-  // Learnings & Shared History tools - always available
-  if (deps.saveLearning) {
-    tools.remember = rememberTool(deps.saveLearning);
-  }
-  if (deps.getLearnings) {
-    tools.recall = recallTool(deps.getLearnings);
-  }
-  if (deps.forgetLearning) {
-    tools.forget = forgetTool(deps.forgetLearning);
-  }
-  if (deps.addToOurStory) {
-    tools.addToOurStory = addToOurStoryTool(deps.addToOurStory);
-  }
-  if (deps.getOurStory) {
-    tools.getOurStory = getOurStoryTool(deps.getOurStory);
+  // Memory tool
+  if (deps.remember) {
+    tools.remember = rememberTool(deps.remember);
   }
 
   // Hand off task to a specific connected agent
@@ -421,6 +339,54 @@ export function buildTools(deps: Deps): Tools {
           return "No active mini-computer sandbox. The file cannot be accessed.";
         }
         return `Download URL: ${url}`;
+      },
+    });
+  }
+
+  // Toggle mini-computer (e2b desktop with smith)
+  if (deps.toggleMiniComputer && deps.isMiniComputerActive !== undefined) {
+    tools.toggleMiniComputer = tool({
+      description:
+        "Start or stop the mini-computer (e2b desktop sandbox with Smith agent). Use this when the user wants to start Smith for web research, document processing, or cloud-based tasks. Also use to stop/shutdown the mini-computer when done.",
+      inputSchema: z.object({
+        enabled: z
+          .boolean()
+          .describe("true to start the mini-computer, false to stop it"),
+      }),
+      execute: async ({ enabled }: { enabled: boolean }) => {
+        const wasActive = deps.isMiniComputerActive!();
+        
+        if (enabled && wasActive) {
+          return "Mini-computer is already active.";
+        }
+        
+        if (!enabled && !wasActive) {
+          return "Mini-computer is already stopped.";
+        }
+        
+        const result = await deps.toggleMiniComputer!(enabled);
+        
+        if (result.success) {
+          if (enabled) {
+            return `Mini-computer started successfully. VNC URL: ${result.vncUrl || "N/A"}`;
+          } else {
+            return "Mini-computer stopped successfully.";
+          }
+        } else {
+          return `Failed to ${enabled ? "start" : "stop"} mini-computer: ${result.error || "Unknown error"}`;
+        }
+      },
+    });
+  }
+
+  // Self-healing: compress memory and reset state
+  if (deps.compressMemory) {
+    tools.compressMemory = tool({
+      description:
+        "Compress conversation memory and reset internal state. Use when: conversation is getting long, you notice your responses degrading, tool calls are failing, or context feels stale. This clears cached prompts, trims memory, and gives you a fresh start.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        return deps.compressMemory!();
       },
     });
   }

@@ -7,6 +7,7 @@ import {
   Fira_Mono,
   Instrument_Serif,
   Caveat,
+  Noto_Sans,
 } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { createMetadata } from "@/lib/metadata";
@@ -55,6 +56,12 @@ const caveat = Caveat({
   display: "swap",
 });
 
+const notoSans = Noto_Sans({
+  subsets: ["latin"],
+  variable: "--font-noto-sans",
+  display: "swap",
+});
+
 export const metadata = createMetadata({
   title: {
     template: `%s | ${APP_NAME}`,
@@ -96,7 +103,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${fraunces.variable} ${firaMono.variable} ${instrumentSerif.variable} ${caveat.variable}`}
+      className={`${dmSans.variable} ${fraunces.variable} ${firaMono.variable} ${instrumentSerif.variable} ${caveat.variable} ${notoSans.variable} font-sans`}
       suppressHydrationWarning
     >
       <head>

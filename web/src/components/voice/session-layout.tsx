@@ -50,6 +50,8 @@ interface SessionLayoutProps {
   isMiniComputerConnecting?: boolean;
   miniComputerVncUrl?: string;
   onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
+  // Desktop app local agent
+  isLocalAgentRunning?: boolean;
 }
 
 export function SessionLayout({
@@ -79,6 +81,7 @@ export function SessionLayout({
   isMiniComputerConnecting,
   miniComputerVncUrl,
   onToggleMiniComputer,
+  isLocalAgentRunning,
 }: SessionLayoutProps) {
   const room = useRoomContext();
   const { state: agentState } = useVoiceAssistant();
@@ -375,6 +378,7 @@ export function SessionLayout({
                       isMiniComputerActive={isMiniComputerActive}
                       isMiniComputerConnecting={isMiniComputerConnecting}
                       onToggleMiniComputer={onToggleMiniComputer}
+                      isLocalAgentRunning={isLocalAgentRunning}
                     />
                   </div>
                 ) : (
@@ -447,6 +451,7 @@ export function SessionLayout({
             isMiniComputerActive={isMiniComputerActive}
             isMiniComputerConnecting={isMiniComputerConnecting}
             onToggleMiniComputer={onToggleMiniComputer}
+            isLocalAgentRunning={isLocalAgentRunning}
           />
         </div>
 
@@ -483,6 +488,7 @@ export function SessionLayout({
                   isMiniComputerActive={isMiniComputerActive}
                   isMiniComputerConnecting={isMiniComputerConnecting}
                   onToggleMiniComputer={onToggleMiniComputer}
+                  isLocalAgentRunning={isLocalAgentRunning}
                 />
               </div>
             }

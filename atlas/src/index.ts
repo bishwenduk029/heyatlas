@@ -33,7 +33,7 @@ app.use("/agents/*", async (c, next) => {
 async function getAgent(c: { env: Env; get: (key: string) => unknown }, userId: string) {
   const agent = await getAgentByName<Env, AtlasAgent>(c.env["atlas-agent"], userId);
   const auth = c.get("auth") as AuthData;
-  agent.setCredentials(auth);
+  agent.setCredentials(auth); 
   return agent;
 }
 

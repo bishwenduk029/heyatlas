@@ -24,7 +24,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { Sandbox } from "@e2b/desktop";
 import type { Env, AgentState, Task, SelectedAgent, SandboxMetadata, ChatMessage, FileAttachment } from "./types";
 import type { Tier } from "./prompts";
-import { getSystemPrompt, getTierConfig, SPEECH_GENERATION_PROMPT } from "./prompts";
+import { getSystemPrompt, getSystemPromptTemplate, getTierConfig, SPEECH_GENERATION_PROMPT, PROMPT_VERSION } from "./prompts";
 import { buildTools, generateImageTool } from "./lib/tools";
 import { createStreamResponse } from "./lib/completions";
 import { createFSTools, type CloudflareStorage } from "./lib/agentfs";
@@ -59,10 +59,12 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     interactiveMode: false,
     interactiveTaskId: null,
     systemPrompt: null,
+    promptVersion: 0,
     userSection: null,
     compressing: false,
-    learnings: [],
-    sharedHistory: [],
+    lastInputTokens: 0,
+    userDetails: [],
+    userPreferences: [],
   };
   private sandboxInstance: Sandbox | null = null;
   private sandboxCreating = false;
@@ -225,6 +227,10 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     return this.llm.chat(this.env.LLM_MODEL || "gpt-4o-mini");
   }
 
+  private get chatModel() {
+    return this.llm.chat(this.env.LLM_CHAT_MODEL || this.env.LLM_MODEL || "gpt-4o-mini");
+  }
+
   private get tools() {
     return buildTools({
       userId: this.userId,
@@ -242,15 +248,12 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       updateUserContext: (userSection: string) =>
         this.updateUserSection(userSection),
       convertFileToMarkdown: (file) => this.convertFileToMarkdown(file),
-      // Learnings & Shared History
-      saveLearning: (content: string) => this.saveLearning(content),
-      getLearnings: () => this.getLearnings(),
-      forgetLearning: (content: string) => this.forgetLearning(content),
-      addToOurStory: (moment: string) => this.addToOurStory(moment),
-      getOurStory: () => this.getOurStory(),
+      // Memory
+      remember: (type: "user_detail" | "user_preference", content: string) => this.remember(type, content),
       // Sandbox URL
       getSandboxPortUrl: (port: number) => this.getSandboxPortUrl(port),
       getSandboxFileDownloadUrl: (path: string) => this.getSandboxFileDownloadUrl(path),
+      compressMemory: () => this.triggerCompression(),
     });
   }
 
@@ -268,16 +271,33 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
    * Hand off task to a specific connected agent
    */
   async handOffToAgent(task: string, assignedAgent: string, existingTaskId?: string): Promise<string> {
-    // Check if agent is connected
     const agents = this.state.agents || [];
-    const agent = agents.find(a => a.id === assignedAgent);
-    
-    if (!agent) {
-      const available = agents.map(a => a.id).join(", ") || "none";
-      return `Agent '${assignedAgent}' is not connected. Available: ${available}`;
+    let agent = agents.find(a => a.id === assignedAgent);
+
+    // If smith is not connected, auto-start mini-computer (smith starts inside it)
+    if (!agent && assignedAgent === "smith") {
+      if (!this.state.miniComputer?.active) {
+        console.log("[Atlas] Smith not connected — starting mini-computer...");
+        const result = await this.toggleMiniComputer(true);
+        if (!result.success) {
+          return `Failed to start mini-computer for Smith: ${result.error || "Unknown error"}`;
+        }
+      }
+      // Create the task now — smith will pick it up once it connects
+      if (existingTaskId) {
+        this.updateTask(existingTaskId, task);
+        return `Updated task ${existingTaskId}. Mini-computer starting — Smith will pick it up shortly.`;
+      }
+      const newTask = this.createTaskForAgent(task, assignedAgent);
+      return `Created task ${newTask.id} for smith. Mini-computer starting — Smith will connect and pick it up shortly.`;
     }
 
-    // If smith, auto-start mini-computer
+    if (!agent) {
+      const available = agents.map(a => a.id).join(", ") || "none";
+      return `Agent '${assignedAgent}' is not connected. Available: ${available}. Run 'npx heyatlas connect ${assignedAgent}' to connect.`;
+    }
+
+    // If smith is connected but mini-computer not active, start it
     if (assignedAgent === "smith" && !this.state.miniComputer?.active) {
       console.log("[Atlas] Starting mini-computer for Smith...");
       const result = await this.toggleMiniComputer(true);
@@ -496,39 +516,36 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     this.setState({ ...this.state, userSection });
   }
 
-  // --- Learnings ---
+  // --- Memory ---
 
-  saveLearning(content: string): void {
-    const learnings = [...(this.state.learnings || [])];
-    if (!learnings.includes(content)) {
-      learnings.push(content);
-      this.setState({ ...this.state, learnings });
+  remember(type: "user_detail" | "user_preference", content: string): void {
+    if (type === "user_detail") {
+      const details = [...(this.state.userDetails || [])];
+      if (!details.some(d => d.toLowerCase() === content.toLowerCase())) {
+        details.push(content);
+        this.setState({ ...this.state, userDetails: details });
+      }
+    } else {
+      const prefs = [...(this.state.userPreferences || [])];
+      if (!prefs.some(p => p.toLowerCase() === content.toLowerCase())) {
+        prefs.push(content);
+        this.setState({ ...this.state, userPreferences: prefs });
+      }
     }
   }
 
-  getLearnings(): string[] {
-    return this.state.learnings || [];
-  }
+  /**
+   * Trigger compression manually (called by compressMemory tool).
+   * Runs the same cleanup as automatic compression but can be invoked at any time.
+   */
+  private async triggerCompression(): Promise<string> {
+    if (this.messages.length < 5) {
+      return "Not enough messages to compress.";
+    }
 
-  forgetLearning(content: string): boolean {
-    const learnings = this.state.learnings || [];
-    const idx = learnings.findIndex((l) => l.toLowerCase().includes(content.toLowerCase()));
-    if (idx === -1) return false;
-    this.setState({
-      ...this.state,
-      learnings: learnings.filter((_, i) => i !== idx),
-    });
-    return true;
-  }
-
-  addToOurStory(moment: string): void {
-    const history = [...(this.state.sharedHistory || [])];
-    history.push(moment);
-    this.setState({ ...this.state, sharedHistory: history });
-  }
-
-  getOurStory(): string[] {
-    return this.state.sharedHistory || [];
+    const allTools = await this.getAllTools();
+    await this.compressMessages(this.messages, allTools);
+    return `Memory compressed. ${this.messages.length} messages retained. State reset — fresh prompt will load on next turn.`;
   }
 
   @callable({ description: "Select or connect a coding agent (local or cloud)" })
@@ -682,7 +699,9 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
   async onChatMessage(
     onFinish: StreamTextOnFinishCallback<ToolSet>,
   ): Promise<Response> {
+    console.log(`[Atlas] onChatMessage started, messages count: ${this.messages.length}`);
     const systemPrompt = await this.getSystemPrompt();
+    console.log(`[Atlas] System prompt ready, length: ${systemPrompt.length}`);
     const allTools = await this.getAllTools();
 
     const generateImage = generateImageTool((prompt) => this.generateImage(prompt));
@@ -691,24 +710,44 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       ...allTools,
       generateImage,
     };
+    console.log(`[Atlas] Tools ready: ${Object.keys(tools).join(', ')}`);
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
-        const result = streamText({
-          model: this.model,
-          system: systemPrompt,
-          messages: await this.prepareModelMessages(tools),
-          tools,
-          onFinish: async (event) => {
-            await onFinish(event as unknown as Parameters<StreamTextOnFinishCallback<ToolSet>>[0]);
-          },
-          stopWhen: stepCountIs(10),
-        });
+        try {
+          console.log(`[Atlas] Preparing model messages...`);
+          const modelMessages = await this.prepareModelMessages(tools);
+          console.log(`[Atlas] Model messages ready, count: ${modelMessages.length}`);
 
-        writer.merge(result.toUIMessageStream());
+          console.log(`[Atlas] Starting streamText...`);
+          const result = streamText({
+            model: this.chatModel,
+            system: systemPrompt,
+            messages: modelMessages,
+            tools,
+            toolChoice: "auto",
+            onFinish: async (event) => {
+              console.log(`[Atlas] streamText onFinish, finishReason: ${event.finishReason}, usage: ${JSON.stringify(event.usage)}`);
+              const inputTokens = event.usage?.inputTokens ?? 0;
+              if (inputTokens > 0) {
+                this.setState({ ...this.state, lastInputTokens: inputTokens });
+                console.log(`[Atlas] Input tokens this turn: ${inputTokens}`);
+              }
+              await onFinish(event as unknown as Parameters<StreamTextOnFinishCallback<ToolSet>>[0]);
+            },
+            stopWhen: stepCountIs(10),
+          });
+
+          writer.merge(result.toUIMessageStream());
+          console.log(`[Atlas] Stream merged into writer`);
+        } catch (err) {
+          console.error(`[Atlas] Error in stream execute:`, err);
+          throw err;
+        }
       },
     });
 
+    console.log(`[Atlas] Returning stream response`);
     return createUIMessageStreamResponse({ stream });
   }
 
@@ -722,32 +761,6 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
       });
     }
   }
-
-  // Flatten a message's parts into a single text part (URLs embedded)
-  // Works with UIMessage from base class (parts may have url field from file uploads)
-  private flattenMessage<T extends { parts?: Array<{ type: string; text?: string; url?: string; [key: string]: unknown }> }>(msg: T): T {
-    const textParts: string[] = [];
-    const fileUrls: string[] = [];
-
-    for (const part of msg.parts || []) {
-      if (part.type === "text" && part.text) {
-        textParts.push(part.text);
-      } else if (part.type === "file" && part.url) {
-        fileUrls.push(part.url);
-      }
-    }
-
-    let combinedText = textParts.join("\n");
-    if (fileUrls.length > 0) {
-      combinedText = `${combinedText}\n\nAttached files: ${fileUrls.join(", ")}`;
-    }
-
-    return {
-      ...msg,
-      parts: [{ type: "text" as const, text: combinedText }],
-    };
-  }
-
 
 
   private async addMessage(
@@ -768,90 +781,192 @@ export class AtlasAgent extends AIChatAgent<Env, AgentState> {
     });
   }
 
+  /**
+   * Get current date string for system prompt
+   */
+  private getCurrentDate(): string {
+    return new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  }
+
+  /**
+   * Build system prompt with dynamic date and memory sections.
+   * Base prompt is regenerated when PROMPT_VERSION changes.
+   */
   private async getSystemPrompt() {
-    let systemPrompt = this.state.systemPrompt;
-
-    if (!systemPrompt) {
-      systemPrompt = getSystemPrompt(this.state.tier);
-      this.setState({ ...this.state, systemPrompt });
+    const stateVersion = this.state.promptVersion || 0;
+    let basePrompt = this.state.systemPrompt;
+    if (!basePrompt || stateVersion < PROMPT_VERSION) {
+      console.log(`[Atlas] Refreshing system prompt: v${stateVersion} → v${PROMPT_VERSION}`);
+      basePrompt = getSystemPromptTemplate(this.state.tier);
+      this.setState({ ...this.state, systemPrompt: basePrompt, promptVersion: PROMPT_VERSION });
     }
 
-    // Add learnings about this user
-    const learnings = this.state.learnings || [];
-    if (learnings.length > 0) {
-      const learningsBlock = learnings.map((l) => `• ${l}`).join("\n");
-      systemPrompt = `${systemPrompt}\n\n<learnings>
-Things I learned from the user:
-${learningsBlock}
+    const currentDate = this.getCurrentDate();
+    let systemPrompt = basePrompt.replace(
+      /<currentDate>.*?<\/currentDate>/,
+      `<currentDate>${currentDate}</currentDate>`
+    );
 
-Use these to personalize my responses. Follow any instructions they've given me.
-</learnings>`;
+    const details = (this.state.userDetails || []).slice(-15);
+    if (details.length > 0) {
+      systemPrompt += `\n\n<userDetails>\n${details.map(d => `• ${d}`).join("\n")}\n</userDetails>`;
     }
 
-    // Add shared history
-    const history = this.state.sharedHistory || [];
-    if (history.length > 0) {
-      const historyBlock = history.map((h, i) => `${i + 1}. ${h}`).join("\n");
-      systemPrompt = `${systemPrompt}\n\n<ourStory>
-Our shared history:
-${historyBlock}
-
-Reference these naturally when relevant. This is our evolving relationship.
-</ourStory>`;
+    const prefs = (this.state.userPreferences || []).slice(-10);
+    if (prefs.length > 0) {
+      systemPrompt += `\n\n<userPreferences>\n${prefs.map(p => `• ${p}`).join("\n")}\n</userPreferences>`;
     }
 
     if (this.state.userSection) {
-      systemPrompt = `${systemPrompt}\n\n<userContext>\n${this.state.userSection}\n</userContext>`;
+      let section = this.state.userSection;
+      section = section.replace(/<systemPrompt>[\s\S]*?<\/systemPrompt>/g, "");
+      section = section.replace(/<toolExecution>[\s\S]*?<\/toolExecution>/g, "");
+      section = section.substring(0, 2000);
+      if (section.trim()) {
+        systemPrompt += `\n\n<userContext>\n${section.trim()}\n</userContext>`;
+      }
     }
 
     return systemPrompt;
   }
 
-  private async prepareModelMessages(multiModalTools: ToolSet) {
-    const flattenedMessages = this.messages.map((msg) => this.flattenMessage(msg));
+  // Context window limit and compaction threshold
+  private static readonly CONTEXT_WINDOW_LIMIT = 200_000;
+  private static readonly COMPACTION_THRESHOLD = 0.80; // Trigger at 80% of context window
 
-    if (this.messages.length <= 50) {
-      return convertToModelMessages(flattenedMessages, {
+  private shouldCompact(): boolean {
+    const lastTokens = this.state.lastInputTokens || 0;
+    const threshold = AtlasAgent.CONTEXT_WINDOW_LIMIT * AtlasAgent.COMPACTION_THRESHOLD;
+    if (lastTokens >= threshold) {
+      console.log(`[Atlas] Token-based compaction triggered: ${lastTokens} tokens >= ${threshold} threshold (${Math.round(lastTokens / AtlasAgent.CONTEXT_WINDOW_LIMIT * 100)}% of ${AtlasAgent.CONTEXT_WINDOW_LIMIT})`);
+      return true;
+    }
+    return false;
+  }
+
+  private async prepareModelMessages(multiModalTools: ToolSet) {
+    if (!this.shouldCompact()) {
+      return convertToModelMessages(this.messages, {
         tools: multiModalTools,
       });
     }
 
-    return this.compressMessages(flattenedMessages, multiModalTools);
-    
+    return this.compressMessages(this.messages, multiModalTools);
   }
 
-  private async compressMessages(flattenedMessages: UIMessage[], multiModalTools: ToolSet) {
+  private async compressMessages(messages: UIMessage[], multiModalTools: ToolSet) {
     this.setState({ ...this.state, compressing: true });
 
     const keepCount = 15;
-    const summarizeCount = flattenedMessages.length - keepCount;
-    const messagesToSummarize = flattenedMessages.slice(0, summarizeCount);
-    const remainingMessages = flattenedMessages.slice(summarizeCount);
+    const summarizeCount = messages.length - keepCount;
+    const messagesToSummarize = messages.slice(0, summarizeCount);
+    const remainingMessages = messages.slice(summarizeCount);
 
-    const summaryPrompt = `You are Atlas an AI assistant. Summarize the following conversation from your perspective (first person), starting with "I had a conversation where...". Preserve all important context, decisions made, and relevant information that would help you continue the conversation naturally without loosing any context.
+    const conversationText = messagesToSummarize
+      .map((m) => `[${m.role.toUpperCase()}]: ${m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")}`)
+      .join("\n\n");
 
-Conversation to summarize:
-${messagesToSummarize.map((m) => `[${m.role.toUpperCase()}]: ${m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")}`).join("\n\n")}
+    const summaryPrompt = `You are Atlas, an AI companion. Do TWO things:
 
-Write your first-person summary:`;
-    const { text } = await generateText({
-      model: this.model,
-      messages: [{ role: "user", content: summaryPrompt }],
-      toolChoice: "none",
+1. Summarize the conversation from your perspective (first person), starting with "I had a conversation where...". Focus on topics discussed, decisions made, and outcomes. Do NOT describe tool calls, tool failures, or internal system behavior.
+
+2. Extract NEW user details and preferences not already known.
+   - user_details: Only real facts about the user (name, family, job, interests, location, projects)
+   - user_preferences: Only genuine communication/behavior preferences (e.g., "prefers concise answers", "likes Tailwind")
+   - EXCLUDE: anything about tool call formats, system prompt rules, or internal agent behavior
+
+<conversation>
+${conversationText}
+</conversation>
+
+<existing_user_details>
+${(this.state.userDetails || []).map(d => `• ${d}`).join("\n") || "None"}
+</existing_user_details>
+
+<existing_user_preferences>
+${(this.state.userPreferences || []).map(p => `• ${p}`).join("\n") || "None"}
+</existing_user_preferences>
+
+Return VALID JSON only:
+{
+  "summary": "I had a conversation where...",
+  "user_details": ["NEW facts about user: name, relationships, job, family, etc."],
+  "user_preferences": ["NEW genuine behavior/style preferences from user"]
+}
+
+Empty arrays if nothing new to extract.`;
+
+    let summaryText = "Memory compacted.";
+    let newDetails: string[] = [];
+    let newPrefs: string[] = [];
+
+    try {
+      const { text } = await generateText({
+        model: this.model,
+        messages: [{ role: "user", content: summaryPrompt }],
+        toolChoice: "none",
+      });
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        summaryText = parsed.summary || summaryText;
+        newDetails = Array.isArray(parsed.user_details) ? parsed.user_details : [];
+        newPrefs = Array.isArray(parsed.user_preferences) ? parsed.user_preferences : [];
+      } else {
+        summaryText = text;
+      }
+    } catch (e) {
+      console.error("[Atlas] Failed to compress messages:", e);
+    }
+
+    // --- State cleanup during compression ---
+    const currentDetails = this.state.userDetails || [];
+    const currentPrefs = this.state.userPreferences || [];
+
+    // Merge new, then cap to prevent unbounded growth
+    const mergedDetails = [
+      ...currentDetails,
+      ...newDetails.filter(d =>
+        !currentDetails.some(e => e.toLowerCase().includes(d.toLowerCase()))
+      ),
+    ].slice(-15);
+
+    // Filter out meta/tool-format preferences that hurt tool calling
+    const metaPatterns = /tool.?call|function|invoke|system prompt|format|markdown|xml|backtick/i;
+    const mergedPrefs = [
+      ...currentPrefs,
+      ...newPrefs.filter(p =>
+        !currentPrefs.some(e => e.toLowerCase().includes(p.toLowerCase()))
+      ),
+    ].filter(p => !metaPatterns.test(p)).slice(-10);
+
+    this.setState({
+      ...this.state,
+      userDetails: mergedDetails,
+      userPreferences: mergedPrefs,
+      lastInputTokens: 0,
+      userSection: null,
+      systemPrompt: null,
+      promptVersion: 0,
     });
 
     const summaryMessage = {
       id: crypto.randomUUID(),
       role: "assistant" as const,
-      parts: [{ type: "text" as const, text }],
+      parts: [{ type: "text" as const, text: summaryText }],
     };
 
-    // Clear all messages from DB first (persistMessages only upserts, doesn't delete)
     this.sql`delete from cf_ai_chat_agent_messages`;
-
-    // Persist flattened messages (text-only) after summarization
     await this.persistMessages([summaryMessage, ...this.messages.slice(summarizeCount)]);
 
+    console.log(`[Atlas] Compression complete: ${mergedDetails.length} details, ${mergedPrefs.length} prefs, state reset`);
     this.setState({ ...this.state, compressing: false });
 
     return convertToModelMessages([summaryMessage, ...remainingMessages], {
@@ -943,7 +1058,7 @@ Write your first-person summary:`;
     } else if (typeof response === "object" && "image" in response) {
       return (response as { image: string }).image;
     }
-    
+
     throw new Error("Unexpected response format from AI model");
   }
 
@@ -998,7 +1113,7 @@ Write your first-person summary:`;
 
     // Streaming: use the existing createStreamResponse with AI SDK streaming
     const { textStream } = streamText({
-      model: this.model,
+      model: this.chatModel,
       system: (await this.getSystemPrompt()) + SPEECH_GENERATION_PROMPT,
       messages: await this.prepareModelMessages({
         "generateImage": generateImageTool((prompt) => this.generateImage(prompt))
@@ -1049,13 +1164,13 @@ Write your first-person summary:`;
         });
 
         if (res.ok) {
-          const user = await res.json() as { 
-            id: string; 
-            email?: string; 
+          const user = await res.json() as {
+            id: string;
+            email?: string;
             tier?: string;
             virtualKey?: { apiKey: string; apiUrl: string };
           };
-          
+
           const userTier = (
             ["genin", "chunin", "jonin"].includes(user.tier || "")
               ? user.tier
@@ -1111,14 +1226,15 @@ Write your first-person summary:`;
       }
     }
 
-    const activeAgentId = h.get("X-Agent-Id");
-    const agentType = (h.get("X-Agent-Type") || "local") as "local" | "sandbox";
-    const interactiveMode = h.get("X-Interactive-Mode") === "true";
-    
+    // Agent info comes as query params from AgentClient (headers not supported)
+    const activeAgentId = url.searchParams.get("X-Agent-Id") || h.get("X-Agent-Id");
+    const agentType = (url.searchParams.get("X-Agent-Type") || h.get("X-Agent-Type") || "local") as "local" | "sandbox";
+    const interactiveMode = (url.searchParams.get("X-Interactive-Mode") || h.get("X-Interactive-Mode")) === "true";
+
     if (activeAgentId) {
       // Store agentId on connection for onClose cleanup
       (conn as unknown as { agentId?: string }).agentId = activeAgentId;
-      
+
       // Add agent to agents array (or update if exists)
       const existingAgents = this.state.agents || [];
       const otherAgents = existingAgents.filter(a => a.id !== activeAgentId);
@@ -1127,7 +1243,7 @@ Write your first-person summary:`;
         type: agentType,
         connectedAt: Date.now(),
       };
-      
+
       this.setState({
         ...this.state,
         agents: [...otherAgents, newAgent],
@@ -1137,7 +1253,7 @@ Write your first-person summary:`;
           ? this.state.interactiveTaskId
           : null,
       });
-      
+
       console.log(`[Atlas] Agent connected: ${activeAgentId} (${agentType})`);
     } else if (this.state.interactiveMode) {
       this.setState({
@@ -1157,22 +1273,22 @@ Write your first-person summary:`;
   onClose(conn: Connection, code: number, reason: string, wasClean: boolean) {
     // Get agentId from connection state (set during onConnect)
     const agentId = (conn as unknown as { agentId?: string }).agentId;
-    
+
     if (agentId) {
       const existingAgents = this.state.agents || [];
       const remainingAgents = existingAgents.filter(a => a.id !== agentId);
-      
+
       // Update activeAgent for backward compat
-      const newActiveAgent = remainingAgents.length > 0 
-        ? remainingAgents[remainingAgents.length - 1].id 
+      const newActiveAgent = remainingAgents.length > 0
+        ? remainingAgents[remainingAgents.length - 1].id
         : null;
-      
+
       this.setState({
         ...this.state,
         agents: remainingAgents,
         activeAgent: newActiveAgent,
       });
-      
+
       console.log(`[Atlas] Agent disconnected: ${agentId}`);
     }
   }
@@ -1325,13 +1441,13 @@ Write your first-person summary:`;
     if (enabled) {
       try {
         await this.createSandbox();
-        
+
         // Get VNC URL directly from sandbox instance (state update may be async)
         const vncUrl = this.sandboxInstance?.stream?.getUrl() || this.state.sandbox?.vncUrl;
         const sandboxId = this.sandboxInstance?.sandboxId || this.state.sandbox?.sandboxId;
-        
+
         console.log("[Atlas] toggleMiniComputer - vncUrl:", vncUrl, "sandboxId:", sandboxId);
-        
+
         this.setState({
           ...this.state,
           miniComputer: {

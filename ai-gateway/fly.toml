@@ -1,5 +1,5 @@
 app = "nirmanus-bifrost-gateway"
-primary_region = "iad"
+primary_region = "lax"
 
 [build]
 image = "maximhq/bifrost:v1.4.2"

@@ -87,6 +87,14 @@ template = (
             "chmod +x /usr/local/bin/bun",
         ]
     )
+    # Install opencode
+    .run_cmd(
+        [
+            "curl -fsSL https://opencode.ai/install | bash",
+            "cp /root/.opencode/bin/opencode /usr/local/bin/opencode",
+            "chmod +x /usr/local/bin/opencode",
+        ]
+    )
     # Setup NoVNC and websockify
     .git_clone(
         "https://github.com/e2b-dev/noVNC.git", "/opt/noVNC", branch="e2b-desktop"

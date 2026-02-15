@@ -23,6 +23,7 @@ import { ChatInput } from "@/components/voice/chat-input";
 import { useSession } from "@/lib/auth/client";
 import { VoiceIcon } from "@/components/ui/voice-icon";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 const suggestions = [
   {
@@ -83,6 +84,13 @@ export function Hero() {
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentLabelIndex, setCurrentLabelIndex] = useState(0);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Short delay before suggestions animate in
+  useEffect(() => {
+    const t = setTimeout(() => setShowSuggestions(true), 400);
+    return () => clearTimeout(t);
+  }, []);
 
   // Rotate suggestion labels every 5 seconds
   useEffect(() => {
@@ -131,62 +139,54 @@ export function Hero() {
         {/* Floating Suggestions - Hidden on small mobile to save space */}
         <div className="pointer-events-none absolute inset-0 z-0 hidden lg:block">
           {suggestions.map((item, i) => {
-            // Arrange in an ellipse
-            // Total circle is 360, but we want to avoid 90deg (bottom center) where it might hit chat input
-            // 8 items = 45 degrees apart.
-            // If we start at -90 (top), indices are:
-            // 0: -90 (Top)
-            // 1: -45 (Top Right)
-            // 2: 0 (Right)
-            // 3: 45 (Bottom Rightish)
-            // 4: 90 (Bottom) -> DANGER
-            // 5: 135 (Bottom Leftish)
-            // 6: 180 (Left)
-            // 7: 225 (Top Left)
-
-            // To avoid the items at 90 (bottom) and -90 (top) from being boring or overlapping:
-            // Let's rotate by half a step (22.5 deg) so no item is exactly at 90.
             const angleDeg = i * (360 / suggestions.length) - 90 + 22.5;
             const angle = angleDeg * (Math.PI / 180);
-
-            // Ellipse dimensions
-            const radiusX = 550; // Wide spread
-            const radiusY = 400; // Shorter height
-
+            const radiusX = 550;
+            const radiusY = 400;
             const x = Math.cos(angle) * radiusX;
             const y = Math.sin(angle) * radiusY;
 
             return (
-              <div
+              <motion.div
                 key={item.labels[0]}
                 className="absolute"
-                style={{
-                  left: "50%",
-                  top: "50%",
-                  transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                style={{ left: "50%", top: "50%" }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={
+                  showSuggestions
+                    ? { x, y, scale: 1, opacity: 1 }
+                    : { scale: 0, opacity: 0 }
+                }
+                transition={{
+                  type: "spring",
+                  stiffness: 70,
+                  damping: 12,
+                  delay: showSuggestions ? i * 0.06 : 0,
                 }}
               >
-                <div
-                  className={cn(
-                    "flex items-center gap-3 rounded-full border border-white/20 bg-white/60 p-3 px-5 shadow-sm backdrop-blur-sm dark:bg-black/40",
-                    item.color,
-                  )}
-                  style={{
-                    animation: `float-slow ${4 + i}s ease-in-out infinite`,
-                    animationDelay: `${i * 0.5}s`,
-                  }}
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/50 backdrop-blur-sm dark:bg-black/20">
-                    <item.icon className="h-4 w-4" />
-                  </div>
-                  <span
-                    key={currentLabelIndex}
-                    className="animate-in fade-in slide-in-from-bottom-2 text-foreground/80 dark:text-foreground font-[family-name:var(--font-caveat)] text-xl font-medium duration-500 will-change-transform"
+                <div style={{ transform: "translate(-50%, -50%)" }}>
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 rounded-full border border-white/20 bg-white/60 p-3 px-5 shadow-sm backdrop-blur-sm dark:bg-black/40",
+                      item.color,
+                    )}
+                    style={{
+                      animation: `float-slow ${4 + i}s ease-in-out infinite`,
+                      animationDelay: `${i * 0.5}s`,
+                    }}
                   >
-                    {item.labels[currentLabelIndex]}
-                  </span>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/50 backdrop-blur-sm dark:bg-black/20">
+                      <item.icon className="h-4 w-4" />
+                    </div>
+                    <span
+                      key={currentLabelIndex}
+                      className="animate-in fade-in slide-in-from-bottom-2 text-foreground/80 dark:text-foreground font-[family-name:var(--font-caveat)] text-xl font-medium duration-500 will-change-transform"
+                    >
+                      {item.labels[currentLabelIndex]}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

@@ -11,12 +11,8 @@ export type ACPAgentType =
   | "stakpak"
   | "openhands"
   | "copilot"
-  | "cagent";
+  | "cagent"
+  | "smith";
 
 // All supported agents
-export type AgentType = ACPAgentType | "smith";
-
-// Check if agent is smith
-export function isSmith(agent: string): agent is "smith" {
-  return agent === "smith";
-}
+export type AgentType = ACPAgentType;

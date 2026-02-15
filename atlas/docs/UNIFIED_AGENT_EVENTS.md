@@ -7,6 +7,7 @@ This document describes the architecture for rendering events from any ACP-compa
 ## Current State Analysis
 
 ### Data Flow
+
 ```
 ACPProviderAgent (streamText) → AtlasTunnel (broadcast_task_event) → AtlasAgent (WebSocket) → Frontend (useAtlasAgent)
 ```
@@ -44,7 +45,12 @@ type NormalizedEntryType =
   | { type: "user_message" }
   | { type: "assistant_message" }
   | { type: "thinking" }
-  | { type: "tool_use"; toolName: string; actionType: ActionType; status: ToolStatus }
+  | {
+      type: "tool_use";
+      toolName: string;
+      actionType: ActionType;
+      status: ToolStatus;
+    }
   | { type: "error_message"; errorType: string };
 
 type ActionType =
@@ -73,12 +79,14 @@ type ToolStatus =
 ### Agent-Specific Normalization
 
 #### OpenCode
+
 ```typescript
 // Input: { output: "", metadata: { diff, filediff } }
 // Output: ActionType = { action: "file_edit", path, changes: [{ action: "edit", unifiedDiff }] }
 ```
 
 #### Goose
+
 ```typescript
 // Input: [{ content: { text: "..." } }]
 // Output: ActionType = { action: "tool", toolName, output: text }
@@ -86,6 +94,7 @@ type ToolStatus =
 ```
 
 #### Claude Code
+
 ```typescript
 // Input: stream-json with tool calls
 // Output: Extract diff from permission metadata, similar to OpenCode
@@ -96,19 +105,21 @@ type ToolStatus =
 ### Phase 1: Event Normalization Layer (CLI)
 
 **Files to create:**
+
 - `cli/agents/normalize.ts` - Core normalization utilities
 - `cli/agents/normalizers/opencode.ts` - OpenCode-specific
 - `cli/agents/normalizers/goose.ts` - Goose-specific
 - `cli/agents/normalizers/claude-code.ts` - Claude Code-specific
 
 **Key functions:**
+
 ```typescript
 // cli/agents/normalize.ts
 export function normalizeToolOutput(
   agentType: ACPAgentType,
   toolName: string,
   input: unknown,
-  output: unknown
+  output: unknown,
 ): ActionType;
 
 export function extractUnifiedDiff(output: unknown): string | null;
@@ -119,9 +130,11 @@ export function parseUnifiedDiff(diff: string): ParsedHunk[];
 ### Phase 2: Diff Utilities (Shared)
 
 **Files to create:**
+
 - `cli/lib/diff.ts` or `shared/diff.ts` - Diff parsing utilities
 
 **Functions:**
+
 ```typescript
 export function extractUnifiedDiffHunks(diff: string): string[];
 export function normalizeUnifiedDiff(path: string, diff: string): string;
@@ -131,11 +144,13 @@ export function isUnifiedDiff(text: string): boolean;
 ### Phase 3: Frontend Rendering Components
 
 **Files to modify/create:**
+
 - `web/src/components/ai-elements/diff-renderer.tsx` - New component
 - `web/src/components/ai-elements/tool.tsx` - Enhance ToolOutput
 - `web/src/components/voice/task-artifact.tsx` - Route to DiffRenderer
 
 **DiffRenderer component:**
+
 ```tsx
 interface DiffRendererProps {
   path: string;
@@ -150,6 +165,7 @@ interface DiffRendererProps {
 ### Phase 4: Enhanced Task Artifact
 
 Modify `task-artifact.tsx` to:
+
 1. Detect ActionType from normalized events
 2. Route `file_edit` actions to DiffRenderer
 3. Show file path header with +/- line counts
@@ -169,7 +185,7 @@ await tunnel.broadcastTaskEvent(taskId, {
     toolCallId,
     toolName,
     output: normalizedOutput, // Now includes ActionType
-  }
+  },
 });
 ```
 
@@ -182,6 +198,7 @@ await tunnel.broadcastTaskEvent(taskId, {
 ## Package Dependencies
 
 **Frontend (web/):**
+
 ```json
 {
   "@git-diff-view/react": "^0.15.0",

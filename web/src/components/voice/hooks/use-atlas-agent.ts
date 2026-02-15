@@ -286,8 +286,16 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
     textOrMessage: string | { role: string; parts: Array<{ type: string; [key: string]: unknown }> },
     files?: FileUIPart[]
   ): Promise<void> {
+    // Check WebSocket connection first
+    if (!agentConnection) {
+      console.error("[useAtlasAgent] Cannot send message: No agent connection");
+      toast.error("Not connected to Atlas. Please wait for connection...");
+      throw new Error("No agent connection");
+    }
+    
     // Handle legacy format: sendMessage({ role, "user", parts: [...] })
     if (typeof textOrMessage === "object" && textOrMessage !== null) {
+      console.log("[useAtlasAgent] Sending message (legacy format):", textOrMessage);
       await chat.sendMessage(textOrMessage as Parameters<typeof chat.sendMessage>[0]);
       return;
     }
@@ -312,12 +320,21 @@ export function useAtlasAgent({ userId, token, agentUrl }: UseAtlasAgentOptions)
       }
     }
 
-    // Send text + file parts to server for preprocessing
-    await chat.sendMessage({
-      role: "user",
-      parts,
-    });
-  }, [chat]);
+    console.log("[useAtlasAgent] Sending message to Atlas:", { text: text.trim(), partsCount: parts.length });
+    
+    try {
+      // Send text + file parts to server for preprocessing
+      await chat.sendMessage({
+        role: "user",
+        parts,
+      });
+      console.log("[useAtlasAgent] Message sent successfully");
+    } catch (error) {
+      console.error("[useAtlasAgent] Failed to send message:", error);
+      toast.error("Failed to send message. Please try again.");
+      throw error;
+    }
+  }, [chat, agentConnection]);
 
   const getTask = useCallback((taskId: string): AtlasTask | undefined => {
     return tasks.find(t => t.id === taskId || t.id.startsWith(taskId));

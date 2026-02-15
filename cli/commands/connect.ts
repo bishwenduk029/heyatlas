@@ -1,14 +1,13 @@
 /**
  * Connect command - Connect local agent to Atlas
  *
- * Unified handler for all agent types (ACP and VoltAgent).
+ * Unified handler for all ACP agent types.
  */
 
 import { login } from "../auth";
 import { AtlasTunnel, type Task } from "../tunnel";
-import { ACPProviderAgent, isACPAgent, getACPCommand, type ACPAgentType } from "../agents/acp-provider";
-import { type AgentType, isSmith } from "../agents/config";
-import { Smith } from "../agents/smith";
+import { ACPProviderAgent, isACPAgent, getACPCommand } from "../agents/acp-provider";
+import { type AgentType } from "../agents/config";
 
 interface ConnectOptions {
   openBrowser?: boolean;
@@ -55,13 +54,9 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
 
   // Check availability
   if (!(await agent.isAvailable())) {
-    if (isACPAgent(agentType)) {
-      const cmd = getACPCommand(agentType);
-      console.error(`Error: Agent '${agentType}' is not installed or not in PATH`);
-      console.error(`Command: ${cmd.join(" ")}`);
-    } else {
-      console.error(`Error: Agent '${agentType}' is not available`);
-    }
+    const cmd = getACPCommand(agentType);
+    console.error(`Error: Agent '${agentType}' is not installed or not in PATH`);
+    console.error(`Command: ${cmd.join(" ")}`);
     process.exit(1);
   }
 
@@ -114,34 +109,8 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
 
 /** Create agent wrapper based on type */
 function createAgent(agentType: AgentType): Agent | null {
-  if (isSmith(agentType)) {
-    return createSmithAgent();
-  }
-  if (isACPAgent(agentType)) {
-    return createACPAgent(agentType);
-  }
-  return null;
-}
+  if (!isACPAgent(agentType)) return null;
 
-/** Smith agent wrapper */
-function createSmithAgent(): Agent {
-  const smith = new Smith({ cwd: process.cwd() });
-  
-  return {
-    name: "smith",
-    isAvailable: () => smith.isAvailable(),
-    async init() {
-      console.log("Starting smith server...");
-      await smith.start();
-      console.log(`Smith server running on port ${smith.port}`);
-    },
-    stream: (prompt: string, taskId?: string) => smith.streamChat(prompt, undefined, taskId),
-    cleanup: () => smith.stop(),
-  };
-}
-
-/** ACP agent wrapper */
-function createACPAgent(agentType: ACPAgentType): Agent {
   const acp = new ACPProviderAgent(agentType, { cwd: process.cwd() });
   
   return {

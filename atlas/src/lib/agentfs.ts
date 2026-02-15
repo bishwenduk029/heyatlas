@@ -179,6 +179,7 @@ export async function createFSTools(storage: CloudflareStorage) {
     await bashFs.mkdir("/notes", { recursive: true });
     await bashFs.mkdir("/facts", { recursive: true });
     await bashFs.mkdir("/research", { recursive: true });
+    await bashFs.mkdir("/memory", { recursive: true });
   } catch {
     // Directories may already exist
   }

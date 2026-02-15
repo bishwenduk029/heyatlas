@@ -41,6 +41,8 @@ interface ChatInterfaceProps {
   isMiniComputerActive?: boolean;
   isMiniComputerConnecting?: boolean;
   onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
+  // Desktop app local agent
+  isLocalAgentRunning?: boolean;
 }
 
 export function ChatInterface({
@@ -71,6 +73,7 @@ export function ChatInterface({
   isMiniComputerActive,
   isMiniComputerConnecting,
   onToggleMiniComputer,
+  isLocalAgentRunning,
 }: ChatInterfaceProps) {
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -124,6 +127,7 @@ export function ChatInterface({
             isMiniComputerActive={isMiniComputerActive}
             isMiniComputerConnecting={isMiniComputerConnecting}
             onToggleMiniComputer={onToggleMiniComputer}
+            isLocalAgentRunning={isLocalAgentRunning}
           />
         </div>
       </div>

@@ -56,6 +56,8 @@ interface ChatInputProps {
   isMiniComputerActive?: boolean;
   isMiniComputerConnecting?: boolean;
   onToggleMiniComputer?: (enabled: boolean) => Promise<void>;
+  // Desktop app local agent
+  isLocalAgentRunning?: boolean;
 }
 
 export function ChatInput({
@@ -82,6 +84,7 @@ export function ChatInput({
   isMiniComputerActive = false,
   isMiniComputerConnecting = false,
   onToggleMiniComputer,
+  isLocalAgentRunning = false,
 }: ChatInputProps) {
   const isMobile = useIsMobile();
   const [input, setInput] = useState("");
@@ -135,6 +138,44 @@ export function ChatInput({
     }
   };
 
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+
+    if (imageFiles.length === 0) return;
+    e.preventDefault();
+
+    setIsUploading(true);
+    const newAttachments: (FileUIPart & { id: string })[] = [];
+
+    for (const file of imageFiles) {
+      const name = file.name === "image.png"
+        ? `screenshot-${Date.now()}.png`
+        : file.name;
+      const namedFile = new File([file], name, { type: file.type });
+      const uploadResult = await uploadFileToR2(namedFile);
+
+      newAttachments.push({
+        id: crypto.randomUUID(),
+        type: "file" as const,
+        url: uploadResult?.url ?? URL.createObjectURL(file),
+        mediaType: file.type,
+        filename: name,
+      });
+    }
+
+    setAttachments((prev) => [...prev, ...newAttachments]);
+    setIsUploading(false);
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -179,18 +220,39 @@ export function ChatInput({
     });
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() && attachments.length === 0) return;
-    if (submitInProgress.current) return;
+    if (submitInProgress.current) {
+      console.log("[ChatInput] Submit already in progress, ignoring");
+      return;
+    }
+    
+    const messageToSend = input.trim();
+    const attachmentsToSend = [...attachments];
+    
+    console.log("[ChatInput] Submitting message:", messageToSend.substring(0, 50) + "...");
+    
     submitInProgress.current = true;
-    // Send attachments with their data URLs - Atlas will convert them to markdown
-    onSend(input.trim(), attachments);
-    setInput("");
-    setAttachments([]);
-    setTimeout(() => {
-      submitInProgress.current = false;
-    }, 100);
+    
+    try {
+      // Clear input immediately for better UX
+      setInput("");
+      setAttachments([]);
+      
+      // Send attachments with their data URLs - Atlas will convert them to markdown
+      await onSend(messageToSend, attachmentsToSend);
+      console.log("[ChatInput] Message sent successfully");
+    } catch (error) {
+      console.error("[ChatInput] Failed to send message:", error);
+      // Restore input on error so user can retry
+      setInput(messageToSend);
+      setAttachments(attachmentsToSend);
+    } finally {
+      setTimeout(() => {
+        submitInProgress.current = false;
+      }, 100);
+    }
   };
 
   // Map agent state to visualizer state
@@ -270,25 +332,54 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Status Banner - Only show when compressing memory */}
-      <div
-        className={cn(
-          "absolute right-0 bottom-full left-0 z-10 mx-auto w-[95%] overflow-hidden transition-all duration-300 ease-in-out",
-          compressing
-            ? "max-h-16 translate-y-0 opacity-100"
-            : "max-h-0 translate-y-2 opacity-0",
-        )}
-      >
-        <div className="flex h-8 items-center justify-between rounded-t-sm border-2 border-b-0 border-amber-500/30 bg-amber-500/20 px-3">
-          <div className="flex items-center gap-2">
-            <span className="text-foreground text-[10px] font-medium tracking-widest">
-              Compressing Memory...
+      {/* Status Banners */}
+      <div className="absolute right-0 bottom-full left-0 z-10 mx-auto flex w-[95%] flex-col-reverse">
+        {/* Local Agent Banner - Only show when local agent is running */}
+        <div
+          className={cn(
+            "overflow-hidden transition-all duration-300 ease-in-out",
+            isLocalAgentRunning && !compressing
+              ? "max-h-16 translate-y-0 opacity-100"
+              : "max-h-0 translate-y-2 opacity-0",
+          )}
+        >
+          <div className="flex h-8 items-center justify-between rounded-t-sm border-2 border-b-0 border-emerald-500/30 bg-emerald-500/20 px-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              </span>
+              <span className="text-foreground text-[10px] font-medium tracking-widest">
+                Local Agent Connected
+              </span>
+            </div>
+
+            <span className="text-foreground text-[10px] tracking-widest opacity-70">
+              Desktop Mode
             </span>
           </div>
+        </div>
 
-          <Shimmer className="text-foreground text-[10px] tracking-widest">
-            In Progress
-          </Shimmer>
+        {/* Compressing Banner - Only show when compressing memory */}
+        <div
+          className={cn(
+            "overflow-hidden transition-all duration-300 ease-in-out",
+            compressing
+              ? "max-h-16 translate-y-0 opacity-100"
+              : "max-h-0 translate-y-2 opacity-0",
+          )}
+        >
+          <div className="flex h-8 items-center justify-between rounded-t-sm border-2 border-b-0 border-amber-500/30 bg-amber-500/20 px-3">
+            <div className="flex items-center gap-2">
+              <span className="text-foreground text-[10px] font-medium tracking-widest">
+                Compressing Memory...
+              </span>
+            </div>
+
+            <Shimmer className="text-foreground text-[10px] tracking-widest">
+              In Progress
+            </Shimmer>
+          </div>
         </div>
       </div>
 
@@ -344,6 +435,7 @@ export function ChatInput({
           className="placeholder:text-muted-foreground/50 w-full resize-none bg-transparent px-6 py-4 text-base outline-none"
           placeholder="Send a message..."
           disabled={disabled || isLoading}
+          onPaste={handlePaste}
           onKeyDown={(e) => {
             // Prevent Enter from creating new lines - submit is handled by form onSubmit
             if (e.key === "Enter" && !e.shiftKey) {

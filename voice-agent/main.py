@@ -64,7 +64,7 @@ class VoiceAssistant(Agent):
 
         # Agent session with Atlas as LLM backend
         self.agent_session = AgentSession(
-            stt=soniox.STT(params=soniox.STTOptions(model="stt-rt-v3")),
+            stt=soniox.STT(params=soniox.STTOptions(model="stt-rt-v4")),
             llm=openai.LLM(
                 model="atlas",
                 base_url=f"{atlas_url}/agents/atlas-agent/{user_id}/v1",

@@ -6,8 +6,8 @@ import { parseArgs } from "util";
 import { connect } from "./commands/connect";
 import type { AgentType } from "./agents";
 
-// ACP-compatible agents
-const ACP_AGENTS = [
+// All supported agents (ACP-compatible)
+const SUPPORTED_AGENTS = [
   "opencode",
   "claude-code",
   "goose",
@@ -20,13 +20,8 @@ const ACP_AGENTS = [
   "openhands",
   "cagent",
   "copilot",
+  "smith",
 ];
-
-// Smith (AI SDK compatible multi-agent)
-const SMITH_AGENTS = ["smith"];
-
-// All supported agents
-const SUPPORTED_AGENTS = [...ACP_AGENTS, ...SMITH_AGENTS];
 
 const { positionals, values } = parseArgs({
   args: process.argv.slice(2),
@@ -46,8 +41,7 @@ Usage:
   heyatlas connect <agent>    Connect agent to Atlas
 
 Supported Agents:
-  ACP Agents:    ${ACP_AGENTS.join(", ")}
-  Smith:         ${SMITH_AGENTS.join(", ")}
+  ${SUPPORTED_AGENTS.join(", ")}
 
 Options:
   -h, --help        Show this help message
@@ -56,7 +50,7 @@ Options:
 
 Examples:
   heyatlas connect opencode    Connect OpenCode via ACP
-  heyatlas connect smith       Connect Smith
+  heyatlas connect smith       Connect Smith via OpenCode
 `);
 }
 

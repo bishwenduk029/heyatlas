@@ -10,6 +10,7 @@ export interface Env {
   HEYATLAS_PROVIDER_API_URL: string;
   HEYATLAS_PROVIDER_API_KEY?: string;
   LLM_MODEL: string;
+LLM_CHAT_MODEL?: string;
   AI_GATEWAY_API_KEY: string;
   PARALLELS_WEB_SEARCH_API?: string;
   PARALLELS_WEB_SEARCH_API_KEY?: string;
@@ -67,12 +68,16 @@ export interface AgentState {
   interactiveMode: boolean;
   interactiveTaskId: string | null;
   systemPrompt: string | null;
+  /** Version of cached systemPrompt - bumped to force refresh */
+  promptVersion: number;
   userSection: string | null;
   compressing: boolean;
-  /** User learnings - things to remember about the user (name, preferences, instructions) */
-  learnings: string[];
-  /** Evolving backstory - shared experiences and moments that shape our relationship */
-  sharedHistory: string[];
+  /** Cumulative input tokens from the last API response (tracks context size) */
+  lastInputTokens: number;
+  /** Stable facts about the user: name, relationships, job, family, etc. */
+  userDetails: string[];
+  /** User preferences and instructions: style, behavior directives */
+  userPreferences: string[];
 }
 
 export interface MiniComputerMetadata {

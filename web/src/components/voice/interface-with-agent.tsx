@@ -6,6 +6,7 @@ import { RoomAudioRenderer, RoomContext } from "@livekit/components-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import useConnectionDetails from "@/hooks/useConnectionDetails";
+import { useTauriAgent } from "@/hooks/useTauriAgent";
 import { Header } from "../homepage/header";
 import { MCPUIHandler } from "./mcp-ui-handler";
 import { useAtlasAgent } from "./hooks/use-atlas-agent";
@@ -38,6 +39,16 @@ export function InterfaceWithAgent({
     userId,
     token,
   });
+
+  // Desktop app: auto-start local agent when running inside Tauri
+  // Only start after user is logged in (has userId and token) and Atlas agent is connected
+  const { isTauri, isAgentRunning, startAgent } = useTauriAgent();
+  useEffect(() => {
+    if (isTauri && !isAgentRunning && userId && token && atlasAgent.isConnected) {
+      console.log("[Interface] User logged in, starting Tauri agent...");
+      startAgent();
+    }
+  }, [isTauri, isAgentRunning, userId, token, atlasAgent.isConnected, startAgent]);
 
   // VNC URL comes from agent state (E2B sandbox creation)
   const vncUrl = atlasAgent.vncUrl;
@@ -187,6 +198,7 @@ export function InterfaceWithAgent({
             isMiniComputerConnecting={atlasAgent.isMiniComputerConnecting}
             miniComputerVncUrl={atlasAgent.miniComputerVncUrl}
             onToggleMiniComputer={atlasAgent.toggleMiniComputer}
+            isLocalAgentRunning={isAgentRunning}
           />
         </div>
       </main>

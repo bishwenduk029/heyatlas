@@ -1,0 +1,112 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "theme": "maple",
+  "provider": {
+    "heyatlas": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "HeyAtlas Provider",
+      "options": {
+        "baseURL": "${HEYATLAS_PROVIDER_API_URL}",
+        "apiKey": "${HEYATLAS_PROVIDER_API_KEY}",
+      },
+      "models": {
+        "huggingface/MiniMaxAI/MiniMax-M2.5:novita": {
+          "name": "MiniMax-M2.5",
+        },
+        "huggingface/moonshotai/Kimi-K2.5:novita": {
+          "name": "Kimi-K2.5",
+        },
+      },
+    },
+  },
+  "mcp": {
+    "smith-browser-use": {
+      "type": "remote",
+      "url": "http://127.0.0.1:12306/mcp",
+      "enabled": true,
+    },
+    "smith-code-search-toolkit": {
+      "type": "local",
+      "command": ["uvx", "--from", "cased-kit", "kit-dev-mcp"],
+      "enabled": true,
+    },
+    "smith-chrome-devtools-use": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
+    },
+    "smith-websearch": {
+      "type": "remote",
+      "url": "https://nirmanus-bifrost-gateway.fly.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer e7381674-6495-4112-ab87-7b943eff2390",
+      },
+    },
+    "smith-arxiv": {
+      "type": "local",
+      "command": [
+        "uv",
+        "run",
+        "--python",
+        "3.12",
+        "--with",
+        "camel-ai",
+        "--with",
+        "arxiv",
+        "python",
+        "-c",
+        "from camel.toolkits import ArxivToolkit; ArxivToolkit().run_mcp_server(mode=\"stdio\")",
+      ],
+    },
+    "smith-pptx": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "uv",
+        "run",
+        "--python",
+        "3.12",
+        "--with",
+        "camel-ai",
+        "--with",
+        "python-pptx",
+        "python",
+        "-c",
+        "from camel.toolkits import PPTXToolkit; PPTXToolkit(working_directory=\"${WORKING_DIRECTORY}\").run_mcp_server(mode=\"stdio\")",
+      ],
+    },
+    "smith-docx": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "uv",
+        "run",
+        "--python",
+        "3.12",
+        "--with",
+        "camel-ai",
+        "--with",
+        "python-docx",
+        "python",
+        "-c",
+        "from camel.toolkits import FileToolkit; FileToolkit(working_directory=\"${WORKING_DIRECTORY}\").run_mcp_server(mode=\"stdio\")",
+      ],
+    },
+    "smith-excel": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "uv",
+        "run",
+        "--python",
+        "3.12",
+        "--with",
+        "camel-ai",
+        "--with",
+        "openpyxl",
+        "python",
+        "-c",
+        "from camel.toolkits import ExcelToolkit; ExcelToolkit(working_directory=\"${WORKING_DIRECTORY}\").run_mcp_server(mode=\"stdio\")",
+      ],
+    },
+  },
+}
