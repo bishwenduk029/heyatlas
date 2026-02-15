@@ -3,6 +3,7 @@
 import { authClient } from "@/lib/auth/client";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
+import { AnimatedHeroTitle } from "@/components/homepage/animated-hero-title";
 import { useState } from "react";
 import { TaskList } from "./task-list";
 import type { AtlasTask, SelectedAgent } from "./hooks/use-atlas-agent";
@@ -83,54 +84,105 @@ export function ChatInterface({
     onSendMessage(text, files);
   };
 
+  const hasMessages = messages.length > 0;
+  const inputContainerClass =
+    selectedTask || isMiniComputerActive ? "w-full" : "mx-auto md:w-1/2";
+
   return (
     <div className="bg-background relative flex h-full w-full flex-col">
-      {viewMode === "chat" ? (
-        <MessageList
-          messages={messages}
-          userImage={user?.image || undefined}
-          onQuickAction={isConnected ? handleSend : undefined}
-          tasks={tasks}
-          onTaskSelect={onTaskSelect}
-          compact={compact}
-          selectedTask={selectedTask}
-          fullWidth={isMiniComputerActive}
-        />
-      ) : (
-        <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
-      )}
+      {hasMessages ? (
+        <>
+          {viewMode === "chat" ? (
+            <MessageList
+              messages={messages}
+              userImage={user?.image || undefined}
+              onQuickAction={isConnected ? handleSend : undefined}
+              tasks={tasks}
+              onTaskSelect={onTaskSelect}
+              compact={compact}
+              selectedTask={selectedTask}
+              fullWidth={isMiniComputerActive}
+            />
+          ) : (
+            <TaskList tasks={tasks} onTaskClick={onTaskSelect} />
+          )}
 
-      <div className="bg-background w-full shrink-0 pt-2">
-        <div className={selectedTask || isMiniComputerActive ? "w-full" : "mx-auto md:w-1/2"}>
-          <ChatInput
-            onSend={handleSend}
-            onStop={onStop}
-            onToggleVoice={onToggleVoice}
-            onToggleMute={onToggleMute}
-            onToggleTasks={() =>
-              setViewMode((v) => (v === "chat" ? "tasks" : "chat"))
-            }
-            isLoading={isLoading}
-            disabled={disabled || !isConnected}
-            showVoiceToggle={showVoiceToggle}
-            isTasksView={viewMode === "tasks"}
-            isVoiceMode={isVoiceMode}
-            isMicEnabled={isMicEnabled}
-            agentState={agentState}
-            mediaStream={mediaStream}
-            activeAgent={activeAgent}
-            compressing={compressing}
-            tokensUsed={tokensUsed}
-            selectedAgent={selectedAgent}
-            onDisconnectAgent={onDisconnectAgent}
-            onConnectCloudAgent={onConnectCloudAgent}
-            isMiniComputerActive={isMiniComputerActive}
-            isMiniComputerConnecting={isMiniComputerConnecting}
-            onToggleMiniComputer={onToggleMiniComputer}
-            isLocalAgentRunning={isLocalAgentRunning}
-          />
+          <div className="bg-background w-full shrink-0 border-t pt-2">
+            <div className={inputContainerClass}>
+              <ChatInput
+                onSend={handleSend}
+                onStop={onStop}
+                onToggleVoice={onToggleVoice}
+                onToggleMute={onToggleMute}
+                onToggleTasks={() =>
+                  setViewMode((v) => (v === "chat" ? "tasks" : "chat"))
+                }
+                isLoading={isLoading}
+                disabled={disabled || !isConnected}
+                showVoiceToggle={showVoiceToggle}
+                isTasksView={viewMode === "tasks"}
+                isVoiceMode={isVoiceMode}
+                isMicEnabled={isMicEnabled}
+                agentState={agentState}
+                mediaStream={mediaStream}
+                activeAgent={activeAgent}
+                compressing={compressing}
+                tokensUsed={tokensUsed}
+                selectedAgent={selectedAgent}
+                onDisconnectAgent={onDisconnectAgent}
+                onConnectCloudAgent={onConnectCloudAgent}
+                isMiniComputerActive={isMiniComputerActive}
+                isMiniComputerConnecting={isMiniComputerConnecting}
+                onToggleMiniComputer={onToggleMiniComputer}
+                isLocalAgentRunning={isLocalAgentRunning}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center">
+          <div className="flex w-full flex-col items-center space-y-8">
+            <div className="flex flex-col items-center justify-center gap-6 text-center">
+              <AnimatedHeroTitle />
+              <p className="text-muted-foreground mx-auto text-xl leading-relaxed">
+                Your personal AI companion who{" "}
+                <span className="text-primary font-semibold">Thinks</span>,{" "}
+                <span className="text-primary font-semibold">Listens</span>, and{" "}
+                <span className="text-primary font-semibold">Acts</span>.
+              </p>
+            </div>
+            <div className={`w-full ${inputContainerClass}`}>
+              <ChatInput
+                onSend={handleSend}
+                onStop={onStop}
+                onToggleVoice={onToggleVoice}
+                onToggleMute={onToggleMute}
+                onToggleTasks={() =>
+                  setViewMode((v) => (v === "chat" ? "tasks" : "chat"))
+                }
+                isLoading={isLoading}
+                disabled={disabled || !isConnected}
+                showVoiceToggle={showVoiceToggle}
+                isTasksView={viewMode === "tasks"}
+                isVoiceMode={isVoiceMode}
+                isMicEnabled={isMicEnabled}
+                agentState={agentState}
+                mediaStream={mediaStream}
+                activeAgent={activeAgent}
+                compressing={compressing}
+                tokensUsed={tokensUsed}
+                selectedAgent={selectedAgent}
+                onDisconnectAgent={onDisconnectAgent}
+                onConnectCloudAgent={onConnectCloudAgent}
+                isMiniComputerActive={isMiniComputerActive}
+                isMiniComputerConnecting={isMiniComputerConnecting}
+                onToggleMiniComputer={onToggleMiniComputer}
+                isLocalAgentRunning={isLocalAgentRunning}
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
