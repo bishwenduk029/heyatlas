@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Terminal, Loader2, CheckCircle2, XCircle, Users, GitBranch, Play, ArrowRight, Monitor } from "lucide-react";
+import {
+  Terminal,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Users,
+  GitBranch,
+  Play,
+  ArrowRight,
+  Monitor,
+} from "lucide-react";
 import {
   Artifact,
   ArtifactHeader,
@@ -72,18 +82,23 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 
 function getToolDisplayName(name: string): string {
   const lower = name.toLowerCase();
-  return TOOL_DISPLAY_NAMES[lower] || name.charAt(0).toUpperCase() + name.slice(1);
+  return (
+    TOOL_DISPLAY_NAMES[lower] || name.charAt(0).toUpperCase() + name.slice(1)
+  );
 }
 
 function isGlobOutput(name: string, output: unknown): string[] | null {
   if (!name.toLowerCase().includes("glob")) return null;
-  const str = typeof output === "string"
-    ? output
-    : typeof output === "object" && output !== null && "output" in output
-      ? String((output as { output: unknown }).output)
-      : null;
+  const str =
+    typeof output === "string"
+      ? output
+      : typeof output === "object" && output !== null && "output" in output
+        ? String((output as { output: unknown }).output)
+        : null;
   if (!str) return null;
-  const paths = str.split(/\s+/).filter((p) => p.startsWith("/") || p.includes("."));
+  const paths = str
+    .split(/\s+/)
+    .filter((p) => p.startsWith("/") || p.includes("."));
   return paths.length > 1 ? paths : null;
 }
 
@@ -106,11 +121,13 @@ function ToolEntry({
   const globPaths = !diffInfo ? isGlobOutput(name, output) : null;
 
   return (
-    <div className="border-l-2 border-primary/30 pl-3 py-1">
+    <div className="border-primary/30 border-l-2 py-1 pl-3">
       {/* Tool name with status */}
       <div className="flex items-center gap-2 text-sm font-medium">
-        {isRunning && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-        {isComplete && !errorText && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+        {isRunning && <Loader2 className="text-primary h-3 w-3 animate-spin" />}
+        {isComplete && !errorText && (
+          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+        )}
         {errorText && <XCircle className="h-3 w-3 text-red-500" />}
         <span>{displayName}</span>
       </div>
@@ -119,7 +136,7 @@ function ToolEntry({
       {isComplete && (
         <div className="mt-2">
           {errorText ? (
-            <div className="text-sm text-red-500 bg-red-500/10 rounded px-2 py-1">
+            <div className="rounded bg-red-500/10 px-2 py-1 text-sm text-red-500">
               {errorText}
             </div>
           ) : diffInfo ? (
@@ -129,21 +146,25 @@ function ToolEntry({
               defaultExpanded
             />
           ) : globPaths ? (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1 font-mono space-y-0.5 max-h-40 overflow-y-auto">
+            <div className="text-muted-foreground bg-muted/50 max-h-40 space-y-0.5 overflow-y-auto rounded px-2 py-1 font-mono text-xs">
               {globPaths.slice(0, 20).map((p, i) => (
                 <div key={i} className="truncate" title={p}>
                   {p.split("/").pop() || p}
                 </div>
               ))}
               {globPaths.length > 20 && (
-                <div className="text-muted-foreground/60">...and {globPaths.length - 20} more</div>
+                <div className="text-muted-foreground/60">
+                  ...and {globPaths.length - 20} more
+                </div>
               )}
             </div>
           ) : output ? (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1 font-mono overflow-x-auto">
+            <div className="text-muted-foreground bg-muted/50 overflow-x-auto rounded px-2 py-1 font-mono text-xs">
               {typeof output === "string"
                 ? output.slice(0, 500)
-                : typeof output === "object" && output !== null && "output" in output
+                : typeof output === "object" &&
+                    output !== null &&
+                    "output" in output
                   ? String((output as { output: unknown }).output).slice(0, 500)
                   : JSON.stringify(output, null, 2).slice(0, 500)}
             </div>
@@ -154,16 +175,22 @@ function ToolEntry({
   );
 }
 
-function ReasoningEntry({ text, isStreaming }: { text: string; isStreaming: boolean }) {
+function ReasoningEntry({
+  text,
+  isStreaming,
+}: {
+  text: string;
+  isStreaming: boolean;
+}) {
   if (!text) return null;
-  
+
   return (
-    <div className="border-l-2 border-yellow-500/30 pl-3 py-1">
+    <div className="border-l-2 border-yellow-500/30 py-1 pl-3">
       <div className="flex items-center gap-2 text-sm font-medium text-yellow-600 dark:text-yellow-400">
         {isStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
         <span>Thinking</span>
       </div>
-      <div className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
+      <div className="text-muted-foreground mt-1 text-xs whitespace-pre-wrap">
         {text}
       </div>
     </div>
@@ -200,7 +227,7 @@ function WorkforceEventEntry({ event }: { event: WorkforceEvent }) {
       case "worker_created":
         return <Users className="h-3 w-3 text-amber-500" />;
       default:
-        return <Terminal className="h-3 w-3 text-muted-foreground" />;
+        return <Terminal className="text-muted-foreground h-3 w-3" />;
     }
   };
 
@@ -246,44 +273,50 @@ function WorkforceEventEntry({ event }: { event: WorkforceEvent }) {
   };
 
   return (
-    <div className={cn("border-l-2 pl-3 py-1", getEventColor())}>
+    <div className={cn("border-l-2 py-1 pl-3", getEventColor())}>
       <div className="flex items-center gap-2 text-sm font-medium">
         {getEventIcon()}
         <span>{getEventLabel()}</span>
       </div>
-      
+
       {event.task_content && (
-        <div className="mt-1 text-xs text-muted-foreground truncate">
+        <div className="text-muted-foreground mt-1 truncate text-xs">
           {event.task_content}
         </div>
       )}
-      
+
       {event.subtasks && event.subtasks.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {event.subtasks.map((st, i) => (
-            <div key={i} className="text-xs text-muted-foreground/70 pl-2 truncate">
+            <div
+              key={i}
+              className="text-muted-foreground/70 truncate pl-2 text-xs"
+            >
               • {st}
             </div>
           ))}
         </div>
       )}
-      
+
       {event.result && (
-        <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 truncate">
+        <div className="mt-1 truncate text-xs text-emerald-600 dark:text-emerald-400">
           {event.result}
         </div>
       )}
-      
+
       {event.error && (
-        <div className="mt-1 text-xs text-red-500 truncate">
-          {event.error}
-        </div>
+        <div className="mt-1 truncate text-xs text-red-500">{event.error}</div>
       )}
     </div>
   );
 }
 
-export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactProps) {
+export function TaskArtifact({
+  task,
+  uiMessage,
+  vncUrl,
+  onClose,
+}: TaskArtifactProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { id: taskId, agentId: agentName, state: taskState } = task;
   const status = getTaskStatus(taskState);
@@ -292,9 +325,14 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (contentRef.current && uiMessage?.parts?.length && activeTab === "task") {
+    if (
+      contentRef.current &&
+      uiMessage?.parts?.length &&
+      activeTab === "task"
+    ) {
       const el = contentRef.current;
-      const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      const wasAtBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 100;
       if (wasAtBottom) {
         el.scrollTop = el.scrollHeight;
       }
@@ -317,7 +355,12 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
         </div>
         <div className="flex shrink-0 items-center gap-4">
           {isRunning && (
-            <div className={cn("flex items-center gap-1.5 text-xs", status.className)}>
+            <div
+              className={cn(
+                "flex items-center gap-1.5 text-xs",
+                status.className,
+              )}
+            >
               <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-500" />
               {status.text}
             </div>
@@ -328,26 +371,26 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
 
       {/* Tabs - only show if VNC is available */}
       {vncUrl && (
-        <div className="flex border-b border-border px-4">
+        <div className="border-border flex border-b px-4">
           <button
             onClick={() => setActiveTab("task")}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium capitalize transition-colors",
               activeTab === "task"
                 ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground border-transparent",
             )}
           >
             <Terminal className="h-4 w-4" />
-            Task
+            {agentName || "Task"}
           </button>
           <button
             onClick={() => setActiveTab("desktop")}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
               activeTab === "desktop"
                 ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground border-transparent",
             )}
           >
             <Monitor className="h-4 w-4" />
@@ -359,7 +402,10 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
       <ArtifactContent className="flex flex-col overflow-hidden p-0">
         {/* Task View */}
         {activeTab === "task" && (
-          <div ref={contentRef} className="min-w-0 flex-1 space-y-3 overflow-auto p-4">
+          <div
+            ref={contentRef}
+            className="min-w-0 flex-1 space-y-3 overflow-auto p-4"
+          >
             {uiMessage?.parts?.map((part, i) => {
               const key = `${uiMessage.id}-${i}`;
 
@@ -386,14 +432,23 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
                     key={key}
                     name={part.toolName || "tool"}
                     state={part.state}
-                    output={part.state === "output-available" ? part.output : undefined}
-                    errorText={part.state === "output-error" ? part.errorText : undefined}
+                    output={
+                      part.state === "output-available"
+                        ? part.output
+                        : undefined
+                    }
+                    errorText={
+                      part.state === "output-error" ? part.errorText : undefined
+                    }
                   />
                 );
               }
 
               // Legacy tool-* parts
-              if (typeof part.type === "string" && part.type.startsWith("tool-")) {
+              if (
+                typeof part.type === "string" &&
+                part.type.startsWith("tool-")
+              ) {
                 const toolPart = part as {
                   type: string;
                   state: string;
@@ -406,8 +461,16 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
                     key={key}
                     name={toolName}
                     state={toolPart.state}
-                    output={toolPart.state === "output-available" ? toolPart.output : undefined}
-                    errorText={toolPart.state === "output-error" ? toolPart.errorText : undefined}
+                    output={
+                      toolPart.state === "output-available"
+                        ? toolPart.output
+                        : undefined
+                    }
+                    errorText={
+                      toolPart.state === "output-error"
+                        ? toolPart.errorText
+                        : undefined
+                    }
                   />
                 );
               }
@@ -416,7 +479,10 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
               const partType = (part as { type: string }).type;
               if (partType === "workforce_event") {
                 // Event data can be nested under 'event' or 'data'
-                const eventPart = part as unknown as { event?: WorkforceEvent; data?: WorkforceEvent };
+                const eventPart = part as unknown as {
+                  event?: WorkforceEvent;
+                  data?: WorkforceEvent;
+                };
                 const event = eventPart.event || eventPart.data;
                 if (event && event.event_type !== "result") {
                   return <WorkforceEventEntry key={key} event={event} />;
@@ -437,10 +503,10 @@ export function TaskArtifact({ task, uiMessage, vncUrl, onClose }: TaskArtifactP
 
         {/* Desktop View - iframe with VNC stream */}
         {activeTab === "desktop" && vncUrl && (
-          <div className="flex-1 min-h-0">
+          <div className="min-h-0 flex-1">
             <iframe
               src={vncUrl}
-              className="w-full h-full border-0"
+              className="h-full w-full border-0"
               allow="clipboard-read; clipboard-write"
               title="Desktop Stream"
             />
