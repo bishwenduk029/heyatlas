@@ -13,6 +13,8 @@ interface ConnectOptions {
   openBrowser?: boolean;
   /** Agent type: local (user's machine) or sandbox (e2b/cloud) */
   agentType?: "local" | "sandbox";
+  /** Path to task JSON file for single-task mode */
+  taskFile?: string;
 }
 
 /** Common interface for all agents */
@@ -79,6 +81,30 @@ export async function connect(agentType: AgentType, options: ConnectOptions = {}
     agentType: options.agentType || "local",
   });
 
+  // Task mode: run a single task from file and exit
+  if (options.taskFile) {
+    const fs = await import("fs");
+    const taskData = JSON.parse(fs.readFileSync(options.taskFile, "utf-8")) as Task;
+    console.log(`Task: ${taskData.description.slice(0, 80)}...`);
+
+    await tunnel.connect(credentials.userId, agent.name);
+    await tunnel.waitForState();
+    console.log("Tunnel established");
+
+    try {
+      await handleTask(taskData, agent, tunnel);
+      console.log("\nTask complete. Disconnecting...");
+    } catch (error) {
+      console.error(`Task failed: ${error}`);
+    } finally {
+      agent.cleanup();
+      await tunnel.disconnect();
+      process.exit(0);
+    }
+    return;
+  }
+
+  // Agent mode: listen for tasks
   tunnel.onNewTask(async (task: Task) => {
     await handleTask(task, agent, tunnel);
   });
@@ -147,7 +173,13 @@ async function handleTask(task: Task, agent: Agent, tunnel: AtlasTunnel) {
       ]);
     }
 
-    await tunnel.updateTask(task.id, { state: "completed", result: "end_turn" });
+    const outputs = readOutputsManifest();
+    await tunnel.updateTask(task.id, {
+      state: "completed",
+      result: "end_turn",
+      ...(outputs.length > 0 ? { outputs } : {}),
+    });
+    if (outputs.length > 0) console.log(`Uploaded ${outputs.length} file(s)`);
     console.log("Task completed");
   } catch (error) {
     console.error(`Task failed: ${error}`);
@@ -294,6 +326,21 @@ function buildPromptWithContext(task: Task): { prompt: string; latestUserMessage
   }
 
   return { prompt, latestUserMessage };
+}
+
+/** Read outputs.json written by the opencode upload plugin */
+function readOutputsManifest(): { url: string; filename: string; type?: string }[] {
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const manifestPath = path.join(process.cwd(), "agents", "outputs.json");
+    if (!fs.existsSync(manifestPath)) return [];
+    const data = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    fs.unlinkSync(manifestPath);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Open URL in browser */

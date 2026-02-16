@@ -71,7 +71,7 @@
         "python-pptx",
         "python",
         "-c",
-        "from camel.toolkits import PPTXToolkit; PPTXToolkit(working_directory=\"${WORKING_DIRECTORY}\").run_mcp_server(mode=\"stdio\")",
+        "from camel.toolkits import PPTXToolkit; PPTXToolkit(working_directory=\"/Users/kundb/projects/heyatlas/cli\").run_mcp_server(mode=\"stdio\")",
       ],
     },
     "smith-docx": {
@@ -88,7 +88,7 @@
         "python-docx",
         "python",
         "-c",
-        "from camel.toolkits import FileToolkit; FileToolkit(working_directory=\"${WORKING_DIRECTORY}\").run_mcp_server(mode=\"stdio\")",
+        "from camel.toolkits import FileToolkit; FileToolkit(working_directory=\"/Users/kundb/projects/heyatlas/cli\").run_mcp_server(mode=\"stdio\")",
       ],
     },
     "smith-excel": {
@@ -105,7 +105,7 @@
         "openpyxl",
         "python",
         "-c",
-        "from camel.toolkits import ExcelToolkit; ExcelToolkit(working_directory=\"${WORKING_DIRECTORY}\").run_mcp_server(mode=\"stdio\")",
+        "from camel.toolkits import ExcelToolkit; ExcelToolkit(working_directory=\"/Users/kundb/projects/heyatlas/cli\").run_mcp_server(mode=\"stdio\")",
       ],
     },
   },

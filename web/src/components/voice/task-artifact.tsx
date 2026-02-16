@@ -10,7 +10,6 @@ import {
   GitBranch,
   Play,
   ArrowRight,
-  Monitor,
 } from "lucide-react";
 import {
   Artifact,
@@ -32,7 +31,6 @@ import type { UIMessage } from "@ai-sdk/react";
 interface TaskArtifactProps {
   task: AtlasTask;
   uiMessage?: UIMessage | null;
-  vncUrl?: string;
   onClose: () => void;
 }
 
@@ -311,25 +309,81 @@ function WorkforceEventEntry({ event }: { event: WorkforceEvent }) {
   );
 }
 
-export function TaskArtifact({
-  task,
-  uiMessage,
-  vncUrl,
-  onClose,
-}: TaskArtifactProps) {
+function TaskOutputs({ outputs }: { outputs: { url: string; filename: string; type?: string }[] }) {
+  if (!outputs.length) return null;
+
+  return (
+    <div className="border-t border-border/50 p-4 space-y-3">
+      <h4 className="text-sm font-medium text-muted-foreground">Output Files</h4>
+      {outputs.map((output, i) => {
+        const ext = output.filename.split(".").pop()?.toLowerCase();
+        const isOffice = ["pptx", "docx", "xlsx"].includes(ext || "");
+        const isPdf = ext === "pdf";
+        const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext || "");
+
+        return (
+          <div key={i} className="rounded-lg border border-border/50 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
+              <span className="text-sm font-medium truncate">{output.filename}</span>
+              <a
+                href={output.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline shrink-0 ml-2"
+              >
+                Open ↗
+              </a>
+            </div>
+            {isOffice && (
+              <iframe
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(output.url)}`}
+                className="w-full h-[400px] border-0"
+                title={output.filename}
+              />
+            )}
+            {isPdf && (
+              <iframe
+                src={output.url}
+                className="w-full h-[400px] border-0"
+                title={output.filename}
+              />
+            )}
+            {isImage && (
+              <img
+                src={output.url}
+                alt={output.filename}
+                className="w-full max-h-[400px] object-contain bg-black/5"
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function TaskArtifact({ task, uiMessage, onClose }: TaskArtifactProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const { id: taskId, agentId: agentName, state: taskState } = task;
+  const hasOutputs = task.outputs && task.outputs.length > 0;
+  const [activeTab, setActiveTab] = useState<"progress" | "output">("progress");
+  const {
+    id: taskId,
+    agentId,
+    assignedAgent,
+    state: taskState,
+  } = task as AtlasTask & { assignedAgent?: string };
+  const agentName = assignedAgent || agentId;
   const status = getTaskStatus(taskState);
   const isRunning = taskState === "in-progress" || taskState === "pending";
-  const [activeTab, setActiveTab] = useState<"task" | "desktop">("task");
+
+  // Auto-switch to output tab when outputs arrive
+  useEffect(() => {
+    if (hasOutputs && !isRunning) setActiveTab("output");
+  }, [hasOutputs, isRunning]);
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (
-      contentRef.current &&
-      uiMessage?.parts?.length &&
-      activeTab === "task"
-    ) {
+    if (contentRef.current && uiMessage?.parts?.length) {
       const el = contentRef.current;
       const wasAtBottom =
         el.scrollHeight - el.scrollTop - el.clientHeight < 100;
@@ -337,7 +391,7 @@ export function TaskArtifact({
         el.scrollTop = el.scrollHeight;
       }
     }
-  }, [uiMessage?.parts, activeTab]);
+  }, [uiMessage?.parts]);
 
   return (
     <Artifact className="h-full w-full max-w-full">
@@ -369,39 +423,37 @@ export function TaskArtifact({
         </div>
       </ArtifactHeader>
 
-      {/* Tabs - only show if VNC is available */}
-      {vncUrl && (
-        <div className="border-border flex border-b px-4">
+      {/* Tabs - only show when there are outputs */}
+      {hasOutputs && (
+        <div className="flex border-b border-border/50 px-4">
           <button
-            onClick={() => setActiveTab("task")}
+            onClick={() => setActiveTab("progress")}
             className={cn(
-              "-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium capitalize transition-colors",
-              activeTab === "task"
-                ? "border-primary text-foreground"
-                : "text-muted-foreground hover:text-foreground border-transparent",
+              "px-3 py-2 text-xs font-medium transition-colors",
+              activeTab === "progress"
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <Terminal className="h-4 w-4" />
-            {agentName || "Task"}
+            Progress
           </button>
           <button
-            onClick={() => setActiveTab("desktop")}
+            onClick={() => setActiveTab("output")}
             className={cn(
-              "-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-              activeTab === "desktop"
-                ? "border-primary text-foreground"
-                : "text-muted-foreground hover:text-foreground border-transparent",
+              "px-3 py-2 text-xs font-medium transition-colors",
+              activeTab === "output"
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <Monitor className="h-4 w-4" />
-            Desktop
+            Output
           </button>
         </div>
       )}
 
       <ArtifactContent className="flex flex-col overflow-hidden p-0">
-        {/* Task View */}
-        {activeTab === "task" && (
+        {/* Progress tab */}
+        {activeTab === "progress" && (
           <div
             ref={contentRef}
             className="min-w-0 flex-1 space-y-3 overflow-auto p-4"
@@ -409,7 +461,6 @@ export function TaskArtifact({
             {uiMessage?.parts?.map((part, i) => {
               const key = `${uiMessage.id}-${i}`;
 
-              // Reasoning/thinking
               if (part.type === "reasoning") {
                 return (
                   <ReasoningEntry
@@ -420,12 +471,10 @@ export function TaskArtifact({
                 );
               }
 
-              // Text response
               if (part.type === "text") {
                 return <MessageResponse key={key}>{part.text}</MessageResponse>;
               }
 
-              // Dynamic tool (from ACP)
               if (part.type === "dynamic-tool") {
                 return (
                   <ToolEntry
@@ -433,9 +482,7 @@ export function TaskArtifact({
                     name={part.toolName || "tool"}
                     state={part.state}
                     output={
-                      part.state === "output-available"
-                        ? part.output
-                        : undefined
+                      part.state === "output-available" ? part.output : undefined
                     }
                     errorText={
                       part.state === "output-error" ? part.errorText : undefined
@@ -444,7 +491,6 @@ export function TaskArtifact({
                 );
               }
 
-              // Legacy tool-* parts
               if (
                 typeof part.type === "string" &&
                 part.type.startsWith("tool-")
@@ -475,10 +521,8 @@ export function TaskArtifact({
                 );
               }
 
-              // Workforce events from agent-smith
               const partType = (part as { type: string }).type;
               if (partType === "workforce_event") {
-                // Event data can be nested under 'event' or 'data'
                 const eventPart = part as unknown as {
                   event?: WorkforceEvent;
                   data?: WorkforceEvent;
@@ -501,16 +545,9 @@ export function TaskArtifact({
           </div>
         )}
 
-        {/* Desktop View - iframe with VNC stream */}
-        {activeTab === "desktop" && vncUrl && (
-          <div className="min-h-0 flex-1">
-            <iframe
-              src={vncUrl}
-              className="h-full w-full border-0"
-              allow="clipboard-read; clipboard-write"
-              title="Desktop Stream"
-            />
-          </div>
+        {/* Output tab - full height iframe */}
+        {activeTab === "output" && hasOutputs && (
+          <TaskOutputs outputs={task.outputs!} />
         )}
       </ArtifactContent>
     </Artifact>

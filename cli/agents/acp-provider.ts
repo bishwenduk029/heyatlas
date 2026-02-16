@@ -81,9 +81,30 @@ You coordinate the following specialized subagents — delegate to them via the 
 
 - Always create a plan before executing
 - Update your plan as tasks progress
-- Use absolute paths for all file operations
+- Use absolute paths for all file operations — save outputs under /home/user/output/
 - If you encounter auth barriers (logins, CAPTCHAs), ask the user to complete the manual step
-- Provide a comprehensive summary when done`,
+- **MANDATORY**: After ALL file-producing tasks, you MUST upload outputs to R2 before summarizing. This is not optional.
+
+## Output Upload (REQUIRED)
+
+You MUST upload every output file to cloud storage. Tasks are not complete without this step.
+
+\\\`\\\`\\\`bash
+# Read task metadata
+META=$(cat /home/user/agents/task-meta.json)
+BUCKET=$(echo $META | jq -r '.bucket')
+USER_ID=$(echo $META | jq -r '.userId')
+TASK_ID=$(echo $META | jq -r '.taskId')
+PUBLIC_URL=$(echo $META | jq -r '.publicUrl')
+
+# Upload ALL output files
+rclone copy /home/user/output/ r2:$BUCKET/$USER_ID/$TASK_ID/
+
+# Report public URLs for each file
+echo "File available at: $PUBLIC_URL/$USER_ID/$TASK_ID/<filename>"
+\\\`\\\`\\\`
+
+Your final summary MUST include the public URL for every uploaded file.`,
 
   "smith-browser.md": `---
 description: Browser automation expert — navigates websites, fills forms, extracts data, and performs interactive web workflows
@@ -206,7 +227,7 @@ You are a Documentation Specialist responsible for creating, modifying, and mana
 
 - If no format is specified, create an HTML file
 - For data-heavy documents, generate charts using Python and embed them
-- Use absolute paths for all file operations
+- Save ALL output files under /home/user/output/ (create directory if needed)
 - When complete, provide the file path and a summary
 
 ## Rules
@@ -214,6 +235,7 @@ You are a Documentation Specialist responsible for creating, modifying, and mana
 - Primary output should be files, not just text in response
 - Use bash tools for data processing, visualization, and file operations
 - For charts: write a Python script using plotly/matplotlib, execute it, save output as image
+- **ALWAYS save files to /home/user/output/** — this is required for upload to work
 - Provide a clear summary of work done and paths to created files`,
 };
 
@@ -330,21 +352,77 @@ const SMITH_OPENCODE_JSONC = `{
   },
 }`;
 
+// Upload plugin for opencode — uses tool.execute.after to track files, uploads on session.idle
+// Uses file-based logging (console.log pollutes ACP stdio protocol)
+const SMITH_UPLOAD_PLUGIN = [
+  'import { execSync } from "child_process";',
+  'import { existsSync, readFileSync, writeFileSync } from "fs";',
+  'import { basename, join } from "path";',
+  '',
+  'const UPLOAD_EXTS = new Set(["docx","xlsx","pptx","pdf","html","csv","png","jpg","jpeg","gif","svg","zip","md","txt"]);',
+  'const FILE_PATH_RE = /(?:\\/[\\w.${},-]+)+\\.(?:docx|xlsx|pptx|pdf|html|csv|png|jpg|jpeg|gif|svg|zip|md|txt)\\b/gi;',
+  '',
+  'export const UploadPlugin = async ({ directory }) => {',
+  '  const agentsDir = join(directory, "agents");',
+  '  const metaPath = join(agentsDir, "task-meta.json");',
+  '  const outputsPath = join(agentsDir, "outputs.json");',
+  '  const trackedFiles = new Set();',
+  '  return {',
+  '    "tool.execute.after": async (input, output) => {',
+  '      const result = typeof output === "string" ? output : JSON.stringify(output);',
+  '      const matches = result.match(FILE_PATH_RE);',
+  '      if (matches) { for (const fp of matches) { if (existsSync(fp)) trackedFiles.add(fp); } }',
+  '    },',
+  '    event: async ({ event }) => {',
+  '      if (event.type === "file.edited" && event.properties?.file) {',
+  '        const ext = event.properties.file.split(".").pop()?.toLowerCase();',
+  '        if (ext && UPLOAD_EXTS.has(ext)) trackedFiles.add(event.properties.file);',
+  '      }',
+  '      if (event.type === "session.idle" && trackedFiles.size > 0) {',
+  '        if (!existsSync(metaPath)) { trackedFiles.clear(); return; }',
+  '        try {',
+  '          const meta = JSON.parse(readFileSync(metaPath, "utf-8"));',
+  '          if (!meta.publicUrl || !meta.bucket) return;',
+  '          const dest = "r2:" + meta.bucket + "/" + meta.userId + "/" + meta.taskId;',
+  '          const base = meta.publicUrl.replace(/\\/$/, "");',
+  '          const urls = [];',
+  '          for (const fp of trackedFiles) {',
+  '            if (!existsSync(fp)) continue;',
+  '            const name = basename(fp);',
+  '            try {',
+  '              execSync("rclone copyto \\"" + fp + "\\" \\"" + dest + "/" + name + "\\"", { stdio: "pipe", timeout: 30000 });',
+  '              urls.push({ url: base + "/" + meta.userId + "/" + meta.taskId + "/" + name, filename: name });',
+  '            } catch {}',
+  '          }',
+  '          if (urls.length > 0) writeFileSync(outputsPath, JSON.stringify(urls));',
+  '          trackedFiles.clear();',
+  '        } catch {}',
+  '      }',
+  '    },',
+  '  };',
+  '};',
+].join('\n');
+
 async function setupSmithWorkspace(cwd: string): Promise<void> {
-  // Create .opencode/agents/ in workspace
+  // Create .opencode/agents/ and .opencode/plugins/ in workspace
   const targetAgentsDir = join(cwd, ".opencode", "agents");
+  const targetPluginsDir = join(cwd, ".opencode", "plugins");
   mkdirSync(targetAgentsDir, { recursive: true });
+  mkdirSync(targetPluginsDir, { recursive: true });
 
   // Write agent markdown files
   for (const [filename, content] of Object.entries(SMITH_AGENTS)) {
     writeFileSync(join(targetAgentsDir, filename), content);
   }
 
+  // Write upload plugin
+  writeFileSync(join(targetPluginsDir, "upload.js"), SMITH_UPLOAD_PLUGIN);
+
   // Write opencode.jsonc to workspace root, replacing ${WORKING_DIRECTORY} with actual cwd
   const config = SMITH_OPENCODE_JSONC.replace(/\$\{WORKING_DIRECTORY\}/g, cwd);
   writeFileSync(join(cwd, "opencode.jsonc"), config);
 
-  console.log("[smith] Workspace configured with agents and opencode.jsonc");
+  console.log("[smith] Workspace configured with agents, plugins, and opencode.jsonc");
 }
 
 export interface ACPProviderAgentOptions {
