@@ -41,6 +41,53 @@ export HEYATLAS_API=https://custom.heyatlas.app
 heyatlas login
 ```
 
+## Optional web research with OpenCode
+
+Give the OpenCode agent you connect to HeyAtlas web search and page fetching with
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp).
+The anonymous endpoint needs no Parallel account or API key; search uses Fast mode.
+It is intended for exploration and light use, with rate limits.
+
+With [OpenCode installed](https://opencode.ai/docs/) and its model provider
+configured, add this to `opencode.json` in the project you want the agent to work
+in. If you already have `opencode.json` or `opencode.jsonc`, merge the
+`parallel-search` entry into its existing `mcp` object, keeping your other settings.
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "parallel-search": {
+      "type": "remote",
+      "url": "https://search.parallel.ai/mcp",
+      "oauth": false,
+      "headers": {
+        "User-Agent": "HeyAtlas-OpenCode"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+From that same project directory, check that `parallel-search` is connected,
+then connect OpenCode to HeyAtlas:
+
+```bash
+opencode mcp list
+npx heyatlas connect opencode
+```
+
+Ask HeyAtlas to delegate a research task to the connected agent, for example:
+"Use the parallel-search MCP tools to find the latest Cloudflare Workers release
+notes, fetch the relevant page, and summarize the changes with source URLs."
+
+This adds tools to the connected OpenCode agent. HeyAtlas sign-in and your model
+provider setup are still required. To disable this server, set its `enabled` field
+to `false` and restart the connection. See the
+[OpenCode MCP guide](https://opencode.ai/docs/mcp-servers/) for more configuration
+options.
+
 ## Environment Variables
 
 - `HEYATLAS_API` - Override the default API endpoint (default: https://www.heyatlas.app)
